@@ -345,6 +345,7 @@ TEST(Generator, invalidReplacementString)
         "The template return create array string does not contain exactly one replacement string 'PLACEHOLDER'.",
         "The template state vector size string does not contain exactly one replacement string 'PLACEHOLDER'.",
         "The template variable information entry string does not contain exactly two replacement strings 'PLACEHOLDER'.",
+        "The template variable information object string does not contain exactly two replacement strings 'PLACEHOLDER'.",
         "The template variable vector size constant string does not contain exactly one replacement string 'PLACEHOLDER'.",
         "The template verstion string does not contain exactly one replacement string 'PLACEHOLDER'.",
         "The template voi information string does not contain exactly two replacement strings 'PLACEHOLDER'.",
@@ -376,14 +377,15 @@ TEST(Generator, invalidReplacementString)
 
     EXPECT_EQ("", generator.code());
 
-    profile->setTemplateOriginCommentString("This string has no template replacament.");
+    profile->setTemplateOriginCommentString("This string has no template replacement.");
+    profile->setTemplateVariableInformationObjectString("This string doesn't have a placeholder or PLACEHOLDER either!");
     profile->setTemplateReplacementString("PLACEHOLDER");
 
 
     generator.clearErrors();
     EXPECT_EQ("", generator.code());
 
-    EXPECT_EQ(8, generator.errorCount());
+    EXPECT_EQ(9, generator.errorCount());
     for (size_t i = 0; i < generator.errorCount(); ++i) {
         EXPECT_EQ(expectedErrors1.at(i), generator.error(i)->description());
         EXPECT_EQ(libcellml::Error::Kind::GENERATOR, generator.error(i)->kind());
