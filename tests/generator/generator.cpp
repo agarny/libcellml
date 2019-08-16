@@ -340,6 +340,23 @@ TEST(Generator, unsuitably_constrained)
 
 TEST(Generator, invalidReplacementString)
 {
+    const std::vector<std::string> expectedErrors1 = {
+        "The template origin comment string does not contain exactly one replacement string 'PLACEHOLDER'.",
+        "The template return create array string does not contain exactly one replacement string 'PLACEHOLDER'.",
+        "The template state vector size string does not contain exactly one replacement string 'PLACEHOLDER'.",
+        "The template variable information entry string does not contain exactly two replacement strings 'PLACEHOLDER'.",
+        "The template variable vector size constant string does not contain exactly one replacement string 'PLACEHOLDER'.",
+        "The template verstion string does not contain exactly one replacement string 'PLACEHOLDER'.",
+        "The template voi information string does not contain exactly two replacement strings 'PLACEHOLDER'.",
+        "Unable to generate code with a profile that is not valid."
+    };
+
+    const std::vector<std::string> expectedErrors2 = {
+        "The template verstion string does not contain exactly one replacement string 'PLACEHOLDER'.",
+        "The template voi information string does not contain exactly two replacement strings 'PLACEHOLDER'.",
+        "Unable to generate code with a profile that is not valid."
+    };
+
     libcellml::Parser parser;
     libcellml::ModelPtr model = parser.parseModel(fileContents("generator/template_replacement/model.cellml"));
 
@@ -357,12 +374,38 @@ TEST(Generator, invalidReplacementString)
 
     generator.setProfile(profile);
 
-    EXPECT_EQ(fileContents("generator/template_replacement/no_replacement_text.py"), generator.code());
+    EXPECT_EQ("", generator.code());
 
     profile->setTemplateOriginCommentString("This string has no template replacament.");
     profile->setTemplateReplacementString("PLACEHOLDER");
 
-    EXPECT_EQ(fileContents("generator/template_replacement/no_matching_replacement.py"), generator.code());
+
+    generator.clearErrors();
+    EXPECT_EQ("", generator.code());
+
+    EXPECT_EQ(8, generator.errorCount());
+    for (size_t i = 0; i < generator.errorCount(); ++i) {
+        EXPECT_EQ(expectedErrors1.at(i), generator.error(i)->description());
+        EXPECT_EQ(libcellml::Error::Kind::GENERATOR, generator.error(i)->kind());
+    }
+
+    profile->setTemplateOriginCommentString("This sting has PLACEHOLDER place holder.");
+    profile->setTemplateReturnCreatedArrayString("test PLACEHOLDER");
+    profile->setTemplateStateVectorSizeConstantString("test state vector PLACEHOLDER");
+    profile->setTemplateVariableInformationEntryString("test variable info. entry PLACEHOLDER again PLACEHOLDER");
+    profile->setTemplateVariableInformationObjectString("test variable info. object PLACEHOLDER another PLACEHOLDER");
+    profile->setTemplateVariableVectorSizeConstantString("test variable vector PLACEHOLDER");
+    profile->setTemplateVersionString("This string has four PLACEHOLDER PLACEHOLDER< PLACEHOLDER, PLACEHOLDER text.");
+    profile->setTemplateVoiInformationString("test voi PLACEHOLDER");
+
+    generator.clearErrors();
+    EXPECT_EQ("", generator.code());
+
+    EXPECT_EQ(3, generator.errorCount());
+    for (size_t i = 0; i < generator.errorCount(); ++i) {
+        EXPECT_EQ(expectedErrors2.at(i), generator.error(i)->description());
+        EXPECT_EQ(libcellml::Error::Kind::GENERATOR, generator.error(i)->kind());
+    }
 }
 
 TEST(Generator, algebraic_eqn_computed_var_on_rhs)

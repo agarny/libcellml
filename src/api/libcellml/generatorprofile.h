@@ -2195,8 +2195,8 @@ public:
     std::string templateVariableVectorSizeConstantString() const;
     void setTemplateVariableVectorSizeConstantString(const std::string &templateVariableVectorSizeConstantString);
 
-    std::string templateVoiConstantString() const;
-    void setTemplateVoiConstantString(const std::string &templateVoiConstantString);
+    std::string templateVoiInformationString() const;
+    void setTemplateVoiInformationString(const std::string &templateVoiInformationString);
 
     std::string templateVersionString() const;
     void setTemplateVersionString(const std::string &templateVersionString);

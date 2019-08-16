@@ -578,6 +578,7 @@ struct Generator::GeneratorImpl
     bool mNeedAcoth = false;
 
     bool hasValidModel() const;
+    bool hasValidProfile() const;
 
     size_t mathmlChildCount(const XmlNodePtr &node) const;
     XmlNodePtr mathmlChildNode(const XmlNodePtr &node, size_t index) const;
@@ -646,12 +647,94 @@ struct Generator::GeneratorImpl
                                      bool onlyStateRateBasedEquations = false);
 
     std::string generateMethodBodyCode(const std::string &methodBody);
+
+    void addGeneratorError(const std::string &description) const;
+    void addInvalidModelGeneratedError(const std::string &errorDescriptionPrefix);
+
 };
 
 bool Generator::GeneratorImpl::hasValidModel() const
 {
     return (mModelType == Generator::ModelType::ALGEBRAIC)
            || (mModelType == Generator::ModelType::ODE);
+}
+
+bool checkTemplateString(const std::string &string, const std::string &replacementText, size_t multiplicity=1)
+{
+    // We want to check that there are the correct number of replacement strings.
+    // First check for the correct number defined by the multiplicity.
+    size_t found = 0;
+    for (size_t i = 0; i < multiplicity && string.length() > 0; ++i) {
+        found = string.find(replacementText, found + (found == 0 ? 0 : 1));
+    }
+    // Second check that there are no more replacement strings in the string.
+    if (found != std::string::npos) {
+        size_t found_another = string.find(replacementText, found + 1);
+        if (found_another != std::string::npos) {
+            return false;
+        }
+    }
+    return found != std::string::npos;
+}
+
+bool Generator::GeneratorImpl::hasValidProfile() const
+{
+    bool isValid = true;
+    std::string replacementString = mProfile->templateReplacementString();
+    if (replacementString.length() > 0) {
+        if (!checkTemplateString(mProfile->templateOriginCommentString(), replacementString)) {
+            addGeneratorError("The template origin comment string does not contain exactly one replacement string '" + replacementString + "'.");
+            isValid = false;
+        }
+        if (!checkTemplateString(mProfile->templateReturnCreatedArrayString(), replacementString)) {
+            addGeneratorError("The template return create array string does not contain exactly one replacement string '" + replacementString + "'.");
+            isValid = false;
+        }
+        if (!checkTemplateString(mProfile->templateStateVectorSizeConstantString(), replacementString)) {
+            addGeneratorError("The template state vector size string does not contain exactly one replacement string '" + replacementString + "'.");
+            isValid = false;
+        }
+        if (!checkTemplateString(mProfile->templateVariableInformationEntryString(), replacementString, 2)) {
+            addGeneratorError("The template variable information entry string does not contain exactly two replacement strings '" + replacementString + "'.");
+            isValid = false;
+        }
+        if (!checkTemplateString(mProfile->templateVariableInformationObjectString(), replacementString, 2)) {
+            addGeneratorError("The template variable information object string does not contain exactly two replacement strings '" + replacementString + "'.");
+            isValid = false;
+        }
+        if (!checkTemplateString(mProfile->templateVariableVectorSizeConstantString(), replacementString)) {
+            addGeneratorError("The template variable vector size constant string does not contain exactly one replacement string '" + replacementString + "'.");
+            isValid = false;
+        }
+        if (!checkTemplateString(mProfile->templateVersionString(), replacementString)) {
+            addGeneratorError("The template verstion string does not contain exactly one replacement string '" + replacementString + "'.");
+            isValid = false;
+        }
+        if (!checkTemplateString(mProfile->templateVoiInformationString(), replacementString, 2)) {
+            addGeneratorError("The template voi information string does not contain exactly two replacement strings '" + replacementString + "'.");
+            isValid = false;
+        }
+    } else {
+        addGeneratorError("The template replacement string is empty.");
+        isValid = false;
+    }
+
+    return isValid;
+}
+
+void Generator::GeneratorImpl::addGeneratorError(const std::string &description) const
+{
+    ErrorPtr err = std::make_shared<Error>();
+
+    err->setDescription(description);
+    err->setKind(Error::Kind::GENERATOR);
+
+    mGenerator->addError(err);
+}
+
+void Generator::GeneratorImpl::addInvalidModelGeneratedError(const std::string &errorDescriptionPrefix)
+{
+    addGeneratorError(errorDescriptionPrefix + " for either a model that has not been processed or that the processed model is not valid.");
 }
 
 size_t Generator::GeneratorImpl::mathmlChildCount(const XmlNodePtr &node) const
@@ -1008,15 +1091,10 @@ void Generator::GeneratorImpl::processNode(const XmlNodePtr &node,
             }
         } else {
             ModelPtr model = component->parentModel();
-            ErrorPtr err = std::make_shared<Error>();
-
-            err->setDescription("Variable '" + variableName
-                                + "' in component '" + component->name()
-                                + "' of model '" + model->name()
-                                + "' is referenced in an equation, but it is not defined anywhere.");
-            err->setKind(Error::Kind::GENERATOR);
-
-            mGenerator->addError(err);
+            addGeneratorError("Variable '" + variableName
+                              + "' in component '" + component->name()
+                              + "' of model '" + model->name()
+                              + "' is referenced in an equation, but it is not defined anywhere.");
         }
     } else if (node->isMathmlElement("cn")) {
         if (mathmlChildCount(node) == 1) {
@@ -1124,18 +1202,14 @@ void Generator::GeneratorImpl::processComponent(const ComponentPtr &component)
             ModelPtr model = component->parentModel();
             ComponentPtr trackedVariableComponent = generatorVariable->mVariable->parentComponent();
             ModelPtr trackedVariableModel = trackedVariableComponent->parentModel();
-            ErrorPtr err = std::make_shared<Error>();
 
-            err->setDescription("Variable '" + variable->name()
-                                + "' in component '" + component->name()
-                                + "' of model '" + model->name()
-                                + "' and variable '" + generatorVariable->mVariable->name()
-                                + "' in component '" + trackedVariableComponent->name()
-                                + "' of model '" + trackedVariableModel->name()
-                                + "' are equivalent and cannot therefore both be initialised.");
-            err->setKind(Error::Kind::GENERATOR);
-
-            mGenerator->addError(err);
+            addGeneratorError("Variable '" + variable->name()
+                              + "' in component '" + component->name()
+                              + "' of model '" + model->name()
+                              + "' and variable '" + generatorVariable->mVariable->name()
+                              + "' in component '" + trackedVariableComponent->name()
+                              + "' of model '" + trackedVariableModel->name()
+                              + "' are equivalent and cannot therefore both be initialised.");
         }
     }
 
@@ -1174,15 +1248,11 @@ void Generator::GeneratorImpl::processEquationAst(const GeneratorEquationAstPtr 
             if (!variable->initialValue().empty()) {
                 ComponentPtr component = variable->parentComponent();
                 ModelPtr model = component->parentModel();
-                ErrorPtr err = std::make_shared<Error>();
 
-                err->setDescription("Variable '" + variable->name()
-                                    + "' in component '" + component->name()
-                                    + "' of model '" + model->name()
-                                    + "' cannot be both a variable of integration and initialised.");
-                err->setKind(Error::Kind::GENERATOR);
-
-                mGenerator->addError(err);
+                addGeneratorError("Variable '" + variable->name()
+                                  + "' in component '" + component->name()
+                                  + "' of model '" + model->name()
+                                  + "' cannot be both a variable of integration and initialised.");
             } else {
                 mVariableOfIntegration = variable;
             }
@@ -1192,18 +1262,14 @@ void Generator::GeneratorImpl::processEquationAst(const GeneratorEquationAstPtr 
             ModelPtr voiModel = voiComponent->parentModel();
             ComponentPtr component = variable->parentComponent();
             ModelPtr model = component->parentModel();
-            ErrorPtr err = std::make_shared<Error>();
 
-            err->setDescription("Variable '" + mVariableOfIntegration->name()
-                                + "' in component '" + voiComponent->name()
-                                + "' of model '" + voiModel->name()
-                                + "' and variable '" + variable->name()
-                                + "' in component '" + component->name()
-                                + "' of model '" + model->name()
-                                + "' cannot both be a variable of integration.");
-            err->setKind(Error::Kind::GENERATOR);
-
-            mGenerator->addError(err);
+            addGeneratorError("Variable '" + mVariableOfIntegration->name()
+                              + "' in component '" + voiComponent->name()
+                              + "' of model '" + voiModel->name()
+                              + "' and variable '" + variable->name()
+                              + "' in component '" + component->name()
+                              + "' of model '" + model->name()
+                              + "' cannot both be a variable of integration.");
         }
     }
 
@@ -1217,15 +1283,11 @@ void Generator::GeneratorImpl::processEquationAst(const GeneratorEquationAstPtr 
             VariablePtr variable = astGreatGrandParent->mRight->mVariable;
             ComponentPtr component = variable->parentComponent();
             ModelPtr model = component->parentModel();
-            ErrorPtr err = std::make_shared<Error>();
 
-            err->setDescription("The differential equation for variable '" + variable->name()
-                                + "' in component '" + component->name()
-                                + "' of model '" + model->name()
-                                + "' must be of the first order.");
-            err->setKind(Error::Kind::GENERATOR);
-
-            mGenerator->addError(err);
+            addGeneratorError("The differential equation for variable '" + variable->name()
+                              + "' in component '" + component->name()
+                              + "' of model '" + model->name()
+                              + "' must be of the first order.");
         }
     }
 
@@ -1393,17 +1455,13 @@ void Generator::GeneratorImpl::processModel(const ModelPtr &model)
             }
 
             if (!errorType.empty()) {
-                ErrorPtr err = std::make_shared<Error>();
                 VariablePtr realVariable = internalVariable->mVariable;
                 ComponentPtr realComponent = realVariable->parentComponent();
                 ModelPtr realModel = realComponent->parentModel();
 
-                err->setDescription("Variable '" + realVariable->name()
-                                    + "' in component '" + realComponent->name()
-                                    + "' of model '" + realModel->name() + "' " + errorType + ".");
-                err->setKind(Error::Kind::GENERATOR);
-
-                mGenerator->addError(err);
+                addGeneratorError("Variable '" + realVariable->name()
+                                  + "' in component '" + realComponent->name()
+                                  + "' of model '" + realModel->name() + "' " + errorType + ".");
             }
         }
     }
@@ -2550,6 +2608,7 @@ Generator::ModelType Generator::modelType() const
 size_t Generator::stateCount() const
 {
     if (!mPimpl->hasValidModel()) {
+        mPimpl->addGeneratorError("Cannot return the number of states");
         return 0;
     }
 
@@ -2559,6 +2618,7 @@ size_t Generator::stateCount() const
 size_t Generator::variableCount() const
 {
     if (!mPimpl->hasValidModel()) {
+        mPimpl->addGeneratorError("Cannot return the number of variables");
         return 0;
     }
 
@@ -2568,6 +2628,7 @@ size_t Generator::variableCount() const
 VariablePtr Generator::variableOfIntegration() const
 {
     if (!mPimpl->hasValidModel()) {
+        mPimpl->addInvalidModelGeneratedError("Cannot return a variable of integration");
         return {};
     }
 
@@ -2577,6 +2638,11 @@ VariablePtr Generator::variableOfIntegration() const
 VariablePtr Generator::state(size_t index) const
 {
     if (!mPimpl->hasValidModel() || (index >= mPimpl->mStates.size())) {
+        if (!mPimpl->hasValidModel()) {
+            mPimpl->addInvalidModelGeneratedError("Cannot return a state");
+        } else if (index >= mPimpl->mStates.size()) {
+            mPimpl->addGeneratorError("The requested state at index " + std::to_string(index) + " is out-of-range for the processed model.");
+        }
         return {};
     }
 
@@ -2586,6 +2652,11 @@ VariablePtr Generator::state(size_t index) const
 GeneratorVariablePtr Generator::variable(size_t index) const
 {
     if (!mPimpl->hasValidModel() || (index >= mPimpl->mVariables.size())) {
+        if (!mPimpl->hasValidModel()) {
+            mPimpl->addInvalidModelGeneratedError("Cannot return a variable");
+        } else if (index >= mPimpl->mVariables.size()) {
+            mPimpl->addGeneratorError("The requested variable at index " + std::to_string(index) + " is out-of-range for the processed model.");
+        }
         return {};
     }
 
@@ -2595,6 +2666,12 @@ GeneratorVariablePtr Generator::variable(size_t index) const
 std::string Generator::code() const
 {
     if (!mPimpl->hasValidModel()) {
+        mPimpl->addGeneratorError("Unable to generate code for a model that is not valid.");
+        return {};
+    }
+
+    if (!mPimpl->hasValidProfile()) {
+        mPimpl->addGeneratorError("Unable to generate code with a profile that is not valid.");
         return {};
     }
 
@@ -2627,7 +2704,7 @@ std::string Generator::code() const
     res += mPimpl->replaceTemplateValue(mPimpl->mProfile->templateVariableVectorSizeConstantString(), mPimpl->mVariables.size());
     if (mPimpl->mVariableOfIntegration != nullptr) {
         std::vector<std::string> details = {mPimpl->mVariableOfIntegration->name(), mPimpl->mVariableOfIntegration->units()};
-        res += mPimpl->replaceMultipleTemplateValues(mPimpl->mProfile->templateVoiConstantString(), details);
+        res += mPimpl->replaceMultipleTemplateValues(mPimpl->mProfile->templateVoiInformationString(), details);
     }
 
     res += "\n";

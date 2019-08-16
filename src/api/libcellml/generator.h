@@ -123,6 +123,7 @@ public:
      * @return The number of states.
      */
     size_t stateCount() const;
+
     /**
      * @brief Get the number of variables in the @c Model.
      *

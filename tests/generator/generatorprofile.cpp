@@ -303,7 +303,7 @@ TEST(GeneratorProfile, defaultTemplateValues)
     EXPECT_EQ("struct VARIABLE_INFO {\n    char name[VALUE];\n    char units[VALUE];\n};\n", generatorProfile->templateVariableInformationObjectString());
     EXPECT_EQ("const size_t VARIABLE_VECTOR_SIZE = VALUE;\n", generatorProfile->templateVariableVectorSizeConstantString());
     EXPECT_EQ("const char version[] = \"VALUE\";\n", generatorProfile->templateVersionString());
-    EXPECT_EQ("const struct VARIABLE_INFO VOI = {\"VALUE\", \"VALUE\"};\n", generatorProfile->templateVoiConstantString());
+    EXPECT_EQ("const struct VARIABLE_INFO VOI = {\"VALUE\", \"VALUE\"};\n", generatorProfile->templateVoiInformationString());
 }
 
 TEST(GeneratorProfile, relationalAndLogicalOperators)
@@ -684,7 +684,7 @@ TEST(GeneratorProfile, templateValues)
     generatorProfile->setTemplateVariableInformationObjectString(value);
     generatorProfile->setTemplateVariableVectorSizeConstantString(value);
     generatorProfile->setTemplateVersionString(value);
-    generatorProfile->setTemplateVoiConstantString(value);
+    generatorProfile->setTemplateVoiInformationString(value);
 
     EXPECT_EQ(value, generatorProfile->templateOriginCommentString());
     EXPECT_EQ(value, generatorProfile->templateReturnCreatedArrayString());
@@ -693,5 +693,5 @@ TEST(GeneratorProfile, templateValues)
     EXPECT_EQ(value, generatorProfile->templateVariableInformationObjectString());
     EXPECT_EQ(value, generatorProfile->templateVariableVectorSizeConstantString());
     EXPECT_EQ(value, generatorProfile->templateVersionString());
-    EXPECT_EQ(value, generatorProfile->templateVoiConstantString());
+    EXPECT_EQ(value, generatorProfile->templateVoiInformationString());
 }
