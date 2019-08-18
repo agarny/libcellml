@@ -391,13 +391,13 @@ TEST(Generator, invalidReplacementString)
         EXPECT_EQ(libcellml::Error::Kind::GENERATOR, generator.error(i)->kind());
     }
 
-    profile->setTemplateOriginCommentString("This sting has PLACEHOLDER place holder.");
+    profile->setTemplateOriginCommentString("This string has PLACEHOLDER place holder.");
     profile->setTemplateReturnCreatedArrayString("test PLACEHOLDER");
     profile->setTemplateStateVectorSizeConstantString("test state vector PLACEHOLDER");
     profile->setTemplateVariableInformationEntryString("test variable info. entry PLACEHOLDER again PLACEHOLDER");
     profile->setTemplateVariableInformationObjectString("test variable info. object PLACEHOLDER another PLACEHOLDER");
     profile->setTemplateVariableVectorSizeConstantString("test variable vector PLACEHOLDER");
-    profile->setTemplateVersionString("This string has four PLACEHOLDER PLACEHOLDER< PLACEHOLDER, PLACEHOLDER text.");
+    profile->setTemplateVersionString("This string has four PLACEHOLDER <PLACEHOLDER> PLACEHOLDER, PLACEHOLDER text.");
     profile->setTemplateVoiInformationString("test voi PLACEHOLDER");
 
     generator.clearErrors();
