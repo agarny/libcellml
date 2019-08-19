@@ -98,7 +98,7 @@ public:
      *
      * Set this @c std::string for the nonequivalence operator.
      *
-     * @param eqString The @c std::string to use for the nonequivalence operator.
+     * @param neqString The @c std::string to use for the nonequivalence operator.
      */
     void setNeqString(const std::string &neqString);
 
@@ -116,7 +116,7 @@ public:
      *
      * Set this @c std::string for the lower than operator.
      *
-     * @param eqString The @c std::string to use for the lower than operator.
+     * @param ltString The @c std::string to use for the lower than operator.
      */
     void setLtString(const std::string &ltString);
 
@@ -134,7 +134,7 @@ public:
      *
      * Set this @c std::string for the lower or equal than operator.
      *
-     * @param eqString The @c std::string to use for the lower or equal than
+     * @param leqString The @c std::string to use for the lower or equal than
      * operator.
      */
     void setLeqString(const std::string &leqString);
@@ -153,7 +153,7 @@ public:
      *
      * Set this @c std::string for the greater than operator.
      *
-     * @param eqString The @c std::string to use for the greater than operator.
+     * @param gtString The @c std::string to use for the greater than operator.
      */
     void setGtString(const std::string &gtString);
 
@@ -171,7 +171,7 @@ public:
      *
      * Set this @c std::string for the greater or equal than operator.
      *
-     * @param eqString The @c std::string to use for the greater or equal than
+     * @param geqString The @c std::string to use for the greater or equal than
      * operator.
      */
     void setGeqString(const std::string &geqString);
@@ -190,7 +190,7 @@ public:
      *
      * Set this @c std::string for the and operator.
      *
-     * @param eqString The @c std::string to use for the and operator.
+     * @param andString The @c std::string to use for the and operator.
      */
     void setAndString(const std::string &andString);
 
@@ -208,7 +208,7 @@ public:
      *
      * Set this @c std::string for the or operator.
      *
-     * @param eqString The @c std::string to use for the or operator.
+     * @param orString The @c std::string to use for the or operator.
      */
     void setOrString(const std::string &orString);
 
@@ -226,7 +226,7 @@ public:
      *
      * Set this @c std::string for the xor operator.
      *
-     * @param eqString The @c std::string to use for the xor operator.
+     * @param xorString The @c std::string to use for the xor operator.
      */
     void setXorString(const std::string &xorString);
 
@@ -244,7 +244,7 @@ public:
      *
      * Set this @c std::string for the not operator.
      *
-     * @param eqString The @c std::string to use for the not operator.
+     * @param notString The @c std::string to use for the not operator.
      */
     void setNotString(const std::string &notString);
 
@@ -471,7 +471,7 @@ public:
      *
      * Set this @c std::string for an addition.
      *
-     * @param eqString The @c std::string to use for an addition.
+     * @param plusString The @c std::string to use for an addition.
      */
     void setPlusString(const std::string &plusString);
 
@@ -489,7 +489,7 @@ public:
      *
      * Set this @c std::string for a subtraction.
      *
-     * @param eqString The @c std::string to use for a subtraction.
+     * @param minusString The @c std::string to use for a subtraction.
      */
     void setMinusString(const std::string &minusString);
 
@@ -507,7 +507,7 @@ public:
      *
      * Set this @c std::string for a multiplication.
      *
-     * @param eqString The @c std::string to use for a multiplication.
+     * @param timesString The @c std::string to use for a multiplication.
      */
     void setTimesString(const std::string &timesString);
 
@@ -525,7 +525,7 @@ public:
      *
      * Set this @c std::string for a division.
      *
-     * @param eqString The @c std::string to use for a division.
+     * @param divideString The @c std::string to use for a division.
      */
     void setDivideString(const std::string &divideString);
 
@@ -543,7 +543,7 @@ public:
      *
      * Set this @c std::string for a power.
      *
-     * @param eqString The @c std::string to use for a power.
+     * @param powerString The @c std::string to use for a power.
      */
     void setPowerString(const std::string &powerString);
 
@@ -561,7 +561,7 @@ public:
      *
      * Set this @c std::string for a square root.
      *
-     * @param eqString The @c std::string to use for a square root.
+     * @param squareRootString The @c std::string to use for a square root.
      */
     void setSquareRootString(const std::string &squareRootString);
 
@@ -579,7 +579,7 @@ public:
      *
      * Set this @c std::string for a square.
      *
-     * @param eqString The @c std::string to use for a square.
+     * @param squareString The @c std::string to use for a square.
      */
     void setSquareString(const std::string &squareString);
 
@@ -597,7 +597,7 @@ public:
      *
      * Set this @c std::string for an absolute value.
      *
-     * @param eqString The @c std::string to use for an absolute value.
+     * @param absoluteValueString The @c std::string to use for an absolute value.
      */
     void setAbsoluteValueString(const std::string &absoluteValueString);
 
@@ -615,7 +615,7 @@ public:
      *
      * Set this @c std::string for an exponential.
      *
-     * @param eqString The @c std::string to use for an exponential.
+     * @param exponentialString The @c std::string to use for an exponential.
      */
     void setExponentialString(const std::string &exponentialString);
 
@@ -633,7 +633,7 @@ public:
      *
      * Set this @c std::string for a Napierian logarithm.
      *
-     * @param eqString The @c std::string to use for a Napierian logarithm.
+     * @param napierianLogarithmString The @c std::string to use for a Napierian logarithm.
      */
     void setNapierianLogarithmString(const std::string &napierianLogarithmString);
 
@@ -651,7 +651,7 @@ public:
      *
      * Set this @c std::string for a common logarithm.
      *
-     * @param eqString The @c std::string to use for a common logarithm.
+     * @param commonLogarithmString The @c std::string to use for a common logarithm.
      */
     void setCommonLogarithmString(const std::string &commonLogarithmString);
 
@@ -669,7 +669,7 @@ public:
      *
      * Set this @c std::string for a ceiling.
      *
-     * @param eqString The @c std::string to use for a ceiling.
+     * @param ceilingString The @c std::string to use for a ceiling.
      */
     void setCeilingString(const std::string &ceilingString);
 
@@ -687,7 +687,7 @@ public:
      *
      * Set this @c std::string for a floor.
      *
-     * @param eqString The @c std::string to use for a floor.
+     * @param floorString The @c std::string to use for a floor.
      */
     void setFloorString(const std::string &floorString);
 
@@ -705,7 +705,7 @@ public:
      *
      * Set this @c std::string for a minimum.
      *
-     * @param eqString The @c std::string to use for a minimum.
+     * @param minString The @c std::string to use for a minimum.
      */
     void setMinString(const std::string &minString);
 
@@ -723,7 +723,7 @@ public:
      *
      * Set this @c std::string for a maximum.
      *
-     * @param eqString The @c std::string to use for a maximum.
+     * @param maxString The @c std::string to use for a maximum.
      */
     void setMaxString(const std::string &maxString);
 
@@ -741,7 +741,7 @@ public:
      *
      * Set this @c std::string for a remainder.
      *
-     * @param eqString The @c std::string to use for a remainder.
+     * @param remString The @c std::string to use for a remainder.
      */
     void setRemString(const std::string &remString);
 
@@ -781,7 +781,7 @@ public:
      *
      * Set this @c std::string for sine.
      *
-     * @param eqString The @c std::string to use for sine.
+     * @param sinString The @c std::string to use for sine.
      */
     void setSinString(const std::string &sinString);
 
@@ -799,7 +799,7 @@ public:
      *
      * Set this @c std::string for cosine.
      *
-     * @param eqString The @c std::string to use for cosine.
+     * @param cosString The @c std::string to use for cosine.
      */
     void setCosString(const std::string &cosString);
 
@@ -817,7 +817,7 @@ public:
      *
      * Set this @c std::string for tangent.
      *
-     * @param eqString The @c std::string to use for tangent.
+     * @param tanString The @c std::string to use for tangent.
      */
     void setTanString(const std::string &tanString);
 
@@ -835,7 +835,7 @@ public:
      *
      * Set this @c std::string for secant.
      *
-     * @param eqString The @c std::string to use for secant.
+     * @param secString The @c std::string to use for secant.
      */
     void setSecString(const std::string &secString);
 
@@ -853,7 +853,7 @@ public:
      *
      * Set this @c std::string for cosecant.
      *
-     * @param eqString The @c std::string to use for cosecant.
+     * @param cscString The @c std::string to use for cosecant.
      */
     void setCscString(const std::string &cscString);
 
@@ -871,7 +871,7 @@ public:
      *
      * Set this @c std::string for cotangent.
      *
-     * @param eqString The @c std::string to use for cotangent.
+     * @param cotString The @c std::string to use for cotangent.
      */
     void setCotString(const std::string &cotString);
 
@@ -889,7 +889,7 @@ public:
      *
      * Set this @c std::string for hyperbolic sine.
      *
-     * @param eqString The @c std::string to use for hyperbolic sine.
+     * @param sinhString The @c std::string to use for hyperbolic sine.
      */
     void setSinhString(const std::string &sinhString);
 
@@ -907,7 +907,7 @@ public:
      *
      * Set this @c std::string for hyperbolic cosine.
      *
-     * @param eqString The @c std::string to use for hyperbolic cosine.
+     * @param coshString The @c std::string to use for hyperbolic cosine.
      */
     void setCoshString(const std::string &coshString);
 
@@ -925,7 +925,7 @@ public:
      *
      * Set this @c std::string for hyperbolic tangent.
      *
-     * @param eqString The @c std::string to use for hyperbolic tangent.
+     * @param tanhString The @c std::string to use for hyperbolic tangent.
      */
     void setTanhString(const std::string &tanhString);
 
@@ -943,7 +943,7 @@ public:
      *
      * Set this @c std::string for hyperbolic secant.
      *
-     * @param eqString The @c std::string to use for hyperbolic secant.
+     * @param sechString The @c std::string to use for hyperbolic secant.
      */
     void setSechString(const std::string &sechString);
 
@@ -961,7 +961,7 @@ public:
      *
      * Set this @c std::string for hyperbolic cosecant.
      *
-     * @param eqString The @c std::string to use for hyperbolic cosecant.
+     * @param cschString The @c std::string to use for hyperbolic cosecant.
      */
     void setCschString(const std::string &cschString);
 
@@ -979,7 +979,7 @@ public:
      *
      * Set this @c std::string for hyperbolic cotangent.
      *
-     * @param eqString The @c std::string to use for hyperbolic cotangent.
+     * @param cothString The @c std::string to use for hyperbolic cotangent.
      */
     void setCothString(const std::string &cothString);
 
@@ -997,7 +997,7 @@ public:
      *
      * Set this @c std::string for inverse sine.
      *
-     * @param eqString The @c std::string to use for inverse sine.
+     * @param asinString The @c std::string to use for inverse sine.
      */
     void setAsinString(const std::string &asinString);
 
@@ -1015,7 +1015,7 @@ public:
      *
      * Set this @c std::string for inverse cosine.
      *
-     * @param eqString The @c std::string to use for inverse cosine.
+     * @param acosString The @c std::string to use for inverse cosine.
      */
     void setAcosString(const std::string &acosString);
 
@@ -1033,7 +1033,7 @@ public:
      *
      * Set this @c std::string for inverse tangent.
      *
-     * @param eqString The @c std::string to use for inverse tangent.
+     * @param atanString The @c std::string to use for inverse tangent.
      */
     void setAtanString(const std::string &atanString);
 
@@ -1051,7 +1051,7 @@ public:
      *
      * Set this @c std::string for inverse secant.
      *
-     * @param eqString The @c std::string to use for inverse secant.
+     * @param asecString The @c std::string to use for inverse secant.
      */
     void setAsecString(const std::string &asecString);
 
@@ -1069,7 +1069,7 @@ public:
      *
      * Set this @c std::string for inverse cosecant.
      *
-     * @param eqString The @c std::string to use for inverse cosecant.
+     * @param acscString The @c std::string to use for inverse cosecant.
      */
     void setAcscString(const std::string &acscString);
 
@@ -1087,7 +1087,7 @@ public:
      *
      * Set this @c std::string for inverse cotangent.
      *
-     * @param eqString The @c std::string to use for inverse cotangent.
+     * @param acotString The @c std::string to use for inverse cotangent.
      */
     void setAcotString(const std::string &acotString);
 
@@ -1105,7 +1105,7 @@ public:
      *
      * Set this @c std::string for inverse hyperbolic sine.
      *
-     * @param eqString The @c std::string to use for inverse hyperbolic sine.
+     * @param asinhString The @c std::string to use for inverse hyperbolic sine.
      */
     void setAsinhString(const std::string &asinhString);
 
@@ -1123,7 +1123,7 @@ public:
      *
      * Set this @c std::string for inverse hyperbolic cosine.
      *
-     * @param eqString The @c std::string to use for inverse hyperbolic cosine.
+     * @param acoshString The @c std::string to use for inverse hyperbolic cosine.
      */
     void setAcoshString(const std::string &acoshString);
 
@@ -1141,7 +1141,7 @@ public:
      *
      * Set this @c std::string for inverse hyperbolic tangent.
      *
-     * @param eqString The @c std::string to use for inverse hyperbolic tangent.
+     * @param atanhString The @c std::string to use for inverse hyperbolic tangent.
      */
     void setAtanhString(const std::string &atanhString);
 
@@ -1159,7 +1159,7 @@ public:
      *
      * Set this @c std::string for inverse hyperbolic secant.
      *
-     * @param eqString The @c std::string to use for inverse hyperbolic secant.
+     * @param asechString The @c std::string to use for inverse hyperbolic secant.
      */
     void setAsechString(const std::string &asechString);
 
@@ -1177,7 +1177,7 @@ public:
      *
      * Set this @c std::string for inverse hyperbolic cosecant.
      *
-     * @param eqString The @c std::string to use for inverse hyperbolic
+     * @param acschString The @c std::string to use for inverse hyperbolic
      * cosecant.
      */
     void setAcschString(const std::string &acschString);
@@ -1196,7 +1196,7 @@ public:
      *
      * Set this @c std::string for inverse hyperbolic cotangent.
      *
-     * @param eqString The @c std::string to use for inverse hyperbolic
+     * @param acothString The @c std::string to use for inverse hyperbolic
      * cotangent.
      */
     void setAcothString(const std::string &acothString);
@@ -1220,7 +1220,7 @@ public:
      *
      * Set this @c std::string for the if part of a condition statement.
      *
-     * @param eqString The @c std::string to use for the if part of a condition
+     * @param conditionalOperatorIfString The @c std::string to use for the if part of a condition
      * statement.
      */
     void setConditionalOperatorIfString(const std::string &conditionalOperatorIfString);
@@ -1239,7 +1239,7 @@ public:
      *
      * Set this @c std::string for the else part of a condition statement.
      *
-     * @param eqString The @c std::string to use for the else part of a
+     * @param conditionalOperatorElseString The @c std::string to use for the else part of a
      * condition statement.
      */
     void setConditionalOperatorElseString(const std::string &conditionalOperatorElseString);
@@ -1258,7 +1258,7 @@ public:
      *
      * Set this @c std::string for the if part of a piecewise statement.
      *
-     * @param eqString The @c std::string to use for the if part of a piecewise
+     * @param piecewiseIfString The @c std::string to use for the if part of a piecewise
      * statement.
      */
     void setPiecewiseIfString(const std::string &piecewiseIfString);
@@ -1277,7 +1277,7 @@ public:
      *
      * Set this @c std::string for the else part of a piecewise statement.
      *
-     * @param eqString The @c std::string to use for the else part of a
+     * @param piecewiseElseString The @c std::string to use for the else part of a
      * piecewise statement.
      */
     void setPiecewiseElseString(const std::string &piecewiseElseString);
@@ -1318,7 +1318,7 @@ public:
      *
      * Set this @c std::string for true.
      *
-     * @param eqString The @c std::string to use for true.
+     * @param trueString The @c std::string to use for true.
      */
     void setTrueString(const std::string &trueString);
 
@@ -1336,7 +1336,7 @@ public:
      *
      * Set this @c std::string for false.
      *
-     * @param eqString The @c std::string to use for false.
+     * @param falseString The @c std::string to use for false.
      */
     void setFalseString(const std::string &falseString);
 
@@ -1354,7 +1354,7 @@ public:
      *
      * Set this @c std::string for exponential constant.
      *
-     * @param eqString The @c std::string to use for exponential constant.
+     * @param eString The @c std::string to use for exponential constant.
      */
     void setEString(const std::string &eString);
 
@@ -1372,7 +1372,7 @@ public:
      *
      * Set this @c std::string for π.
      *
-     * @param eqString The @c std::string to use for π.
+     * @param piString The @c std::string to use for π.
      */
     void setPiString(const std::string &piString);
 
@@ -1390,7 +1390,7 @@ public:
      *
      * Set this @c std::string for infinity.
      *
-     * @param eqString The @c std::string to use for infinity.
+     * @param infString The @c std::string to use for infinity.
      */
     void setInfString(const std::string &infString);
 
@@ -1408,7 +1408,7 @@ public:
      *
      * Set this @c std::string for NaN.
      *
-     * @param eqString The @c std::string to use for NaN.
+     * @param nanString The @c std::string to use for NaN.
      */
     void setNanString(const std::string &nanString);
 
@@ -2340,7 +2340,7 @@ public:
      * Set this @c std::string for the end of the declaration for the state
      * vector information array.
      *
-     * @param endComputeVariablesMethodString The @c std::string to use for the end of the
+     * @param beginStateVectorInformationArrayString The @c std::string to use for the end of the
      * declaration for the state vector information array.
      */
     void setBeginStateVectorInformationArrayString(const std::string &beginStateVectorInformationArrayString);
@@ -2364,7 +2364,7 @@ public:
      * Set this @c std::string for the end of the declaration for the state
      * vector information array.
      *
-     * @param endComputeVariablesMethodString The @c std::string to use for the end of the
+     * @param endStateVectorInformationArrayString The @c std::string to use for the end of the
      * declaration for the state vector information array.
      */
     void setEndStateVectorInformationArrayString(const std::string &endStateVectorInformationArrayString);
@@ -2388,7 +2388,7 @@ public:
      * Set this @c std::string for the beginning of the declaration for the variable
      * vector information array.
      *
-     * @param endComputeVariablesMethodString The @c std::string to use for the beginning
+     * @param beginVariableVectorInformationArrayString The @c std::string to use for the beginning
      * of the declaration for the variable vector information array.
      */
     void setBeginVariableVectorInformationArrayString(const std::string &beginVariableVectorInformationArrayString);
@@ -2414,7 +2414,7 @@ public:
      * Set this @c std::string for the end of the declaration for the variable
      * vector information array.
      *
-     * @param endComputeVariablesMethodString The @c std::string to use for the end of
+     * @param endVariableVectorInformationArrayString The @c std::string to use for the end of
      * the declaration for the state vector information array.
      */
     void setEndVariableVectorInformationArrayString(const std::string &endVariableVectorInformationArrayString);
@@ -2544,7 +2544,7 @@ public:
      * Set this @c std::string for the template string that defines the VOI information.  The
      * first template string is replaced with the name of the variable, the second template string
      * is replaced with the units of the variable.  The string must contain exactly
-     * two templated values, if not empty.  Appears after @fn setTemplateVariableInformationObjectString
+     * two templated values, if not empty.  Appears after setTemplateVariableInformationObjectString()
      * so can use objects defined from the template defined in that string.
      *
      * @param templateVoiInformationString The @c std::string to use for the template
@@ -2654,7 +2654,7 @@ public:
      * string is replaced with the units of the variable.  The string must contain exactly
      * two templated values, if not empty.
      *
-     * @param templateVariableInformationObjectString The @c std::string to use for the template
+     * @param templateVariableInformationEntryString The @c std::string to use for the template
      * string that defines the variable information entry.
      *
      * @sa setTemplateReplacementString, setBeginVariableVectorInformationArrayString,
