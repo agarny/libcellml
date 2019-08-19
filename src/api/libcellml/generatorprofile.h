@@ -1862,8 +1862,23 @@ public:
 
     // Miscellaneous
 
-    void setFreeVectorFunctionString(const std::string &freeVectorFunctionString);
+    /**
+     * @brief Get the @c std::string for freeing a vector from memory.
+     *
+     * Return the @c std::string for freeing a vector from memory.
+     *
+     * @return The @c std::string for freeing a vector from memory.
+     */
     std::string freeVectorFunctionString() const;
+
+    /**
+     * @brief Set the @c std::string for freeing a vector from memory.
+     *
+     * Set this @c std::string for freeing a vector from memory.
+     *
+     * @param freeVectorFunctionString The @c std::string to use for freeing a vector from memory.
+     */
+    void setFreeVectorFunctionString(const std::string &freeVectorFunctionString);
 
     /**
      * @brief Get the @c std::string for some header.
@@ -1961,19 +1976,142 @@ public:
      */
     void setVariablesArrayString(const std::string &variablesArrayString);
 
+    /**
+     * @brief Get the @c std::string for the beginning of the method that
+     * creates the state vector.
+     *
+     * Return the @c std::string for the beginning of the method that
+     * creates the state vector.
+     *
+     * @return The @c std::string for the beginning of the method that
+     * creates the state vector.
+     */
     std::string beginCreateStateVectorMethodString() const;
+
+    /**
+     * @brief Set the @c std::string for the beginning of the method that
+     * creates the state vector.
+     *
+     * Set this @c std::string for the beginning of the method that creates the state vector.
+     *
+     * @param beginCreateStateVectorMethodString The @c std::string to use for the beginning of the method
+     * that creates the state vector.
+     */
     void setBeginCreateStateVectorMethodString(const std::string &beginCreateStateVectorMethodString);
+
+    /**
+     * @brief Get the @c std::string for the end of the method that
+     * creates the state vector.
+     *
+     * Return the @c std::string for the end of the method that
+     * creates the state vector.
+     *
+     * @return The @c std::string for the end of the method that
+     * creates the state vector.
+     */
     std::string endCreateStateVectorMethodString() const;
+
+    /**
+     * @brief Set the @c std::string for the end of the method that
+     * creates the state vector.
+     *
+     * Set this @c std::string for the end of the method that creates the state vector.
+     *
+     * @param endCreateStateVectorMethodString The @c std::string to use for the end of the method
+     * that creates the state vector.
+     */
     void setEndCreateStateVectorMethodString(const std::string &endCreateStateVectorMethodString);
 
+    /**
+     * @brief Get the @c std::string for the beginning of the method that
+     * creates the rate vector.
+     *
+     * Return the @c std::string for the beginning of the method that
+     * creates the rate vector.
+     *
+     * @return The @c std::string for the beginning of the method that
+     * creates the rate vector.
+     */
     std::string beginCreateRateVectorMethodString() const;
+
+    /**
+     * @brief Set the @c std::string for the beginning of the method that
+     * creates the rate vector.
+     *
+     * Set this @c std::string for the beginning of the method that creates the rate vector.
+     *
+     * @param beginCreateRateVectorMethodString The @c std::string to use for the beginning of the method
+     * that creates the rate vector.
+     */
     void setBeginCreateRateVectorMethodString(const std::string &beginCreateRateVectorMethodString);
+
+    /**
+     * @brief Get the @c std::string for the end of the method that
+     * creates the rate vector.
+     *
+     * Return the @c std::string for the end of the method that
+     * creates the rate vector.
+     *
+     * @return The @c std::string for the end of the method that
+     * creates the rate vector.
+     */
     std::string endCreateRateVectorMethodString() const;
+
+    /**
+     * @brief Set the @c std::string for the end of the method that
+     * creates the rate vector.
+     *
+     * Set this @c std::string for the end of the method that creates the rate vector.
+     *
+     * @param endCreateRateVectorMethodString The @c std::string to use for the end of the method
+     * that creates the rate vector.
+     */
     void setEndCreateRateVectorMethodString(const std::string &endCreateRateVectorMethodString);
 
+    /**
+     * @brief Get the @c std::string for the beginning of the method that
+     * creates the variable vector.
+     *
+     * Return the @c std::string for the beginning of the method that
+     * creates the variable vector.
+     *
+     * @return The @c std::string for the beginning of the method that
+     * creates the variable vector.
+     */
     std::string beginCreateVariableVectorMethodString() const;
+
+    /**
+     * @brief Set the @c std::string for the beginning of the method that
+     * creates the variable vector.
+     *
+     * Set this @c std::string for the beginning of the method that creates the variable vector.
+     *
+     * @param beginCreateVariableVectorMethodString The @c std::string to use for the beginning of the method
+     * that creates the variable vector.
+     */
     void setBeginCreateVariableVectorMethodString(const std::string &beginCreateVariableVectorMethodString);
+
+    /**
+     * @brief Get the @c std::string for the end of the method that
+     * creates the variable vector.
+     *
+     * Return the @c std::string for the end of the method that
+     * creates the variable vector.
+     *
+     * @return The @c std::string for the end of the method that
+     * creates the variable vector.
+     */
     std::string endCreateVariableVectorMethodString() const;
+
+    /**
+     * @brief Set the @c std::string for the end of the method that
+     * creates the variable vector.
+     *
+     * Set this @c std::string for the end of the method that creates the variable vector.
+     *
+     * @param endCreateVariableVectorMethodString The @c std::string to use for the beginning of the method
+     * that creates the variable vector.
+     */
     void setEndCreateVariableVectorMethodString(const std::string &endCreateVariableVectorMethodString);
 
     /**
@@ -2183,46 +2321,349 @@ public:
      */
     void setEmptyMethodString(const std::string &emptyMethodString);
 
-    std::string templateReplacementString() const;
-    void setTemplateReplacementString(const std::string &templateReplacementString);
-
-    std::string templateReturnCreatedArrayString() const;
-    void setTemplateReturnCreatedArrayString(const std::string &templateReturnCreatedArrayString);
-
-    std::string templateStateVectorSizeConstantString() const;
-    void setTemplateStateVectorSizeConstantString(const std::string &templateStateVectorSizeConstantString);
-
-    std::string templateVariableVectorSizeConstantString() const;
-    void setTemplateVariableVectorSizeConstantString(const std::string &templateVariableVectorSizeConstantString);
-
-    std::string templateVoiInformationString() const;
-    void setTemplateVoiInformationString(const std::string &templateVoiInformationString);
-
-    std::string templateVersionString() const;
-    void setTemplateVersionString(const std::string &templateVersionString);
-
-    std::string templateOriginCommentString() const;
-    void setTemplateOriginCommentString(const std::string &templateOriginCommentString);
-
-    std::string templateVariableInformationObjectString() const;
-    void setTemplateVariableInformationObjectString(const std::string &templateVariableInformationObjectString);
-
-    std::string templateVariableInformationEntryString() const;
-    void setTemplateVariableInformationEntryString(const std::string &templateVariableInformationEntryString);
-
+    /**
+     * @brief Get the @c std::string for the beginning of the declaration for the state
+     * vector information array.
+     *
+     * Return the @c std::string for the beginning of the declaration for the state
+     * vector information array.
+     *
+     * @return The @c std::string for the beginning of the declaration for the state
+     * vector information array.
+     */
     std::string beginStateVectorInformationArrayString() const;
+
+    /**
+     * @brief Set the @c std::string for the end of the declaration for the state
+     * vector information array.
+     *
+     * Set this @c std::string for the end of the declaration for the state
+     * vector information array.
+     *
+     * @param endComputeVariablesMethodString The @c std::string to use for the end of the
+     * declaration for the state vector information array.
+     */
     void setBeginStateVectorInformationArrayString(const std::string &beginStateVectorInformationArrayString);
 
+    /**
+     * @brief Get the @c std::string for the end of the declaration for the state
+     * vector information array.
+     *
+     * Return the @c std::string for the end of the declaration for the state
+     * vector information array.
+     *
+     * @return The @c std::string for the end of the declaration for the state
+     * vector information array.
+     */
     std::string endStateVectorInformationArrayString() const;
+
+    /**
+     * @brief Set the @c std::string for the end of the declaration for the state
+     * vector information array.
+     *
+     * Set this @c std::string for the end of the declaration for the state
+     * vector information array.
+     *
+     * @param endComputeVariablesMethodString The @c std::string to use for the end of the
+     * declaration for the state vector information array.
+     */
     void setEndStateVectorInformationArrayString(const std::string &endStateVectorInformationArrayString);
 
+    /**
+     * @brief Get the @c std::string for the beginning of the declaration for the variable
+     * vector information array.
+     *
+     * Return the @c std::string for the beginning of the declaration for the variable
+     * vector information array.
+     *
+     * @return The @c std::string for the beginning of the declaration for the variable
+     * vector information array.
+     */
     std::string beginVariableVectorInformationArrayString() const;
+
+    /**
+     * @brief Set the @c std::string for the beginning of the declaration for the variable
+     * vector information array.
+     *
+     * Set this @c std::string for the beginning of the declaration for the variable
+     * vector information array.
+     *
+     * @param endComputeVariablesMethodString The @c std::string to use for the beginning
+     * of the declaration for the variable vector information array.
+     */
     void setBeginVariableVectorInformationArrayString(const std::string &beginVariableVectorInformationArrayString);
 
+    /**
+     * @brief Get the @c std::string for the end of the declaration for the variable
+     * vector information array.
+     *
+     * Return the @c std::string for the end of the declaration for the variable
+     * vector information array.
+     *
+     * @return The @c std::string for the end of the declaration for the variable
+     * vector information array.
+     *
+     * @sa templateReplacementString
+     */
     std::string endVariableVectorInformationArrayString() const;
+
+    /**
+     * @brief Set the @c std::string for the end of the declaration for the variable
+     * vector information array.
+     *
+     * Set this @c std::string for the end of the declaration for the variable
+     * vector information array.
+     *
+     * @param endComputeVariablesMethodString The @c std::string to use for the end of
+     * the declaration for the state vector information array.
+     */
     void setEndVariableVectorInformationArrayString(const std::string &endVariableVectorInformationArrayString);
 
     /**
+     * @brief Get the @c std::string used in the template replacement methods.
+     *
+     * Return the @c std::string used in the template replacement methods.
+     *
+     * @return The @c std::string used in the template replacement methods.
+     *
+     * @sa endVariableVectorInformationArrayString, beginVariableVectorInformationArrayString,
+     * endStateVectorInformationArrayString, beginStateVectorInformationArrayString,
+     * templateVariableInformationEntryString, templateVariableInformationObjectString,
+     * templateOriginCommentString, templateVersionString,templateVoiInformationString,
+     * templateVariableVectorSizeConstantString, templateReturnCreatedArrayString
+     */
+    std::string templateReplacementString() const;
+
+    /**
+     * @brief Set the @c std::string used in the template replacement methods.
+     *
+     * Set this @c std::string used in the template replacement methods.  The replacement
+     * string is searched for in the template and replaced by the value or values defined
+     * for the specific template.
+     *
+     * @param templateReplacementString The @c std::string used in the template replacement methods.
+     *
+     * @sa setTemplateReturnCreatedArrayString, setTemplateStateVectorSizeConstantString,
+     * setTemplateVariableVectorSizeConstantString, setTemplateVoiInformationString.
+     * setTemplateVersionString, setTemplateOriginCommentString,
+     * setTemplateVariableInformationObjectString, setTemplateVariableInformationEntryString,
+     * setBeginStateVectorInformationArrayString, setEndStateVectorInformationArrayString,
+     * setBeginVariableVectorInformationArrayString, setEndVariableVectorInformationArrayString
+     */
+    void setTemplateReplacementString(const std::string &templateReplacementString);
+
+    /**
+     * @brief Get the @c std::string for the template that returns a created array.
+     *
+     * Return the @c std::string for the template that returns a created array.
+     *
+     * @return The @c std::string for the template that returns a created array.
+     *
+     * @sa templateReplacementString
+     */
+    std::string templateReturnCreatedArrayString() const;
+
+    /**
+     * @brief Set the @c std::string for the template that returns a created array.
+     *
+     * Set this @c std::string for the template string that returns a created array.  The
+     * template string defines the return of a created array with the size of the array
+     * the template value.  The string must contain exactly one templated value, if not empty.
+     *
+     * @param templateReturnCreatedArrayString The @c std::string to use for the template
+     * string that returns a created array.
+     *
+     * @sa setTemplateReplacementString
+     */
+    void setTemplateReturnCreatedArrayString(const std::string &templateReturnCreatedArrayString);
+
+    /**
+     * @brief Get the @c std::string for the template that defines the size of the state vector.
+     *
+     * Return the @c std::string for the template that defines the size of the state vector.
+     *
+     * @return The @c std::string for the template that defines the size of the state vector.
+     *
+     * @sa templateReplacementString
+     */
+    std::string templateStateVectorSizeConstantString() const;
+
+    /**
+     * @brief Set the @c std::string for the template that defines the size of the state vector.
+     *
+     * Set this @c std::string for the template string that defines the size of the state vector.  The
+     * template string is replaced with the size of the array.  The string must contain exactly
+     * one templated value, if not empty.
+     *
+     * @param templateStateVectorSizeConstantString The @c std::string to use for the template
+     * string that defines the size of the state vector.
+     *
+     * @sa setTemplateReplacementString
+     */
+    void setTemplateStateVectorSizeConstantString(const std::string &templateStateVectorSizeConstantString);
+
+    /**
+     * @brief Get the @c std::string for the template that defines the size of the variable vector.
+     *
+     * Return the @c std::string for the template that defines the size of the variable vector.
+     *
+     * @return The @c std::string for the template that defines the size of the variable vector.
+     *
+     * @sa templateReplacementString
+     */
+    std::string templateVariableVectorSizeConstantString() const;
+
+    /**
+     * @brief Set the @c std::string for the template that defines the size of the variable vector.
+     *
+     * Set this @c std::string for the template string that defines the size of the variable vector.  The
+     * template string is replaced with the size of the array.  The string must contain exactly
+     * one templated value, if not empty.
+     *
+     * @param templateVariableVectorSizeConstantString The @c std::string to use for the template
+     * string that defines the size of the variable vector.
+     *
+     * @sa setTemplateReplacementString
+     */
+    void setTemplateVariableVectorSizeConstantString(const std::string &templateVariableVectorSizeConstantString);
+
+    /**
+     * @brief Get the @c std::string for the template that defines the VOI information.
+     *
+     * Return the @c std::string for the template that defines the VOI information.
+     *
+     * @return The @c std::string for the template that defines the VOI information.
+     *
+     * @sa templateReplacementString
+     */
+    std::string templateVoiInformationString() const;
+
+    /**
+     * @brief Set the @c std::string for the template that defines the VOI information.
+     *
+     * Set this @c std::string for the template string that defines the VOI information.  The
+     * first template string is replaced with the name of the variable, the second template string
+     * is replaced with the units of the variable.  The string must contain exactly
+     * two templated values, if not empty.  Appears after @fn setTemplateVariableInformationObjectString
+     * so can use objects defined from the template defined in that string.
+     *
+     * @param templateVoiInformationString The @c std::string to use for the template
+     * string that defines the VOI information.
+     *
+     * @sa setTemplateReplacementString, setTemplateVariableInformationObjectString
+     */
+    void setTemplateVoiInformationString(const std::string &templateVoiInformationString);
+
+    /**
+     * @brief Get the @c std::string for the template that defines the version information.
+     *
+     * Return the @c std::string for the template that defines the version information.
+     *
+     * @return The @c std::string for the template that defines the version information.
+     *
+     * @sa templateReplacementString
+     */
+    std::string templateVersionString() const;
+
+    /**
+     * @brief Set the @c std::string for the template that defines the version of libCellML
+     * used when generating code.
+     *
+     * Set this @c std::string for the template string that defines the version of libCellML
+     * used when generating code.  The template string is replaced with the version of libCellML.
+     * The string must contain exactly one templated value, if not empty.
+     *
+     * @param templateVersionString The @c std::string to use for the template
+     * string that defines the version of libCellML used when generating code.
+     *
+     * @sa setTemplateReplacementString
+     */
+    void setTemplateVersionString(const std::string &templateVersionString);
+
+    /**
+     * @brief Get the @c std::string for the template that contains the origin comment.
+     *
+     * Return the @c std::string for the template that contains the statement on the
+     * origin of the generated code.
+     *
+     * @return The @c std::string for the template that contains the origin comment.
+     *
+     * @sa templateReplacementString
+     */
+    std::string templateOriginCommentString() const;
+
+    /**
+     * @brief Set the @c std::string for the template that contains the origin comment.
+     *
+     * Set this @c std::string for the template string that contains the origin comment.
+     * The template string is replaced with the version of libCellML. The string must contain
+     * exactly one templated value, if not empty.
+     *
+     * @param templateOriginCommentString The @c std::string to use for the template
+     * string that contains the origin comment.
+     *
+     * @sa setTemplateReplacementString
+     */
+    void setTemplateOriginCommentString(const std::string &templateOriginCommentString);
+
+    /**
+     * @brief Get the @c std::string for the template that defines the structure for the variable information.
+     *
+     * Return the @c std::string for the template that defines the structure for the variable information.
+     *
+     * @return The @c std::string for the template that defines the structure for the variable information.
+     *
+     * @sa templateReplacementString
+     */
+    std::string templateVariableInformationObjectString() const;
+
+    /**
+     * @brief Set the @c std::string for the template that defines the variable information object.
+     *
+     * Set this @c std::string for the template string that defines the variable information object.
+     * The first template string is replaced with the name of the variable, the second template
+     * string is replaced with the units of the variable.  The string must contain exactly
+     * two templated values, if not empty.
+     *
+     * @param templateVariableInformationObjectString The @c std::string to use for the template
+     * string that defines the variable information object.
+     *
+     * @sa setTemplateReplacementString
+     */
+    void setTemplateVariableInformationObjectString(const std::string &templateVariableInformationObjectString);
+
+    /**
+     * @brief Get the @c std::string for the template that defines a variable entry in an information array.
+     *
+     * Return the @c std::string for the template that defines a variable entry in an information array.
+     *
+     * @return The @c std::string for the template that defines a variable entry in an information array.
+     *
+     * @sa templateReplacementString
+     */
+    std::string templateVariableInformationEntryString() const;
+
+    /**
+     * @brief Set the @c std::string for the template that defines the variable information entry.
+     *
+     * Set this @c std::string for the template string that defines the variable information entry.
+     * The variable information enrty is inserted into the state vector information array and
+     * variable vector information array.
+     *
+     * The first template string is replaced with the name of the variable, the second template
+     * string is replaced with the units of the variable.  The string must contain exactly
+     * two templated values, if not empty.
+     *
+     * @param templateVariableInformationObjectString The @c std::string to use for the template
+     * string that defines the variable information entry.
+     *
+     * @sa setTemplateReplacementString, setBeginVariableVectorInformationArrayString,
+     * setEndVariableVectorInformationArrayString, setBeginStateVectorInformationArrayString,
+     * setEndStateVectorInformationArrayString
+     */
+    void setTemplateVariableInformationEntryString(const std::string &templateVariableInformationEntryString);
+
+   /**
      * @brief Get the @c std::string for an indent.
      *
      * Return the @c std::string for an indent.
@@ -2276,7 +2717,22 @@ public:
      */
     void setCloseArrayString(const std::string &closeArrayString);
 
+    /**
+     * @brief Get the @c std::string for separating array elements.
+     *
+     * Return the @c std::string for separating array elements.
+     *
+     * @return The @c std::string for separating array elements.
+     */
     std::string arrayElementSeparatorString() const;
+
+    /**
+     * @brief Set the @c std::string for separating array elements.
+     *
+     * Set this @c std::string for separating array elements.
+     *
+     * @param arrayElementSeparatorString The @c std::string to use for separating array elements.
+     */
     void setArrayElementSeparatorString(const std::string &arrayElementSeparatorString);
 
     /**
@@ -2297,10 +2753,40 @@ public:
      */
     void setCommandSeparatorString(const std::string &commandSeparatorString);
 
+    /**
+     * @brief Get the @c std::string for the beginning of a comment.
+     *
+     * Return the @c std::string for the beginning of a comment.
+     *
+     * @return The @c std::string for the beginning of a comment.
+     */
     std::string beginCommentString() const;
+
+    /**
+     * @brief Set the @c std::string for the beginning of a comment.
+     *
+     * Set this @c std::string for the beginning of a comment.
+     *
+     * @param beginCommentString The @c std::string to use for the beginning of a comment.
+     */
     void setBeginCommentString(const std::string &beginCommentString);
 
+    /**
+     * @brief Get the @c std::string for the end of a comment.
+     *
+     * Return the @c std::string for the end of a comment.
+     *
+     * @return The @c std::string for the end of a comment.
+     */
     std::string endCommentString() const;
+
+    /**
+     * @brief Set the @c std::string for the end of a comment.
+     *
+     * Set this @c std::string for the end of a comment.
+     *
+     * @param endCommentString The @c std::string to use for the end of a comment.
+     */
     void setEndCommentString(const std::string &endCommentString);
 
 private:
