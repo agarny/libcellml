@@ -9,10 +9,12 @@ LIBCELLML_VERSION = "0.2.0"
 STATE_COUNT = 1
 VARIABLE_COUNT = 2
 
+
 class VariableType(Enum):
     CONSTANT = 1
     COMPUTED_CONSTANT = 2
     ALGEBRAIC = 3
+
 
 VOI_INFO = {"name": "time", "units": "second", "component": "my_component"}
 
