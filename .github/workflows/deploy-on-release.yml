@@ -79,8 +79,8 @@ jobs:
       matrix:
         config:
         - {
-            name: "Windows Server 2019 MSVC",
-            os: windows-2019,
+            name: "Windows Server 2022 MSVC",
+            os: windows-2022,
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
           }
@@ -285,11 +285,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, ubuntu-20.04, windows-2019]
+        os: [macos-13, ubuntu-20.04, windows-2022]
         py: ['3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
         include:
           - name: 'Windows'
-            os: windows-2019
+            os: windows-2022
           - name: 'Linux'
             os: ubuntu-20.04
           - name: 'macOS'
