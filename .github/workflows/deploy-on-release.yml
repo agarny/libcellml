@@ -79,14 +79,14 @@ jobs:
       matrix:
         config:
         - {
-            name: "Windows Server 2019 MSVC",
-            os: windows-2019,
+            name: "Windows Server 2022 MSVC",
+            os: windows-2022,
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
           }
         - {
-            name: "Ubuntu 20.04 GCC",
-            os: ubuntu-20.04,
+            name: "Ubuntu 22.04 GCC",
+            os: ubuntu-22.04,
             build_type: "Release", cc: "gcc", cxx: "g++"
           }
         - {
@@ -176,7 +176,7 @@ jobs:
         if ("${{ matrix.config.cc }}" STREQUAL "clang")
           list(APPEND OPTIONAL_ARGUMENTS -D LLVM_COVERAGE=OFF)
         endif()
-        if ("${{ matrix.config.os }}" STREQUAL "ubuntu-20.04")
+        if ("${{ matrix.config.os }}" STREQUAL "ubuntu-22.04")
           list(APPEND OPTIONAL_ARGUMENTS -D PACKAGE_ANY_LINUX=TRUE)
         endif()
 
@@ -285,19 +285,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, ubuntu-20.04, windows-2019]
+        os: [macos-13, ubuntu-22.04, windows-2022]
         py: ['3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
         include:
           - name: 'Windows'
-            os: windows-2019
+            os: windows-2022
           - name: 'Linux'
-            os: ubuntu-20.04
+            os: ubuntu-22.04
           - name: 'macOS'
             os: macos-13
         exclude:
           - os: macos-13
             py: '3.7'
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             py: '3.7'
 
     steps:
