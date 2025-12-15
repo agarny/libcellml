@@ -35,8 +35,8 @@ TEST(Analyser, rearrangeAdditiveEquations)
 
     EXPECT_EQ("a = 10.0-(w+x)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
     EXPECT_EQ("b = 1.0-(2.0-y)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
-    EXPECT_EQ("c = -z-(1.0+x)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
-    EXPECT_EQ("d = y-w", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
+    EXPECT_EQ("c = -(1.0+x)-z", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
+    EXPECT_EQ("d = -w+y", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
 }
 
 TEST(Analyser, rearrangeMultiplicativeEquations)
@@ -111,5 +111,5 @@ TEST(Analyser, rearrangePolynomialEquations)
     EXPECT_EQ("a = -1/3.0*(6.0+15.0*pow(-1.0, 1/3.0))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
     EXPECT_EQ("b = -2.0", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
     EXPECT_EQ("c = -1/3.0*(1/2.0*pow(2.0, 2/3.0)*pow(-972.0+pow(947700.0, 1/2.0), 1/3.0)+-9.0*pow(2.0, 1/3.0)*pow(-972.0+pow(947700.0, 1/2.0), -1/3.0))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
-    EXPECT_EQ("d = -1/6.0*pow(2.0, 2/3.0)*pow(-27.0*w+27.0*pow(pow(w, 2.0), 1/2.0), 1/3.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
+    EXPECT_EQ("d = -1/6.0*pow(2.0, 2/3.0)*pow(27.0*pow(pow(w, 2.0), 1/2.0)+-27.0*w, 1/3.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
 }
