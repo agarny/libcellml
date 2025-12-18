@@ -299,15 +299,13 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
     auto children = seExpression->get_args();
 
     switch (seExpression->get_type_code()) {
-    case SymEngine::SYMENGINE_EQUALITY: {
+    case SymEngine::SYMENGINE_EQUALITY:
         ast->setType(AnalyserEquationAst::Type::EQUALITY);
         break;
-    }
-    case SymEngine::SYMENGINE_ADD: {
+    case SymEngine::SYMENGINE_ADD:
         ast->setType(AnalyserEquationAst::Type::PLUS);
         break;
-    }
-    case SymEngine::SYMENGINE_MUL: {
+    case SymEngine::SYMENGINE_MUL:
         if (SymEngine::eq(*(children[0]), *SymEngine::integer(-1))) {
             // Convert -1 * x to -x.
             ast->setType(AnalyserEquationAst::Type::MINUS);
@@ -316,39 +314,33 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
             ast->setType(AnalyserEquationAst::Type::TIMES);
         }
         break;
-    }
-    case SymEngine::SYMENGINE_POW: {
+    case SymEngine::SYMENGINE_POW:
         ast->setType(AnalyserEquationAst::Type::POWER);
         break;
-    }
-    case SymEngine::SYMENGINE_SIN: {
+    case SymEngine::SYMENGINE_SIN:
         ast->setType(AnalyserEquationAst::Type::SIN);
         break;
-    }
-    case SymEngine::SYMENGINE_COS: {
+    case SymEngine::SYMENGINE_COS:
         ast->setType(AnalyserEquationAst::Type::COS);
         break;
-    }
-    case SymEngine::SYMENGINE_TAN: {
+    case SymEngine::SYMENGINE_TAN:
         ast->setType(AnalyserEquationAst::Type::TAN);
         break;
-    }
     case SymEngine::SYMENGINE_SYMBOL: {
-        SymEngine::RCP<const SymEngine::Symbol> symbolExpr = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(seExpression);
+        auto symbol = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(seExpression);
         ast->setType(AnalyserEquationAst::Type::CI);
-        ast->setVariable(variableMap.at(symbolExpr)->mVariable);
+        ast->setVariable(variableMap.at(symbol)->mVariable);
         break;
     }
     case SymEngine::SYMENGINE_INTEGER:
     case SymEngine::SYMENGINE_RATIONAL:
     case SymEngine::SYMENGINE_REAL_MPFR:
-    case SymEngine::SYMENGINE_REAL_DOUBLE: {
+    case SymEngine::SYMENGINE_REAL_DOUBLE:
         ast->setType(AnalyserEquationAst::Type::CN);
         ast->setValue(seExpression->__str__());
         break;
-    }
     case SymEngine::SYMENGINE_CONSTANT: {
-        SymEngine::RCP<const SymEngine::Constant> constant = SymEngine::rcp_dynamic_cast<const SymEngine::Constant>(seExpression);
+        auto constant = SymEngine::rcp_dynamic_cast<const SymEngine::Constant>(seExpression);
         if (SymEngine::eq(*constant, *SymEngine::E)) {
             ast->setType(AnalyserEquationAst::Type::E);
         } else if (SymEngine::eq(*constant, *SymEngine::pi)) {
@@ -356,10 +348,9 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
         }
         break;
     }
-    case SymEngine::SYMENGINE_INFTY: {
+    case SymEngine::SYMENGINE_INFTY:
         ast->setType(AnalyserEquationAst::Type::INF);
         break;
-    }
     default:
         break;
     }
