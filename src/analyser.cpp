@@ -238,6 +238,20 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
         return {true, SymEngine::div(left, right)};
     case AnalyserEquationAst::Type::POWER:
         return {true, SymEngine::pow(left, right)};
+    case AnalyserEquationAst::Type::EXP:
+        return {true, SymEngine::exp(left)};
+    case AnalyserEquationAst::Type::LOG:
+        if (right == SymEngine::null) {
+            // Base 10 logarithm is expected.
+            return {true, SymEngine::div(SymEngine::log(left), SymEngine::log(SymEngine::integer(10)))};
+        } else {
+            return {true, SymEngine::div(SymEngine::log(right), SymEngine::log(left))};
+        }
+    case AnalyserEquationAst::Type::LOGBASE:
+        // Parent should be LOG so we can just return the left child.
+        return {true, left};
+    case AnalyserEquationAst::Type::LN:
+        return {true, SymEngine::log(left)};
     case AnalyserEquationAst::Type::SIN:
         return {true, SymEngine::sin(left)};
     case AnalyserEquationAst::Type::COS:
@@ -372,6 +386,9 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
     }
     case SymEngine::SYMENGINE_POW:
         currentAst->setType(AnalyserEquationAst::Type::POWER);
+        break;
+    case SymEngine::SYMENGINE_LOG:
+        currentAst->setType(AnalyserEquationAst::Type::LN);
         break;
     case SymEngine::SYMENGINE_SIN:
         currentAst->setType(AnalyserEquationAst::Type::SIN);
