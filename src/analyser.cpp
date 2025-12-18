@@ -244,6 +244,48 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
         return {true, SymEngine::cos(left)};
     case AnalyserEquationAst::Type::TAN:
         return {true, SymEngine::tan(left)};
+    case AnalyserEquationAst::Type::SEC:
+        return {true, SymEngine::sec(left)};
+    case AnalyserEquationAst::Type::CSC:
+        return {true, SymEngine::csc(left)};
+    case AnalyserEquationAst::Type::COT:
+        return {true, SymEngine::cot(left)};
+    case AnalyserEquationAst::Type::SINH:
+        return {true, SymEngine::sinh(left)};
+    case AnalyserEquationAst::Type::COSH:
+        return {true, SymEngine::cosh(left)};
+    case AnalyserEquationAst::Type::TANH:
+        return {true, SymEngine::tanh(left)};
+    case AnalyserEquationAst::Type::SECH:
+        return {true, SymEngine::sech(left)};
+    case AnalyserEquationAst::Type::CSCH:
+        return {true, SymEngine::csch(left)};
+    case AnalyserEquationAst::Type::COTH:
+        return {true, SymEngine::coth(left)};
+    case AnalyserEquationAst::Type::ASIN:
+        return {true, SymEngine::asin(left)};
+    case AnalyserEquationAst::Type::ACOS:
+        return {true, SymEngine::acos(left)};
+    case AnalyserEquationAst::Type::ATAN:
+        return {true, SymEngine::atan(left)};
+    case AnalyserEquationAst::Type::ASEC:
+        return {true, SymEngine::asec(left)};
+    case AnalyserEquationAst::Type::ACSC:
+        return {true, SymEngine::acsc(left)};
+    case AnalyserEquationAst::Type::ACOT:
+        return {true, SymEngine::acot(left)};
+    case AnalyserEquationAst::Type::ASINH:
+        return {true, SymEngine::asinh(left)};
+    case AnalyserEquationAst::Type::ACOSH:
+        return {true, SymEngine::acosh(left)};
+    case AnalyserEquationAst::Type::ATANH:
+        return {true, SymEngine::atanh(left)};
+    case AnalyserEquationAst::Type::ASECH:
+        return {true, SymEngine::asech(left)};
+    case AnalyserEquationAst::Type::ACSCH:
+        return {true, SymEngine::acsch(left)};
+    case AnalyserEquationAst::Type::ACOTH:
+        return {true, SymEngine::acoth(left)};
     case AnalyserEquationAst::Type::E:
         return {true, SymEngine::E};
     case AnalyserEquationAst::Type::PI:
@@ -325,6 +367,69 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
         break;
     case SymEngine::SYMENGINE_TAN:
         ast->setType(AnalyserEquationAst::Type::TAN);
+        break;
+    case SymEngine::SYMENGINE_SEC:
+        ast->setType(AnalyserEquationAst::Type::SEC);
+        break;
+    case SymEngine::SYMENGINE_CSC:
+        ast->setType(AnalyserEquationAst::Type::CSC);
+        break;
+    case SymEngine::SYMENGINE_COT:
+        ast->setType(AnalyserEquationAst::Type::COT);
+        break;
+    case SymEngine::SYMENGINE_SINH:
+        ast->setType(AnalyserEquationAst::Type::SINH);
+        break;
+    case SymEngine::SYMENGINE_COSH:
+        ast->setType(AnalyserEquationAst::Type::COSH);
+        break;
+    case SymEngine::SYMENGINE_TANH:
+        ast->setType(AnalyserEquationAst::Type::TANH);
+        break;
+    case SymEngine::SYMENGINE_SECH:
+        ast->setType(AnalyserEquationAst::Type::SECH);
+        break;
+    case SymEngine::SYMENGINE_CSCH:
+        ast->setType(AnalyserEquationAst::Type::CSCH);
+        break;
+    case SymEngine::SYMENGINE_COTH:
+        ast->setType(AnalyserEquationAst::Type::COTH);
+        break;
+    case SymEngine::SYMENGINE_ASIN:
+        ast->setType(AnalyserEquationAst::Type::ASIN);
+        break;
+    case SymEngine::SYMENGINE_ACOS:
+        ast->setType(AnalyserEquationAst::Type::ACOS);
+        break;
+    case SymEngine::SYMENGINE_ATAN:
+        ast->setType(AnalyserEquationAst::Type::ATAN);
+        break;
+    case SymEngine::SYMENGINE_ASEC:
+        ast->setType(AnalyserEquationAst::Type::ASEC);
+        break;
+    case SymEngine::SYMENGINE_ACSC:
+        ast->setType(AnalyserEquationAst::Type::ACSC);
+        break;
+    case SymEngine::SYMENGINE_ACOT:
+        ast->setType(AnalyserEquationAst::Type::ACOT);
+        break;
+    case SymEngine::SYMENGINE_ASINH:
+        ast->setType(AnalyserEquationAst::Type::ASINH);
+        break;
+    case SymEngine::SYMENGINE_ACOSH:
+        ast->setType(AnalyserEquationAst::Type::ACOSH);
+        break;
+    case SymEngine::SYMENGINE_ATANH:
+        ast->setType(AnalyserEquationAst::Type::ATANH);
+        break;
+    case SymEngine::SYMENGINE_ASECH:
+        ast->setType(AnalyserEquationAst::Type::ASECH);
+        break;
+    case SymEngine::SYMENGINE_ACSCH:
+        ast->setType(AnalyserEquationAst::Type::ACSCH);
+        break;
+    case SymEngine::SYMENGINE_ACOTH:
+        ast->setType(AnalyserEquationAst::Type::ACOTH);
         break;
     case SymEngine::SYMENGINE_SYMBOL: {
         auto symbol = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(seExpression);

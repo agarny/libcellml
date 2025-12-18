@@ -70,9 +70,30 @@ TEST(Analyser, rearrangeTrigonometricEquations)
 
     EXPECT_EQ(libcellml::AnalyserModel::Type::ALGEBRAIC, analyser->analyserModel()->type());
 
-    EXPECT_EQ("a = 1/2.0*(1.0-sin(w))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
-    EXPECT_EQ("b = cos(4.0+x)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
-    EXPECT_EQ("c = 2.0+tan(3.0-y)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
+    EXPECT_EQ("a = 1/2.0*(1.0-sin(z1))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
+    EXPECT_EQ("b = cos(4.0+z2)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
+    EXPECT_EQ("c = 2.0+tan(3.0-z3)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
+    EXPECT_EQ("d = 1/2.0*(1.0-sec(z1))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
+    EXPECT_EQ("e = csc(4.0+z2)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(4)->ast()));
+    EXPECT_EQ("f = 2.0+cot(3.0-z3)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(5)->ast()));
+    EXPECT_EQ("g = 1/2.0*(1.0-sinh(z1))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(6)->ast()));
+    EXPECT_EQ("h = cosh(4.0+z2)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(7)->ast()));
+    EXPECT_EQ("i = 2.0+tanh(3.0-z3)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(8)->ast()));
+    EXPECT_EQ("j = 1/2.0*(1.0-sech(z1))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(9)->ast()));
+    EXPECT_EQ("k = csch(4.0+z2)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(10)->ast()));
+    EXPECT_EQ("l = 2.0+coth(3.0-z3)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(11)->ast()));
+    EXPECT_EQ("m = 1/2.0*(1.0-asin(z1))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(12)->ast()));
+    EXPECT_EQ("n = acos(4.0+z2)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(13)->ast()));
+    EXPECT_EQ("o = 2.0+atan(3.0-z3)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(14)->ast()));
+    EXPECT_EQ("p = 1/2.0*(1.0-asec(z1))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(15)->ast()));
+    EXPECT_EQ("q = acsc(4.0+z2)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(16)->ast()));
+    EXPECT_EQ("r = 2.0+acot(3.0-z3)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(17)->ast()));
+    EXPECT_EQ("s = 1/2.0*(1.0-asinh(z1))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(18)->ast()));
+    EXPECT_EQ("t = acosh(4.0+z2)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(19)->ast()));
+    EXPECT_EQ("u = 2.0+atanh(3.0-z3)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(20)->ast()));
+    EXPECT_EQ("v = 1/2.0*(1.0-asech(z1))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(21)->ast()));
+    EXPECT_EQ("w = acsch(4.0+z2)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(22)->ast()));
+    EXPECT_EQ("x = 2.0+acoth(3.0-z3)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(23)->ast()));
 }
 
 TEST(Analyser, rearrangeEquationsWithConstants)
