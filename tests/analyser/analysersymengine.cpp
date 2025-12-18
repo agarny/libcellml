@@ -169,3 +169,26 @@ TEST(Analyser, rearrangeLogarithmicEquations)
     EXPECT_EQ("b = -pow(log(10.0), -1.0)*(y*log(10.0)-log(3.0))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
     EXPECT_EQ("c = pow(log(2.0), -1.0)*(-log(z)+2.5*log(2.0))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
 }
+
+TEST(Analyser, rearrangeUncommonArithmeticEquations)
+{
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(fileContents("analyser/symengine/uncommon_arithmetic.cellml"));
+
+    EXPECT_EQ(size_t(0), parser->issueCount());
+
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    EXPECT_EQ(libcellml::AnalyserModel::Type::ALGEBRAIC, analyser->analyserModel()->type());
+
+    EXPECT_EQ("a = 2.0-pow(w, 1/2.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
+    EXPECT_EQ("b = pow(w, -1/4.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
+    EXPECT_EQ("c = 3.0*fabs(x-y)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
+    EXPECT_EQ("d = w-ceil(0.4+x)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
+    EXPECT_EQ("e = 1.0+floor(1/2.0*z)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(4)->ast()));
+    EXPECT_EQ("f = 1/5.0*min(x, y)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(5)->ast()));
+    EXPECT_EQ("g = w*pow(max(y, z), -1.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(6)->ast()));
+    EXPECT_EQ("h = -fmod(z, w)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(7)->ast()));
+}

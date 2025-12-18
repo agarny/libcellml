@@ -238,6 +238,17 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
         return {true, SymEngine::div(left, right)};
     case AnalyserEquationAst::Type::POWER:
         return {true, SymEngine::pow(left, right)};
+    case AnalyserEquationAst::Type::ROOT:
+        if (right == SymEngine::null) {
+            // Square root is expected.
+            return {true, SymEngine::pow(left, SymEngine::div(SymEngine::integer(1), SymEngine::integer(2)))};
+        } else {
+            // Left child will have been processed to directly hold the degree of the root.
+            return {true, SymEngine::pow(right, SymEngine::div(SymEngine::integer(1), left))};
+        }
+        return {true, SymEngine::pow(left, SymEngine::div(SymEngine::integer(1), right))};
+    case AnalyserEquationAst::Type::ABS:
+        return {true, SymEngine::abs(left)};
     case AnalyserEquationAst::Type::EXP:
         return {true, SymEngine::exp(left)};
     case AnalyserEquationAst::Type::LOG:
@@ -252,6 +263,16 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
         return {true, left};
     case AnalyserEquationAst::Type::LN:
         return {true, SymEngine::log(left)};
+    case AnalyserEquationAst::Type::CEILING:
+        return {true, SymEngine::ceiling(left)};
+    case AnalyserEquationAst::Type::FLOOR:
+        return {true, SymEngine::floor(left)};
+    case AnalyserEquationAst::Type::MIN:
+        return {true, SymEngine::min({left, right})};
+    case AnalyserEquationAst::Type::MAX:
+        return {true, SymEngine::max({left, right})};
+    case AnalyserEquationAst::Type::REM:
+        return {true, SymEngine::function_symbol("mod", {left, right})};
     case AnalyserEquationAst::Type::SIN:
         return {true, SymEngine::sin(left)};
     case AnalyserEquationAst::Type::COS:
@@ -300,6 +321,9 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
         return {true, SymEngine::acsch(left)};
     case AnalyserEquationAst::Type::ACOTH:
         return {true, SymEngine::acoth(left)};
+    case AnalyserEquationAst::Type::DEGREE:
+        // Parent should be ROOT so we can just return the left child.
+        return {true, left};
     case AnalyserEquationAst::Type::E:
         return {true, SymEngine::E};
     case AnalyserEquationAst::Type::PI:
@@ -387,8 +411,23 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
     case SymEngine::SYMENGINE_POW:
         currentAst->setType(AnalyserEquationAst::Type::POWER);
         break;
+    case SymEngine::SYMENGINE_ABS:
+        currentAst->setType(AnalyserEquationAst::Type::ABS);
+        break;
     case SymEngine::SYMENGINE_LOG:
         currentAst->setType(AnalyserEquationAst::Type::LN);
+        break;
+    case SymEngine::SYMENGINE_CEILING:
+        currentAst->setType(AnalyserEquationAst::Type::CEILING);
+        break;
+    case SymEngine::SYMENGINE_FLOOR:
+        currentAst->setType(AnalyserEquationAst::Type::FLOOR);
+        break;
+    case SymEngine::SYMENGINE_MIN:
+        currentAst->setType(AnalyserEquationAst::Type::MIN);
+        break;
+    case SymEngine::SYMENGINE_MAX:
+        currentAst->setType(AnalyserEquationAst::Type::MAX);
         break;
     case SymEngine::SYMENGINE_SIN:
         currentAst->setType(AnalyserEquationAst::Type::SIN);
@@ -487,8 +526,13 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
     case SymEngine::SYMENGINE_INFTY:
         currentAst->setType(AnalyserEquationAst::Type::INF);
         break;
-    default:
+    case SymEngine::SYMENGINE_FUNCTIONSYMBOL: {
+        auto functionSymbol = SymEngine::rcp_dynamic_cast<const SymEngine::FunctionSymbol>(seExpression);
+        if (functionSymbol->get_name() == "mod") {
+            currentAst->setType(AnalyserEquationAst::Type::REM);
+        }
         break;
+    }
     }
 
     // All children (except the last) are guaranteed to be left children in the AST tree.
