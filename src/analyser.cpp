@@ -22,6 +22,7 @@ limitations under the License.
 
 #include <cmath>
 #include <iterator>
+#include <symengine/derivative.h>
 #include <symengine/solve.h>
 
 #include "libcellml/analyserequation.h"
@@ -199,7 +200,9 @@ bool AnalyserInternalEquation::variableOnLhsOrRhs(const AnalyserInternalVariable
            || variableOnRhs(variable);
 }
 
-SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const AnalyserEquationAstPtr &ast, const SymEngineSymbolMap &symbolMap)
+SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const AnalyserEquationAstPtr &ast,
+                                                                    SymEngineSymbolMap &symbolMap,
+                                                                    SymEngineVariableMap &variableMap)
 {
     if (ast == nullptr) {
         return {true, SymEngine::null};
@@ -209,8 +212,8 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
     AnalyserEquationAstPtr rightAst = ast->rightChild();
 
     // Recursively call getConvertedAst on left and right children.
-    auto [leftSuccess, left] = symEngineEquation(leftAst, symbolMap);
-    auto [rightSuccess, right] = symEngineEquation(rightAst, symbolMap);
+    auto [leftSuccess, left] = symEngineEquation(leftAst, symbolMap, variableMap);
+    auto [rightSuccess, right] = symEngineEquation(rightAst, symbolMap, variableMap);
 
     if (!leftSuccess || !rightSuccess) {
         return {false, SymEngine::null};
@@ -258,9 +261,6 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
         } else {
             return {true, SymEngine::div(SymEngine::log(right), SymEngine::log(left))};
         }
-    case AnalyserEquationAst::Type::LOGBASE:
-        // Parent should be LOG so we can just return the left child.
-        return {true, left};
     case AnalyserEquationAst::Type::LN:
         return {true, SymEngine::log(left)};
     case AnalyserEquationAst::Type::CEILING:
@@ -273,6 +273,8 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
         return {true, SymEngine::max({left, right})};
     case AnalyserEquationAst::Type::REM:
         return {true, SymEngine::function_symbol("mod", {left, right})};
+    case AnalyserEquationAst::Type::DIFF:
+        return {true, SymEngine::Derivative::create(right, {SymEngine::rcp_static_cast<const SymEngine::Symbol>(left)})};
     case AnalyserEquationAst::Type::SIN:
         return {true, SymEngine::sin(left)};
     case AnalyserEquationAst::Type::COS:
@@ -324,18 +326,28 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
     case AnalyserEquationAst::Type::DEGREE:
         // Parent should be ROOT so we can just return the left child.
         return {true, left};
+    case AnalyserEquationAst::Type::LOGBASE:
+        // Parent should be LOG so we can just return the left child.
+        return {true, left};
+    case AnalyserEquationAst::Type::BVAR:
+        // Parent should be DIFF so we can just return the left child.
+        return {true, left};
     case AnalyserEquationAst::Type::E:
         return {true, SymEngine::E};
     case AnalyserEquationAst::Type::PI:
         return {true, SymEngine::pi};
     case AnalyserEquationAst::Type::INF:
         return {true, SymEngine::Inf};
-    case AnalyserEquationAst::Type::CI:
-        // Seems like the voi doesn't exist in mAllVariables, so we don't have an easy means of access.
-        if (symbolMap.find(ast->variable()->name()) == symbolMap.end()) {
-            return {false, SymEngine::null};
+    case AnalyserEquationAst::Type::CI: {
+        auto variable = ast->variable();
+        if (symbolMap.find(variable->name()) == symbolMap.end()) {
+            // Variable is not currently in map, so we need to add it.
+            SymEngine::RCP<const SymEngine::Symbol> symbol = SymEngine::symbol(variable->name());
+            symbolMap[variable->name()] = symbol;
+            variableMap[symbol] = variable;
         }
-        return {true, symbolMap.at(ast->variable()->name())};
+        return {true, symbolMap.at(variable->name())};
+    }
     case AnalyserEquationAst::Type::CN: {
         // Some symengine operations necessitate integers to be properly represented.
         double astValue = std::stod(ast->value());
@@ -429,6 +441,23 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
     case SymEngine::SYMENGINE_MAX:
         currentAst->setType(AnalyserEquationAst::Type::MAX);
         break;
+    case SymEngine::SYMENGINE_DERIVATIVE: {
+        currentAst->setType(AnalyserEquationAst::Type::DIFF);
+
+        // This is a special case where we need to manually wrap the left child in a BVAR node.
+        // Note that the variable of differentiation will be the second child of a symengine
+        // derivative expression.
+        auto bVarAst = AnalyserEquationAst::create();
+        bVarAst->setType(AnalyserEquationAst::Type::BVAR);
+        bVarAst->setParent(currentAst);
+        currentAst->setLeftChild(bVarAst);
+        bVarAst->setLeftChild(parseSymEngineExpression(children[1], bVarAst, variableMap));
+
+        // We must also set the right child here, since the the loop below doesn't know we've ready
+        // set the left child.
+        currentAst->setRightChild(parseSymEngineExpression(children[0], currentAst, variableMap));
+        return headAst;
+    }
     case SymEngine::SYMENGINE_SIN:
         currentAst->setType(AnalyserEquationAst::Type::SIN);
         break;
@@ -504,7 +533,7 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
     case SymEngine::SYMENGINE_SYMBOL: {
         auto symbol = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(seExpression);
         currentAst->setType(AnalyserEquationAst::Type::CI);
-        currentAst->setVariable(variableMap.at(symbol)->mVariable);
+        currentAst->setVariable(variableMap.at(symbol));
         break;
     }
     case SymEngine::SYMENGINE_INTEGER:
@@ -577,16 +606,11 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
 
 AnalyserEquationAstPtr AnalyserInternalEquation::rearrangeFor(const AnalyserInternalVariablePtr &variable)
 {
+    // These are to be dynamically populated while converting the AST to a SymEngine expression.
     SymEngineSymbolMap symbolMap;
     SymEngineVariableMap variableMap;
 
-    for (const auto &variable : mAllVariables) {
-        SymEngine::RCP<const SymEngine::Symbol> symbol = SymEngine::symbol(variable->mVariable->name());
-        symbolMap[variable->mVariable->name()] = symbol;
-        variableMap[symbol] = variable;
-    }
-
-    auto [success, seEquation] = symEngineEquation(mAst, symbolMap);
+    auto [success, seEquation] = symEngineEquation(mAst, symbolMap, variableMap);
     if (!success) {
         return nullptr;
     }

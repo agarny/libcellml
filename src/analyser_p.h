@@ -45,7 +45,7 @@ using AnalyserEquationPtrs = std::vector<AnalyserEquationPtr>;
 using AnalyserVariablePtrs = std::vector<AnalyserVariablePtr>;
 using AnalyserExternalVariablePtrs = std::vector<AnalyserExternalVariablePtr>;
 
-using SymEngineVariableMap = std::map<SymEngine::RCP<const SymEngine::Symbol>, AnalyserInternalVariablePtr, SymEngine::RCPBasicKeyLess>;
+using SymEngineVariableMap = std::map<SymEngine::RCP<const SymEngine::Symbol>, VariablePtr, SymEngine::RCPBasicKeyLess>;
 using SymEngineSymbolMap = std::map<std::string, SymEngine::RCP<const SymEngine::Symbol>>;
 using SymEngineEquationResult = std::tuple<bool, SymEngine::RCP<const SymEngine::Basic>>;
 
@@ -138,7 +138,7 @@ struct AnalyserInternalEquation
     bool variableOnRhs(const AnalyserInternalVariablePtr &variable);
     bool variableOnLhsOrRhs(const AnalyserInternalVariablePtr &variable);
 
-    SymEngineEquationResult symEngineEquation(const AnalyserEquationAstPtr &ast, const SymEngineSymbolMap &symbolMap);
+    SymEngineEquationResult symEngineEquation(const AnalyserEquationAstPtr &ast, SymEngineSymbolMap &symbolMap, SymEngineVariableMap &variableMap);
     bool isSymEngineExpressionComplex(const SymEngine::RCP<const SymEngine::Basic> &seExpression);
     AnalyserEquationAstPtr parseSymEngineExpression(const SymEngine::RCP<const SymEngine::Basic> &seExpression, const AnalyserEquationAstPtr &parentAst, const SymEngineVariableMap &variableMap);
     AnalyserEquationAstPtr rearrangeFor(const AnalyserInternalVariablePtr &variable);

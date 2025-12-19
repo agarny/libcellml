@@ -192,3 +192,19 @@ TEST(Analyser, rearrangeUncommonArithmeticEquations)
     EXPECT_EQ("g = w*pow(max(y, z), -1.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(6)->ast()));
     EXPECT_EQ("h = -fmod(z, w)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(7)->ast()));
 }
+
+TEST(Analyser, rearrangeDifferentialEquations)
+{
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(fileContents("analyser/symengine/differential.cellml"));
+
+    EXPECT_EQ(size_t(0), parser->issueCount());
+
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    EXPECT_EQ(libcellml::AnalyserModel::Type::ODE, analyser->analyserModel()->type());
+
+    EXPECT_EQ("x = -dy/dt", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
+}
