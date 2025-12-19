@@ -615,9 +615,22 @@ AnalyserEquationAstPtr AnalyserInternalEquation::rearrangeFor(const AnalyserInte
         return nullptr;
     }
 
+    // In most cases the variable we want to rearrange for will already be in the map.
+    // However, if the variable is mapped to an imported equation we might also need to check its equivalent variables.
+    auto targetSymbol = symbolMap[variable->mVariable->name()];
+    if (targetSymbol.is_null()) {
+        for (int i = 0; i < variable->mVariable->equivalentVariableCount(); ++i) {
+            auto equivalentVariable = variable->mVariable->equivalentVariable(i);
+            targetSymbol = symbolMap[equivalentVariable->name()];
+            if (!targetSymbol.is_null()) {
+                break;
+            }
+        }
+    }
+
     SymEngine::RCP<const SymEngine::Set> solutionSet;
     try {
-        solutionSet = solve(seEquation, symbolMap[variable->mVariable->name()]);
+        solutionSet = solve(seEquation, targetSymbol);
     } catch (const SymEngine::SymEngineException &e) {
         // SymEngine failed to solve the equation. This is likely because to the variable we're trying
         // to solve for is nested within a function that SymEngine cannot invert (e.g. sin, log, etc).
