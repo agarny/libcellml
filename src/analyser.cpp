@@ -615,7 +615,15 @@ AnalyserEquationAstPtr AnalyserInternalEquation::rearrangeFor(const AnalyserInte
         return nullptr;
     }
 
-    SymEngine::RCP<const SymEngine::Set> solutionSet = solve(seEquation, symbolMap[variable->mVariable->name()]);
+    SymEngine::RCP<const SymEngine::Set> solutionSet;
+    try {
+        solutionSet = solve(seEquation, symbolMap[variable->mVariable->name()]);
+    } catch (const SymEngine::SymEngineException &e) {
+        // SymEngine failed to solve the equation. This is likely because to the variable we're trying
+        // to solve for is nested within a function that SymEngine cannot invert (e.g. sin, log, etc).
+        return nullptr;
+    }
+
     SymEngine::vec_basic solutions = solutionSet->get_args();
 
     // Attempt to isolate a single real solution.
