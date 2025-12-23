@@ -345,11 +345,17 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
         break;
     }
     case SymEngine::SYMENGINE_INTEGER:
-    case SymEngine::SYMENGINE_RATIONAL:
-    case SymEngine::SYMENGINE_REAL_MPFR:
     case SymEngine::SYMENGINE_REAL_DOUBLE: {
         ast->setType(AnalyserEquationAst::Type::CN);
         ast->setValue(seExpression->__str__());
+        break;
+    }
+    case SymEngine::SYMENGINE_RATIONAL: {
+        SymEngine::RCP<const SymEngine::Rational> rational = SymEngine::rcp_dynamic_cast<const SymEngine::Rational>(seExpression);
+        ast->setType(AnalyserEquationAst::Type::DIVIDE);
+        children.clear();
+        children.push_back(rational->get_num());
+        children.push_back(rational->get_den());
         break;
     }
     case SymEngine::SYMENGINE_CONSTANT: {
