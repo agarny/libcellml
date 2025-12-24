@@ -422,10 +422,10 @@ AnalyserEquationAstPtr AnalyserInternalEquation::rearrangeFor(const AnalyserInte
     SymEngineSymbolMap symbolMap;
     SymEngineVariableMap variableMap;
 
-    for (const auto &variable : mAllVariables) {
-        SymEngine::RCP<const SymEngine::Symbol> symbol = SymEngine::symbol(variable->mVariable->name());
-        symbolMap[variable->mVariable->name()] = symbol;
-        variableMap[symbol] = variable;
+    for (const auto &aVariable : mAllVariables) {
+        SymEngine::RCP<const SymEngine::Symbol> symbol = SymEngine::symbol(aVariable->mVariable->name());
+        symbolMap[aVariable->mVariable->name()] = symbol;
+        variableMap[symbol] = aVariable;
     }
 
     auto [success, seEquation] = symEngineEquation(mAst, symbolMap);
