@@ -20,7 +20,7 @@ limitations under the License.
 
 #include <libcellml>
 
-TEST(Analyser, rearrangeAdditiveEquations)
+TEST(AnalyserSymEngine, rearrangeAdditiveEquations)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/addition.cellml"));
@@ -39,7 +39,7 @@ TEST(Analyser, rearrangeAdditiveEquations)
     EXPECT_EQ("d = -w+y", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
 }
 
-TEST(Analyser, rearrangeMultiplicativeEquations)
+TEST(AnalyserSymEngine, rearrangeMultiplicativeEquations)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/multiplication.cellml"));
@@ -57,7 +57,7 @@ TEST(Analyser, rearrangeMultiplicativeEquations)
     EXPECT_EQ("c = 30.0*x*pow(z, -1.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
 }
 
-TEST(Analyser, rearrangeTrigonometricEquations)
+TEST(AnalyserSymEngine, rearrangeTrigonometricEquations)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/trigonometric.cellml"));
@@ -75,7 +75,7 @@ TEST(Analyser, rearrangeTrigonometricEquations)
     EXPECT_EQ("c = 2.0+tan(3.0-y)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
 }
 
-TEST(Analyser, rearrangeEquationsWithConstants)
+TEST(AnalyserSymEngine, rearrangeEquationsWithConstants)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/constants.cellml"));
@@ -95,7 +95,7 @@ TEST(Analyser, rearrangeEquationsWithConstants)
     EXPECT_EQ("e = INFINITY-w", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(4)->ast()));
 }
 
-TEST(Analyser, rearrangePolynomialEquations)
+TEST(AnalyserSymEngine, rearrangePolynomialEquations)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/polynomials.cellml"));
