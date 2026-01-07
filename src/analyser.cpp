@@ -200,9 +200,9 @@ bool AnalyserInternalEquation::variableOnLhsOrRhs(const AnalyserInternalVariable
            || variableOnRhs(variable);
 }
 
-SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const AnalyserEquationAstPtr &ast,
-                                                                    SymEngineSymbolMap &symbolMap,
-                                                                    SymEngineVariableMap &variableMap)
+SymEngineEquationResult AnalyserInternalEquation::parseAstToSymEngine(const AnalyserEquationAstPtr &ast,
+                                                                      SymEngineSymbolMap &symbolMap,
+                                                                      SymEngineVariableMap &variableMap)
 {
     if (ast == nullptr) {
         return {true, SymEngine::null};
@@ -211,9 +211,9 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
     AnalyserEquationAstPtr leftAst = ast->leftChild();
     AnalyserEquationAstPtr rightAst = ast->rightChild();
 
-    // Recursively call getConvertedAst on left and right children.
-    auto [leftSuccess, left] = symEngineEquation(leftAst, symbolMap, variableMap);
-    auto [rightSuccess, right] = symEngineEquation(rightAst, symbolMap, variableMap);
+    // Recursively parse left and right children.
+    auto [leftSuccess, left] = parseAstToSymEngine(leftAst, symbolMap, variableMap);
+    auto [rightSuccess, right] = parseAstToSymEngine(rightAst, symbolMap, variableMap);
 
     if (!leftSuccess || !rightSuccess) {
         return {false, SymEngine::null};
@@ -340,13 +340,13 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
         return {true, SymEngine::Inf};
     case AnalyserEquationAst::Type::CI: {
         auto variable = ast->variable();
-        if (symbolMap.find(variable->name()) == symbolMap.end()) {
+        if (symbolMap.find(variable) == symbolMap.end()) {
             // Variable is not currently in map, so we need to add it.
             SymEngine::RCP<const SymEngine::Symbol> symbol = SymEngine::symbol(variable->name());
-            symbolMap[variable->name()] = symbol;
+            symbolMap[variable] = symbol;
             variableMap[symbol] = variable;
         }
-        return {true, symbolMap.at(variable->name())};
+        return {true, symbolMap.at(variable)};
     }
     case AnalyserEquationAst::Type::CN: {
         // Some symengine operations necessitate integers to be properly represented.
@@ -382,9 +382,9 @@ bool AnalyserInternalEquation::isSymEngineExpressionComplex(const SymEngine::RCP
     return false;
 }
 
-AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const SymEngine::RCP<const SymEngine::Basic> &seExpression,
-                                                                          const AnalyserEquationAstPtr &parentAst,
-                                                                          const SymEngineVariableMap &variableMap)
+AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineToAst(const SymEngine::RCP<const SymEngine::Basic> &seExpression,
+                                                                     const AnalyserEquationAstPtr &parentAst,
+                                                                     const SymEngineVariableMap &variableMap)
 {
     // The headAst is the highest level ast for the converted seExpression and will be returned at the end.
     AnalyserEquationAstPtr headAst = AnalyserEquationAst::create();
@@ -451,11 +451,11 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
         bVarAst->setType(AnalyserEquationAst::Type::BVAR);
         bVarAst->setParent(currentAst);
         currentAst->setLeftChild(bVarAst);
-        bVarAst->setLeftChild(parseSymEngineExpression(children[1], bVarAst, variableMap));
+        bVarAst->setLeftChild(parseSymEngineToAst(children[1], bVarAst, variableMap));
 
         // We must also set the right child here, since the the loop below doesn't know we've ready
         // set the left child.
-        currentAst->setRightChild(parseSymEngineExpression(children[0], currentAst, variableMap));
+        currentAst->setRightChild(parseSymEngineToAst(children[0], currentAst, variableMap));
         return headAst;
     }
     case SymEngine::SYMENGINE_SIN:
@@ -566,7 +566,7 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
 
     // All children (except the last) are guaranteed to be left children in the AST tree.
     for (int i = 0; i + 1 < children.size(); ++i) {
-        auto childAst = parseSymEngineExpression(children[i], currentAst, variableMap);
+        auto childAst = parseSymEngineToAst(children[i], currentAst, variableMap);
 
         currentAst->setLeftChild(childAst);
 
@@ -585,7 +585,7 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
 
     // The final child is created and placed where appropriate.
     if (children.size() != 0) {
-        auto childAst = parseSymEngineExpression(children.back(), currentAst, variableMap);
+        auto childAst = parseSymEngineToAst(children.back(), currentAst, variableMap);
 
         children.size() == 1 ? currentAst->setLeftChild(childAst) :
                                currentAst->setRightChild(childAst);
@@ -604,37 +604,15 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
     return headAst;
 }
 
-AnalyserEquationAstPtr AnalyserInternalEquation::rearrangeFor(const AnalyserInternalVariablePtr &variable)
+SymEngine::RCP<const SymEngine::Basic> AnalyserInternalEquation::rearrangeFor(const SymEngine::RCP<const SymEngine::Symbol> &symbol)
 {
-    // These are to be dynamically populated while converting the AST to a SymEngine expression.
-    SymEngineSymbolMap symbolMap;
-    SymEngineVariableMap variableMap;
-
-    auto [success, seEquation] = symEngineEquation(mAst, symbolMap, variableMap);
-    if (!success) {
-        return nullptr;
-    }
-
-    // In most cases the variable we want to rearrange for will already be in the map.
-    // However, if the variable is mapped to an imported equation we might also need to check its equivalent variables.
-    auto targetSymbol = symbolMap[variable->mVariable->name()];
-    if (targetSymbol.is_null()) {
-        for (int i = 0; i < variable->mVariable->equivalentVariableCount(); ++i) {
-            auto equivalentVariable = variable->mVariable->equivalentVariable(i);
-            targetSymbol = symbolMap[equivalentVariable->name()];
-            if (!targetSymbol.is_null()) {
-                break;
-            }
-        }
-    }
-
     SymEngine::RCP<const SymEngine::Set> solutionSet;
     try {
-        solutionSet = solve(seEquation, targetSymbol);
+        solutionSet = solve(mSeExpression, symbol);
     } catch (const SymEngine::SymEngineException &e) {
         // SymEngine failed to solve the equation. This is likely because to the variable we're trying
         // to solve for is nested within a function that SymEngine cannot invert (e.g. sin, log, etc).
-        return nullptr;
+        return SymEngine::null;
     }
 
     SymEngine::vec_basic solutions = solutionSet->get_args();
@@ -647,26 +625,9 @@ AnalyserEquationAstPtr AnalyserInternalEquation::rearrangeFor(const AnalyserInte
                     solutions.end());
 
     if (solutions.size() != 1) {
-        return nullptr;
+        return SymEngine::null;
     }
-    SymEngine::RCP<const SymEngine::Basic> answer = solutions.front();
-
-    // Rebuild the AST from the rearranged expression.
-    AnalyserEquationAstPtr ast = AnalyserEquationAst::create();
-    AnalyserEquationAstPtr isolatedVariableAst = AnalyserEquationAst::create();
-    AnalyserEquationAstPtr rearrangedEquationAst = parseSymEngineExpression(answer, nullptr, variableMap);
-
-    ast->setType(AnalyserEquationAst::Type::EQUALITY);
-    ast->setLeftChild(isolatedVariableAst);
-    ast->setRightChild(rearrangedEquationAst);
-
-    isolatedVariableAst->setType(AnalyserEquationAst::Type::CI);
-    isolatedVariableAst->setVariable(variable->mVariable);
-    isolatedVariableAst->setParent(ast);
-
-    rearrangedEquationAst->setParent(ast);
-
-    return ast;
+    return solutions.front();
 }
 
 bool AnalyserInternalEquation::check(const AnalyserModelPtr &analyserModel, bool checkNlaSystems)
@@ -751,10 +712,17 @@ bool AnalyserInternalEquation::check(const AnalyserModelPtr &analyserModel, bool
 
     // If we have one variable left, but it's not isolated, try to rearrange it.
     if ((unknownVariableLeft != nullptr) && !variableOnLhsOrRhs(unknownVariableLeft)) {
-        auto newAst = rearrangeFor(unknownVariableLeft);
-        if (newAst != nullptr) {
-            // TODO Update variables and/or equation type when necessary.
-            mAst = newAst;
+        SymEngineVariableMap variableMap;
+        SymEngineSymbolMap symbolMap;
+
+        auto [success, seExpression] = parseAstToSymEngine(mAst, symbolMap, variableMap);
+        if (success) {
+            mSeExpression = seExpression;
+            auto seEquation = rearrangeFor(symbolMap[unknownVariableLeft->mVariable]);
+            if (!seEquation.is_null()) {
+                // TODO Update variables and/or equation type when necessary.
+                mAst = parseSymEngineToAst(SymEngine::Eq(symbolMap[unknownVariableLeft->mVariable], seEquation), nullptr, variableMap);
+            }
         }
     }
 
