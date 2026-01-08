@@ -2803,6 +2803,10 @@ bool Analyser::AnalyserImpl::causaliseRelationship(const AnalyserInternalVariabl
 {
     // Check if we need to attempt to isolate our variable.
     if (!equation->variableOnLhsOrRhs(variable)) {
+        if (equation->mSeEquation == SymEngine::null) {
+            return false;
+        }
+
         const auto symbol = symbolMap[variable->mVariable];
         const auto seRearranged = equation->rearrangeFor(symbolMap[variable->mVariable]);
         if (seRearranged == SymEngine::null) {
@@ -2915,6 +2919,7 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
                 const auto success = causaliseRelationship(variable, equation, symbolMap, variableMap);
 
                 if (!success) {
+                    ++iter;
                     continue;
                 }
 
@@ -2945,6 +2950,7 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
                 const auto success = causaliseRelationship(variable, equation, symbolMap, variableMap);
 
                 if (!success) {
+                    ++iter;
                     continue;
                 }
 
@@ -2973,11 +2979,11 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
         size_t maxCausalMaking = 0;
         AnalyserInternalVariablePtr tearingVariable;
 
-        for (auto variable : unknownVariables) {
+        for (const auto &variable : unknownVariables) {
             size_t causalMaking = 0;
             for (auto equation : variable->mUncausalisedEquations) {
                 if (equation->mStateVariables.size() + equation->mVariables.size() == 2) {
-                    causalMaking++;
+                    ++causalMaking;
                 }
             }
             size_t sum = causalMaking + variable->mUncausalisedEquations.size();
@@ -3023,10 +3029,13 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
     }
 
     for (const auto &equation : equations) {
-        // We won't substitute equations that has either:
-        // 1. Not been causalised.
-        // 2. Is being used to define a state variable (i.e. a differential equation).
-        if (equation->mUnknownVariables.size() != 1 || equation->mUnknownVariables.front()->mType == AnalyserInternalVariable::Type::STATE) {
+        // We ignore equations that either:
+        // 1. Don't have a SymEngine expression.
+        // 1. Have not been causalised.
+        // 2. Is used to define a state variable (i.e. a differential equation).
+        if (equation->mUnknownVariables.size() != 1
+            || equation->mUnknownVariables.front()->mType == AnalyserInternalVariable::Type::STATE
+            || seEquationMap[equation] == SymEngine::null) {
             continue;
         }
 
@@ -3037,6 +3046,10 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
         substitutionMap[seChildren.front()] = seChildren.back();
 
         for (auto &otherEquation : equations) {
+            if (otherEquation == equation || seEquationMap[otherEquation] == SymEngine::null) {
+                continue;
+            }
+
             seEquationMap[otherEquation] = SymEngine::msubs(seEquationMap[otherEquation], substitutionMap);
         }
     }
