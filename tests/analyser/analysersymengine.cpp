@@ -259,11 +259,11 @@ TEST(Analyser, breakAlgebraicLoop)
 
     EXPECT_EQ(libcellml::AnalyserModel::Type::ODE, analyser->analyserModel()->type());
 
-    EXPECT_EQ("v_y = v_in-v_z", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
+    EXPECT_EQ("v_z = v_in-v_y", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
     EXPECT_EQ("P_x = P_out+P_R", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
-    EXPECT_EQ("v_z = -pow(-R_v-R, -1.0)*(R_v*v_in+P_C-P_out)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
-    EXPECT_EQ("P_R = R*v_z", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
-    EXPECT_EQ("P_R_v = R_v*v_y", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(4)->ast()));
+    EXPECT_EQ("v_y = 1/2.0*pow(R_v, -2.0)*(R_v*(R_v+R_v*v_in)-q)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
+    EXPECT_EQ("P_R = v_z*R", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
+    EXPECT_EQ("P_R_v = v_y*R_v", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(4)->ast()));
     EXPECT_EQ("dq/dt = v_y", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(5)->ast()));
     EXPECT_EQ("P_C = q/C", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(6)->ast()));
 }
