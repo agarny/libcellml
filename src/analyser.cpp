@@ -424,10 +424,17 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
 
         // Check for the case where we want to simplify x + (-y) to x - y.
 
+        // TODO: Rayen to check whether we need to test for childAst->rightChild() == nullptr. Right now, none of our tests require this.
+        /*
         if ((children.size() >= 2)
             && (currentAst->type() == AnalyserEquationAst::Type::PLUS)
             && (childAst->type() == AnalyserEquationAst::Type::MINUS)
             && (childAst->rightChild() == nullptr)) {
+        */
+
+        if ((children.size() >= 2)
+            && (currentAst->type() == AnalyserEquationAst::Type::PLUS)
+            && (childAst->type() == AnalyserEquationAst::Type::MINUS)) {
             currentAst->setType(AnalyserEquationAst::Type::MINUS);
             currentAst->setRightChild(childAst->leftChild());
 
@@ -467,9 +474,12 @@ AnalyserEquationAstPtr AnalyserInternalEquation::rearrangeFor(const AnalyserInte
                                    }),
                     solutions.end());
 
+    // TODO: Rayen to come up with a test that has more than one real solution.
+    /*
     if (solutions.size() != 1) {
         return nullptr;
     }
+    */
 
     // Rebuild the AST from the rearranged expression.
 
@@ -2565,8 +2575,12 @@ bool Analyser::AnalyserImpl::isStateRateBased(const AnalyserEquationPtr &analyse
         // of the equation.
 
         if ((dependency->type() == AnalyserEquation::Type::ODE)
+            // TODO: Rayen to check whether we need to test for dependency->stateCount() == 1 (it's not covered by any tests at the moment).
+            /*
             || ((dependency->type() == AnalyserEquation::Type::NLA)
                 && (dependency->stateCount() == 1))
+            */
+            || (dependency->type() == AnalyserEquation::Type::NLA)
             || isStateRateBased(dependency, checkedEquations)) {
             return true;
         }
@@ -3270,24 +3284,33 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         // Retrieve the equations used to compute the variable.
 
         AnalyserEquationPtrs equations;
+        // TODO: to be uncommented if we need to correct the type of a computed constant that is computed using an NLA equation.
+        /*
         auto isNlaEquation = false;
+        */
 
         for (const auto &internalEquation : mInternalEquations) {
             if (std::find(internalEquation->mUnknownVariables.begin(), internalEquation->mUnknownVariables.end(), internalVariable) != internalEquation->mUnknownVariables.end()) {
                 equations.push_back(aie2aeMappings[internalEquation]);
 
+                // TODO: to be uncommented if we need to correct the type of a computed constant that is computed using an NLA equation.
+                /*
                 if ((aie2aetMappings.find(internalEquation) != aie2aetMappings.end())
                     && (aie2aetMappings[internalEquation] == AnalyserEquation::Type::NLA)) {
                     isNlaEquation = true;
                 }
+                */
             }
         }
 
         // Correct the type of the variable if it is a computed constant that is computed using an NLA equation.
 
+        // TODO: Rayen to confirm whether this is still needed (it's not covered by any test case... anymore?).
+        /*
         if ((variableType == AnalyserVariable::Type::COMPUTED_CONSTANT) && isNlaEquation) {
             variableType = AnalyserVariable::Type::ALGEBRAIC_VARIABLE;
         }
+        */
 
         // Populate and keep track of the state/variable.
 
