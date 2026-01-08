@@ -45,6 +45,8 @@ using AnalyserEquationPtrs = std::vector<AnalyserEquationPtr>;
 using AnalyserVariablePtrs = std::vector<AnalyserVariablePtr>;
 using AnalyserExternalVariablePtrs = std::vector<AnalyserExternalVariablePtr>;
 
+using AnalyserEquationAstPtrs = std::vector<AnalyserEquationAstPtr>;
+
 using SymEngineVariableMap = std::map<SymEngine::RCP<const SymEngine::Symbol>, VariablePtr, SymEngine::RCPBasicKeyLess>;
 using SymEngineSymbolMap = std::map<VariablePtr, SymEngine::RCP<const SymEngine::Symbol>>;
 using SymEngineEquationResult = std::tuple<bool, SymEngine::RCP<const SymEngine::Basic>>;
@@ -76,7 +78,7 @@ struct AnalyserInternalVariable
     VariablePtrs mDependencies;
 
     AnalyserInternalEquationPtrs mUncausalisedEquations;
-    AnalyserInternalVariablePtrs mRearrangeableVariables;
+    AnalyserInternalEquationPtr mCausalisedEquation;
 
     static AnalyserInternalVariablePtr create(const VariablePtr &variable);
 
@@ -113,8 +115,7 @@ struct AnalyserInternalEquation
     AnalyserInternalVariablePtrs mAllVariables;
     AnalyserInternalVariablePtrs mUnknownVariables;
 
-    SymEngine::RCP<const SymEngine::Basic> mSeExpression;
-    AnalyserInternalVariablePtrs mRearrangeableVariables;
+    SymEngine::RCP<const SymEngine::Basic> mSeEquation;
 
     size_t mNlaSystemIndex = MAX_SIZE_T;
     AnalyserInternalEquationWeakPtrs mNlaSiblings;
@@ -276,6 +277,10 @@ public:
 
     void addInvalidVariableIssue(const AnalyserInternalVariablePtr &variable,
                                  Issue::ReferenceRule referenceRule);
+
+    void replaceAstTree(const AnalyserInternalEquationPtr &equation, const AnalyserEquationAstPtr &newAst);
+    bool causaliseRelationship(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &equation, SymEngineSymbolMap &symbolMap, SymEngineVariableMap &variableMap);
+    void matchRelationships(const AnalyserInternalVariablePtrs &variables, const AnalyserInternalEquationPtrs &equations);
 
     void analyseModel(const ModelPtr &model);
 

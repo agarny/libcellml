@@ -24,6 +24,7 @@ limitations under the License.
 #include <iterator>
 #include <symengine/derivative.h>
 #include <symengine/solve.h>
+#include <symengine/subs.h>
 
 #include "libcellml/analyserequation.h"
 #include "libcellml/analyserexternalvariable.h"
@@ -608,7 +609,7 @@ SymEngine::RCP<const SymEngine::Basic> AnalyserInternalEquation::rearrangeFor(co
 {
     SymEngine::RCP<const SymEngine::Set> solutionSet;
     try {
-        solutionSet = solve(mSeExpression, symbol);
+        solutionSet = solve(mSeEquation, symbol);
     } catch (const SymEngine::SymEngineException &e) {
         // SymEngine failed to solve the equation. This is likely because to the variable we're trying
         // to solve for is nested within a function that SymEngine cannot invert (e.g. sin, log, etc).
@@ -715,9 +716,9 @@ bool AnalyserInternalEquation::check(const AnalyserModelPtr &analyserModel, bool
         SymEngineVariableMap variableMap;
         SymEngineSymbolMap symbolMap;
 
-        auto [success, seExpression] = parseAstToSymEngine(mAst, symbolMap, variableMap);
+        auto [success, seEquation] = parseAstToSymEngine(mAst, symbolMap, variableMap);
         if (success) {
-            mSeExpression = seExpression;
+            mSeEquation = seEquation;
             auto seEquation = rearrangeFor(symbolMap[unknownVariableLeft->mVariable]);
             if (!seEquation.is_null()) {
                 // TODO Update variables and/or equation type when necessary.
@@ -2760,6 +2761,369 @@ void Analyser::AnalyserImpl::addInvalidVariableIssue(const AnalyserInternalVaria
     addIssue(issue);
 }
 
+void Analyser::AnalyserImpl::replaceAstTree(const AnalyserInternalEquationPtr &equation, const AnalyserEquationAstPtr &newAst)
+{
+    equation->mAst = newAst;
+
+    equation->mAllVariables.clear();
+    equation->mVariables.clear();
+    equation->mStateVariables.clear();
+    equation->mDependencies.clear();
+
+    AnalyserEquationAstPtrs astStack;
+    astStack.push_back(newAst);
+
+    while (astStack.size() > 0) {
+        const auto ast = astStack.back();
+        astStack.pop_back();
+
+        if (ast->type() == AnalyserEquationAst::Type::CI) {
+            const auto variable = ast->variable();
+            if (ast->parent()->type() == AnalyserEquationAst::Type::DIFF) {
+                equation->addStateVariable(internalVariable(variable));
+            } else if (ast->parent()->type() != AnalyserEquationAst::Type::BVAR) {
+                equation->addVariable(internalVariable(variable));
+            }
+        }
+
+        if (ast->leftChild() != nullptr) {
+            astStack.push_back(ast->leftChild());
+        }
+
+        if (ast->rightChild() != nullptr) {
+            astStack.push_back(ast->rightChild());
+        }
+    }
+}
+
+bool Analyser::AnalyserImpl::causaliseRelationship(const AnalyserInternalVariablePtr &variable,
+                                                   const AnalyserInternalEquationPtr &equation,
+                                                   SymEngineSymbolMap &symbolMap,
+                                                   SymEngineVariableMap &variableMap)
+{
+    // Check if we need to attempt to isolate our variable.
+    if (!equation->variableOnLhsOrRhs(variable)) {
+        const auto symbol = symbolMap[variable->mVariable];
+        const auto seRearranged = equation->rearrangeFor(symbolMap[variable->mVariable]);
+        if (seRearranged == SymEngine::null) {
+            return false;
+        }
+
+        const auto seEquation = SymEngine::Eq(symbol, seRearranged);
+        equation->mSeEquation = seEquation;
+        equation->mAst = equation->parseSymEngineToAst(seEquation, nullptr, variableMap);
+    }
+
+    equation->mUnknownVariables.push_back(variable);
+    variable->mCausalisedEquation = equation;
+
+    // Update so that equations depends on all other (state) variables.
+    for (const auto *otherVariables : {&equation->mStateVariables, &equation->mVariables}) {
+        for (auto &otherVariable : *otherVariables) {
+            if (otherVariable == variable) {
+                continue;
+            }
+
+            // Remove the unknown link from our other variable to this equation.
+            auto linkedEquations = variable->mUncausalisedEquations;
+            linkedEquations.erase(std::remove(linkedEquations.begin(), linkedEquations.end(), equation), linkedEquations.end());
+
+            equation->mDependencies.push_back(otherVariable->mVariable);
+        }
+    }
+
+    // We can stop tracking all (state) variables since we know their relationship with this equation now.
+    equation->mStateVariables.clear();
+    equation->mVariables.clear();
+
+    // Update all other equations to consider this variable known.
+    for (auto &otherEquation : variable->mUncausalisedEquations) {
+        if (otherEquation == equation) {
+            continue;
+        }
+
+        otherEquation->mDependencies.push_back(variable->mVariable);
+
+        // Stop tracking the variable since it is now known.
+        otherEquation->mStateVariables.erase(std::remove(otherEquation->mStateVariables.begin(), otherEquation->mStateVariables.end(), variable), otherEquation->mStateVariables.end());
+        otherEquation->mVariables.erase(std::remove(otherEquation->mVariables.begin(), otherEquation->mVariables.end(), variable), otherEquation->mVariables.end());
+    }
+    // Since the variable's causalisation has been defined, it no longer has any unclassified edges.
+    variable->mUncausalisedEquations.clear();
+
+    return true;
+}
+
+void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePtrs &variables, const AnalyserInternalEquationPtrs &equations)
+{
+    // Implements practical Cellier tearing algorithm to match equations and break algebraic loops.
+
+    // The system cannot currently handle ambiguous initialised variables, so we need to return out
+    // and let the original checker manage it fully.
+    for (const auto variable : variables) {
+        if (variable->mType == AnalyserInternalVariable::Type::INITIALISED) {
+            return;
+        }
+    }
+
+    // The variables and equations we've yet to causalise.
+    AnalyserInternalVariablePtrs unknownVariables {variables};
+    AnalyserInternalEquationPtrs unknownEquations {equations};
+
+    // The variables our system will assume our known.
+    AnalyserInternalVariablePtrs tearingVariables;
+
+    // SymEngine helper maps.
+    SymEngineSymbolMap symbolMap;
+    SymEngineVariableMap variableMap;
+
+    // Keep track of variables based on when we're able to determine them.
+    AnalyserInternalVariablePtrs firstVariables;
+    AnalyserInternalVariablePtrs lastVariables;
+
+    // Generate SymEngine expressions for our equations.
+    // Also begin tracking the causality from the perspective of variables.
+    for (const auto &equation : unknownEquations) {
+        auto [result, seEquation] = equation->parseAstToSymEngine(equation->mAst, symbolMap, variableMap);
+        if (result) {
+            equation->mSeEquation = seEquation;
+        }
+
+        for (const auto &variable : equation->mAllVariables) {
+            variable->mUncausalisedEquations.push_back(equation);
+        }
+    }
+
+    // Generate causal relationships for all variables and equations that we are able to process.
+    // Tearing variables are declared when a simple causal relationship cannot be defined.
+    while (unknownVariables.size() > 0) {
+        bool changed = true;
+        while (changed) {
+            changed = false;
+
+            // Identify equations that we can currently causalise.
+            for (auto iter = unknownEquations.begin(); iter != unknownEquations.end();) {
+                auto &equation = *iter;
+
+                if (equation->mVariables.size() + equation->mStateVariables.size() != 1) {
+                    ++iter;
+                    continue;
+                }
+
+                auto variable = equation->mVariables.size() == 1 ? equation->mVariables.front() : equation->mStateVariables.front();
+
+                const auto success = causaliseRelationship(variable, equation, symbolMap, variableMap);
+
+                if (!success) {
+                    continue;
+                }
+
+                // Since this equation only has one undefined variable, it can be the next variable to be defined.
+                firstVariables.push_back(variable);
+
+                unknownVariables.erase(std::remove(unknownVariables.begin(), unknownVariables.end(), variable), unknownVariables.end());
+                iter = unknownEquations.erase(iter);
+
+                changed = true;
+            }
+
+            // Identify variables that we can currently causalise.
+            for (auto iter = unknownVariables.begin(); iter != unknownVariables.end();) {
+                auto &variable = *iter;
+
+                if (variable->mUncausalisedEquations.size() > 1) {
+                    ++iter;
+                    continue;
+                } else if (variable->mUncausalisedEquations.size() == 0) {
+                    // No equations left that include this variable. This means we won't be able to causalise this.
+                    iter = unknownVariables.erase(iter);
+                    continue;
+                }
+
+                auto equation = variable->mUncausalisedEquations.front();
+
+                const auto success = causaliseRelationship(variable, equation, symbolMap, variableMap);
+
+                if (!success) {
+                    continue;
+                }
+
+                // Since this variable must be defined by this equation, we need to do it at the end (but before other
+                // variables that have been previously been identified the same way).
+                lastVariables.insert(lastVariables.begin(), variable);
+
+                changed = true;
+
+                unknownEquations.erase(std::remove(unknownEquations.begin(), unknownEquations.end(), equation), unknownEquations.end());
+                iter = unknownVariables.erase(iter);
+            }
+        }
+
+        // TODO Prioritise choosing 'impossible variables'.
+
+        // Pick a tearing variable using modified Cellier-Heuristic 3.
+
+        // For every variable, identify the following two statistics
+        // 1. The number of equations that would be made causal if this variable were known.
+        // 2. The number of uncausalised relationships involving the variable
+        // The chosen tearing variable must have the greatest sum of these two factors, and
+        // should have the greatest quantity of the first statistic among the variables
+        // which meet the first criteria.
+        size_t maxSum = 0;
+        size_t maxCausalMaking = 0;
+        AnalyserInternalVariablePtr tearingVariable;
+
+        for (auto variable : unknownVariables) {
+            size_t causalMaking = 0;
+            for (auto equation : variable->mUncausalisedEquations) {
+                if (equation->mStateVariables.size() + equation->mVariables.size() == 2) {
+                    causalMaking++;
+                }
+            }
+            size_t sum = causalMaking + variable->mUncausalisedEquations.size();
+            if (sum > maxSum || (sum == maxSum && causalMaking > maxCausalMaking)) {
+                maxSum = sum;
+                maxCausalMaking = causalMaking;
+                tearingVariable = variable;
+            }
+        }
+
+        if (tearingVariable != nullptr) {
+            tearingVariables.push_back(tearingVariable);
+
+            unknownVariables.erase(std::remove(unknownVariables.begin(), unknownVariables.end(), tearingVariable), unknownVariables.end());
+
+            // We will need to make the assumption from here on out that this variable is known.
+            firstVariables.push_back(tearingVariable);
+
+            // TODO Probably want to refactor since this is duplicated from causaliseRelationship().
+            // Make all other relationships originating at the variable into utilisation relationships.
+            // Update all other equations to consider this variable known.
+            for (auto &otherEquation : tearingVariable->mUncausalisedEquations) {
+                otherEquation->mDependencies.push_back(tearingVariable->mVariable);
+
+                // Stop tracking the variable since it is now known.
+                otherEquation->mStateVariables.erase(std::remove(otherEquation->mStateVariables.begin(), otherEquation->mStateVariables.end(), tearingVariable), otherEquation->mStateVariables.end());
+                otherEquation->mVariables.erase(std::remove(otherEquation->mVariables.begin(), otherEquation->mVariables.end(), tearingVariable), otherEquation->mVariables.end());
+            }
+            // Since the variable's causalisation has been defined, it no longer has any unclassified edges.
+            tearingVariable->mUncausalisedEquations.clear();
+        }
+    }
+
+    // TODO Instead of subbing for everything, it would be better to keep track of our dependencies,
+    // so we don't substitute for variables we would already know (which would consequently result in
+    // redundant recalculations).
+
+    // Substitute to isolate tearing variables. We operate on a copy of our equations to ensure that
+    // the original linked SymEngine equation will still in a simple form.
+    std::map<AnalyserInternalEquationPtr, SymEngine::RCP<const SymEngine::Basic>> seEquationMap;
+    for (const auto &equation : equations) {
+        seEquationMap[equation] = equation->mSeEquation;
+    }
+
+    for (const auto &equation : equations) {
+        // We won't substitute equations that has either:
+        // 1. Not been causalised.
+        // 2. Is being used to define a state variable (i.e. a differential equation).
+        if (equation->mUnknownVariables.size() != 1 || equation->mUnknownVariables.front()->mType == AnalyserInternalVariable::Type::STATE) {
+            continue;
+        }
+
+        // We know this to be rearranged, so front() will be our symbol and back() will be our
+        // rearranged expression.
+        auto seChildren = seEquationMap[equation]->get_args();
+        SymEngine::map_basic_basic substitutionMap;
+        substitutionMap[seChildren.front()] = seChildren.back();
+
+        for (auto &otherEquation : equations) {
+            seEquationMap[otherEquation] = SymEngine::msubs(seEquationMap[otherEquation], substitutionMap);
+        }
+    }
+
+    // TODO Solve for multiple tearing variables.
+    if (tearingVariables.size() == 1) {
+        const auto &variable = tearingVariables.front();
+        const auto &equation = unknownEquations.front();
+
+        const auto newAst = equation->parseSymEngineToAst(seEquationMap[equation], nullptr, variableMap);
+        replaceAstTree(equation, newAst);
+        equation->mSeEquation = seEquationMap[equation];
+
+        const auto success = causaliseRelationship(variable, equation, symbolMap, variableMap);
+    }
+
+    // Classify our equations and variables.
+    for (const auto *orderedVariables : {&firstVariables, &lastVariables}) {
+        for (auto &variable : *orderedVariables) {
+            auto &equation = variable->mCausalisedEquation;
+
+            if (equation == nullptr) {
+                continue;
+            }
+
+            // Our equation is redundant since it doesn't define anything (no unknowns),
+            // or our equation is part of an NLA system (2+ unknowns), which means we
+            // will let the rest of our checker handle it.
+            if (equation->mUnknownVariables.size() != 1) {
+                continue;
+            }
+
+            // We haven't been able to successfully rearrange the equation, so we can't
+            // currently classify it.
+            if (!equation->variableOnLhsOrRhs(variable)) {
+                continue;
+            }
+
+            if (variable->mType == AnalyserInternalVariable::Type::STATE) {
+                equation->mType = AnalyserInternalEquation::Type::ODE;
+                continue;
+            }
+
+            bool noUnknowns = true;
+            // True when equations don't contain any variables.
+            bool onlyConstants = true;
+            // True when all variables of an equation or constant (i.e. true constant or computed constant).
+            bool onlyComputedConstants = true;
+
+            for (const auto dependentVariable : equation->mAllVariables) {
+                if (dependentVariable == variable) {
+                    continue;
+                }
+
+                switch (dependentVariable->mType) {
+                case (AnalyserInternalVariable::Type::UNKNOWN):
+                    noUnknowns = false;
+                    break;
+                case (AnalyserInternalVariable::Type::STATE):
+                case (AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE):
+                case (AnalyserInternalVariable::Type::INITIALISED_ALGEBRAIC_VARIABLE):
+                    onlyComputedConstants = false;
+                case (AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT):
+                case (AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT):
+                    // Set to false if type is ANY of state, (initialised) algebraic variable, computed
+                    // true constant, or computed variable-based constant.
+                    onlyConstants = false;
+                }
+            }
+
+            if (!noUnknowns) {
+                // We're still unable to classify the equation.
+                continue;
+            } else if (onlyConstants) {
+                variable->mType = AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT;
+                equation->mType = AnalyserInternalEquation::Type::CONSTANT;
+            } else if (onlyComputedConstants) {
+                variable->mType = AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT;
+                equation->mType = AnalyserInternalEquation::Type::COMPUTED_CONSTANT;
+            } else {
+                variable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
+                equation->mType = AnalyserInternalEquation::Type::ALGEBRAIC;
+            }
+        }
+    }
+}
+
 void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
 {
     // Reset a few things in case this analyser was to be used to analyse more
@@ -2953,6 +3317,10 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
     auto hasExternalVariables = std::any_of(mInternalVariables.begin(), mInternalVariables.end(), [](const auto &iv) {
         return iv->mIsExternalVariable;
     });
+
+    // Run this before our main checker. This should currently cover the initial loop and go a bit into solving NLAs.
+    // Note that this algorithm ignores initialised variables.
+    matchRelationships(mInternalVariables, mInternalEquations);
 
     // Loop over our equations, checking which variables, if any, can be
     // determined using a given equation.
