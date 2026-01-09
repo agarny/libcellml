@@ -257,12 +257,13 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
     case AnalyserEquationAst::Type::ROOT:
         if (right == SymEngine::null) {
             // Square root is expected.
+
             return {true, SymEngine::pow(left, SymEngine::div(SymEngine::integer(1), SymEngine::integer(2)))};
         } else {
             // Left child will have been processed to directly hold the degree of the root.
+
             return {true, SymEngine::pow(right, SymEngine::div(SymEngine::integer(1), left))};
         }
-        return {true, SymEngine::pow(left, SymEngine::div(SymEngine::integer(1), right))};
     case AnalyserEquationAst::Type::ABS:
         return {true, SymEngine::abs(left)};
     case AnalyserEquationAst::Type::EXP:
@@ -697,7 +698,7 @@ AnalyserEquationAstPtr AnalyserInternalEquation::rearrangeFor(const AnalyserInte
 
     auto targetSymbol = symbolMap[variable->mVariable->name()];
     if (targetSymbol.is_null()) {
-        for (int i = 0; i < variable->mVariable->equivalentVariableCount(); ++i) {
+        for (size_t i = 0; i < variable->mVariable->equivalentVariableCount(); ++i) {
             auto equivalentVariable = variable->mVariable->equivalentVariable(i);
             targetSymbol = symbolMap[equivalentVariable->name()];
             if (!targetSymbol.is_null()) {
@@ -709,9 +710,8 @@ AnalyserEquationAstPtr AnalyserInternalEquation::rearrangeFor(const AnalyserInte
     SymEngine::RCP<const SymEngine::Set> solutionSet;
 
     try {
-        solutionSet = solve(seEquation, symbolMap[variable->mVariable->name()]);
         solutionSet = solve(seEquation, targetSymbol);
-    } catch (const SymEngine::SymEngineException &e) {
+    } catch (const SymEngine::SymEngineException &) {
         // SymEngine failed to solve the equation. This is likely because to the variable we're trying
         // to solve for is nested within a function that SymEngine cannot invert (e.g. sin, log, etc).
 
