@@ -2992,15 +2992,23 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
             equation->mSeEquation = seEquation;
         }
 
-        for (auto &variable : equation->mAllVariables) {
-            // Initialised variable should already be considered causalised.
+        for (auto iter = equation->mVariables.begin(); iter != equation->mVariables.end();) {
+            auto &variable = *iter;
 
-            if (variable->mType == AnalyserInternalVariable::Type::INITIALISED) {
-                equation->mStateVariables.erase(std::remove(equation->mStateVariables.begin(), equation->mStateVariables.end(), variable), equation->mStateVariables.end());
-                equation->mVariables.erase(std::remove(equation->mVariables.begin(), equation->mVariables.end(), variable), equation->mVariables.end());
+            // Initialised variables should already be assumed to be constants and thus already causalised.
+            // State variables that are used as variables in equations should be causalised elsewhere.
+
+            if (variable->mType == AnalyserInternalVariable::Type::INITIALISED
+                || variable->mType == AnalyserInternalVariable::Type::STATE) {
+                iter = equation->mVariables.erase(iter);
             } else {
                 variable->mUncausalisedEquations.push_back(equation);
+                ++iter;
             }
+        }
+
+        for (auto &variable : equation->mStateVariables) {
+            variable->mUncausalisedEquations.push_back(equation);
         }
     }
 
