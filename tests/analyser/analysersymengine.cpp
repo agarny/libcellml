@@ -144,7 +144,7 @@ TEST(AnalyserSymEngine, rearrangePolynomialEquations)
 #ifdef _WIN32
     EXPECT_EQ("d = -1/6.0*pow(2.0, 2/3.0)*pow(-27.0*w+27.0*pow(pow(w, 2.0), 1/2.0), 1/3.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
 #else
-    EXPECT_EQ("d = -1/6.0*pow(2.0, 2/3.0)*pow(27.0*pow(pow(w, 2.0), 1/2.0)+-27.0*w, 1/3.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
+    EXPECT_EQ("d = -1.0/6.0*pow(2.0, 2.0/3.0)*pow(27.0*pow(pow(w, 2.0), 1.0/2.0)+-27.0*w, 1.0/3.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
 #endif
 }
 
