@@ -288,7 +288,7 @@ SymEngineEquationResult AnalyserInternalEquation::symEngineEquation(const Analys
     case AnalyserEquationAst::Type::REM:
         return {true, SymEngine::function_symbol("mod", {left, right})};
     case AnalyserEquationAst::Type::DIFF:
-        return {true, SymEngine::Derivative::create(right, {SymEngine::rcp_static_cast<const SymEngine::Symbol>(left)})};
+        return {true, SymEngine::function_symbol("diff", {left, right})};
     case AnalyserEquationAst::Type::SIN:
         return {true, SymEngine::sin(left)};
     case AnalyserEquationAst::Type::COS:
@@ -470,27 +470,6 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
         currentAst->setType(AnalyserEquationAst::Type::MAX);
 
         break;
-    case SymEngine::SYMENGINE_DERIVATIVE: {
-        currentAst->setType(AnalyserEquationAst::Type::DIFF);
-
-        // This is a special case where we need to manually wrap the left child in a BVAR node.
-        // Note that the variable of differentiation will be the second child of a symengine
-        // derivative expression.
-
-        auto bVarAst = AnalyserEquationAst::create();
-
-        bVarAst->setType(AnalyserEquationAst::Type::BVAR);
-        bVarAst->setParent(currentAst);
-        currentAst->setLeftChild(bVarAst);
-        bVarAst->setLeftChild(parseSymEngineExpression(children[1], bVarAst, variableMap));
-
-        // We must also set the right child here, since the the loop below doesn't know we've ready
-        // set the left child.
-
-        currentAst->setRightChild(parseSymEngineExpression(children[0], currentAst, variableMap));
-
-        return headAst;
-    }
     case SymEngine::SYMENGINE_SIN:
         currentAst->setType(AnalyserEquationAst::Type::SIN);
 
@@ -615,13 +594,37 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineExpression(const 
     case SymEngine::SYMENGINE_INFTY:
         currentAst->setType(AnalyserEquationAst::Type::INF);
         break;
-    default:
+    default: {
         // The only case left should be SymEngine::SYMENGINE_FUNCTIONSYMBOL.
-        if (SymEngine::rcp_dynamic_cast<const SymEngine::FunctionSymbol>(seExpression)->get_name() == "mod") {
+
+        auto functionName = SymEngine::rcp_dynamic_cast<const SymEngine::FunctionSymbol>(seExpression)->get_name();
+
+        if (functionName == "diff") {
+            currentAst->setType(AnalyserEquationAst::Type::DIFF);
+
+            // This is a special case where we need to manually wrap the left child in a BVAR node.
+
+            auto bVarAst = AnalyserEquationAst::create();
+
+            bVarAst->setType(AnalyserEquationAst::Type::BVAR);
+            bVarAst->setParent(currentAst);
+            currentAst->setLeftChild(bVarAst);
+            bVarAst->setLeftChild(parseSymEngineExpression(children[0], bVarAst, variableMap));
+
+            // We must also set the right child here, since the the loop below doesn't know we've ready
+            // set the left child.
+
+            currentAst->setRightChild(parseSymEngineExpression(children[1], currentAst, variableMap));
+
+            return headAst;
+        } else {
+            // Must be a modulo function symbol.
+
             currentAst->setType(AnalyserEquationAst::Type::REM);
         }
 
         break;
+    }
     }
 
     // All children (except the last) are guaranteed to be left children in the AST tree.
