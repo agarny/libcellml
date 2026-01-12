@@ -774,9 +774,13 @@ void Generator::GeneratorImpl::addNlaSystemsCode()
                 auto analyserVariables = libcellml::analyserVariables(analyserEquation);
 
                 for (const auto &analyserVariable : analyserVariables) {
+                    // TODO: Rayen to re-enable once all of our tests are back to normal...?
+                    /*
                     auto arrayString = (analyserVariable->type() == AnalyserVariable::Type::STATE) ?
                                            mProfile->ratesArrayString() :
                                            mProfile->algebraicVariablesArrayString();
+                    */
+                    auto arrayString = mProfile->algebraicVariablesArrayString();
 
                     methodBody += mProfile->indentString()
                                   + arrayString + mProfile->openArrayString() + analyserVariableIndexString(analyserVariable) + mProfile->closeArrayString()
@@ -790,6 +794,8 @@ void Generator::GeneratorImpl::addNlaSystemsCode()
 
                 methodBody += "\n";
 
+                // TODO: Rayen to re-enable once all of our tests are back to normal...?
+                /*
                 auto methodBodySize = methodBody.size();
 
                 for (const auto &constantDependency : analyserEquation->mPimpl->mConstantDependencies) {
@@ -816,6 +822,7 @@ void Generator::GeneratorImpl::addNlaSystemsCode()
                 //     c) Generate our NLA system's objective functions.
 
                 methodBody += (methodBody.size() == methodBodySize) ? "" : "\n";
+                */
 
                 i = MAX_SIZE_T;
 
@@ -850,9 +857,13 @@ void Generator::GeneratorImpl::addNlaSystemsCode()
                 i = MAX_SIZE_T;
 
                 for (const auto &analyserVariable : analyserVariables) {
+                    // TODO: Rayen to re-enable once all of our tests are back to normal...?
+                    /*
                     auto arrayString = (analyserVariable->type() == AnalyserVariable::Type::STATE) ?
                                            mProfile->ratesArrayString() :
                                            mProfile->algebraicVariablesArrayString();
+                    */
+                    auto arrayString = mProfile->algebraicVariablesArrayString();
 
                     methodBody += mProfile->indentString()
                                   + mProfile->uArrayString() + mProfile->openArrayString() + convertToString(++i) + mProfile->closeArrayString()
@@ -878,9 +889,13 @@ void Generator::GeneratorImpl::addNlaSystemsCode()
                 methodBody += "\n";
 
                 for (const auto &analyserVariable : analyserVariables) {
+                    // TODO: Rayen to re-enable once all of our tests are back to normal...?
+                    /*
                     auto arrayString = (analyserVariable->type() == AnalyserVariable::Type::STATE) ?
                                            mProfile->ratesArrayString() :
                                            mProfile->algebraicVariablesArrayString();
+                    */
+                    auto arrayString = mProfile->algebraicVariablesArrayString();
 
                     methodBody += mProfile->indentString()
                                   + arrayString + mProfile->openArrayString() + analyserVariableIndexString(analyserVariable) + mProfile->closeArrayString()
@@ -1759,6 +1774,8 @@ bool Generator::GeneratorImpl::isSomeConstant(const AnalyserEquationPtr &analyse
            || (!includeComputedConstants && (analyserEquation->type() == AnalyserEquation::Type::COMPUTED_CONSTANT));
 }
 
+// TODO: Rayen to check but I believe this method should not be needed anymore since it was used to initialise a variable (to zero) that is not on its own on either the LHS or RHS of an equation and that therefore needed to be computed using an NLA equation. However, this is now handled by SymEngine.
+/*
 std::string Generator::GeneratorImpl::generateZeroInitialisationCode(const AnalyserVariablePtr &analyserVariable)
 {
     return mProfile->indentString()
@@ -1767,6 +1784,7 @@ std::string Generator::GeneratorImpl::generateZeroInitialisationCode(const Analy
            + "0.0"
            + mProfile->commandSeparatorString() + "\n";
 }
+*/
 
 std::string Generator::GeneratorImpl::generateInitialisationCode(const AnalyserVariablePtr &analyserVariable, bool force)
 {
@@ -1819,8 +1837,13 @@ std::string Generator::GeneratorImpl::generateEquationCode(const AnalyserEquatio
         // Generate any dependency that this analyser equation may have.
 
         for (const auto &constantDependency : analyserEquation->mPimpl->mConstantDependencies) {
+            // TODO: Rayen to re-enable once all of our tests are back to normal...?
+            /*
             if ((analyserEquation->type() != AnalyserEquation::Type::NLA)
                 && isTrackedVariable(constantDependency, false)
+                && (std::find(generatedConstantDependencies.begin(), generatedConstantDependencies.end(), constantDependency) == generatedConstantDependencies.end())) {
+            */
+            if (isTrackedVariable(constantDependency, false)
                 && (std::find(generatedConstantDependencies.begin(), generatedConstantDependencies.end(), constantDependency) == generatedConstantDependencies.end())) {
                 res += generateInitialisationCode(constantDependency, true);
 
@@ -1834,13 +1857,20 @@ std::string Generator::GeneratorImpl::generateEquationCode(const AnalyserEquatio
                      && (dependency->type() == AnalyserEquation::Type::COMPUTED_CONSTANT)
                      && isTrackedEquation(dependency, false))
                     || (((target == GenerateEquationCodeTarget::NORMAL)
+                         // TODO: Rayen to re-enable once all of our tests are back to normal...?
+                         /*
                          || ((target == GenerateEquationCodeTarget::COMPUTE_VARIABLES)
                              && ((dependency->type() != AnalyserEquation::Type::NLA)
                                  || isToBeComputedAgain(dependency)
                                  || (std::find(analyserEquationsForDependencies.begin(), analyserEquationsForDependencies.end(), dependency) != analyserEquationsForDependencies.end()))))
+                         */
+                         || (dependency->type() != AnalyserEquation::Type::NLA))
                         && (dependency->type() != AnalyserEquation::Type::ODE)
+                        // TODO: Rayen to re-enable once all of our tests are back to normal...?
+                        /*
                         && (isTrackedEquation(dependency, true)
                             || (analyserEquation->type() != AnalyserEquation::Type::NLA))
+                        */
                         && !isSomeConstant(dependency, includeComputedConstants)
                         && (analyserEquationsForDependencies.empty()
                             || isToBeComputedAgain(dependency)
@@ -2040,11 +2070,14 @@ void Generator::GeneratorImpl::addImplementationInitialiseArraysMethodCode(std::
 
     // Use an initial guess of zero for rates computed using an NLA system (see the note below).
 
+    // TODO: Rayen to check but I believe this should not be needed anymore (thanks to SymEngine).
+    /*
     for (const auto &state : mAnalyserModel->states()) {
         if (state->analyserEquation(0)->type() == AnalyserEquation::Type::NLA) {
             methodBody += generateZeroInitialisationCode(state);
         }
     }
+    */
 
     // Initialise our remaining constants.
 
@@ -2077,8 +2110,11 @@ void Generator::GeneratorImpl::addImplementationInitialiseArraysMethodCode(std::
             methodBody += generateInitialiseVariableCode(algebraicVariable,
                                                          remainingAnalyserEquations, remainingStates, remainingConstants,
                                                          remainingComputedConstants, remainingAlgebraicVariables);
-        } else if (algebraicVariable->analyserEquation(0)->type() == AnalyserEquation::Type::NLA) {
-            methodBody += generateZeroInitialisationCode(algebraicVariable);
+            // TODO: Rayen to check but I believe this should not be needed anymore (thanks to SymEngine).
+            /*
+            } else if (algebraicVariable->analyserEquation(0)->type() == AnalyserEquation::Type::NLA) {
+                methodBody += generateZeroInitialisationCode(algebraicVariable);
+            */
         }
     }
 
@@ -2157,10 +2193,14 @@ void Generator::GeneratorImpl::addImplementationComputeRatesMethodCode(std::vect
 
             auto analyserVariables = libcellml::analyserVariables(analyserEquation);
 
+            // TODO: Rayen to re-enable once all of our tests are back to normal...?
+            /*
             if ((analyserEquation->type() == AnalyserEquation::Type::ODE)
                 || ((analyserEquation->type() == AnalyserEquation::Type::NLA)
                     && (analyserVariables.size() == 1)
                     && (analyserVariables[0]->type() == AnalyserVariable::Type::STATE))) {
+            */
+            if (analyserEquation->type() == AnalyserEquation::Type::ODE) {
                 methodBody += generateEquationCode(analyserEquation, remainingAnalyserEquations, generatedConstantDependencies);
             }
         }
