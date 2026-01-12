@@ -2964,18 +2964,14 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
 {
     // Implements practical Cellier tearing algorithm to match equations and break algebraic loops.
 
-    // The system cannot currently handle certain variables types, and so classification needs to
-    // be fully performed by our original system.
-    for (const auto variable : variables) {
-        if (variable->mType == AnalyserInternalVariable::Type::INITIALISED
-            || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
-            return;
-        }
-    }
+    // Initialise the variables and equations we've yet to causalise.
 
-    // The variables and equations we've yet to causalise.
-    AnalyserInternalVariablePtrs unknownVariables {variables};
+    AnalyserInternalVariablePtrs unknownVariables;
     AnalyserInternalEquationPtrs unknownEquations {equations};
+
+    std::copy_if(variables.begin(), variables.end(),
+                 std::back_inserter(unknownVariables),
+                 [](auto variable) { return variable->mType != AnalyserInternalVariable::Type::INITIALISED; });
 
     // The variables our system will assume our known.
     AnalyserInternalVariablePtrs tearingVariables;
@@ -2996,8 +2992,15 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
             equation->mSeEquation = seEquation;
         }
 
-        for (const auto &variable : equation->mAllVariables) {
-            variable->mUncausalisedEquations.push_back(equation);
+        for (auto &variable : equation->mAllVariables) {
+            // Initialised variable should already be considered causalised.
+
+            if (variable->mType == AnalyserInternalVariable::Type::INITIALISED) {
+                equation->mStateVariables.erase(std::remove(equation->mStateVariables.begin(), equation->mStateVariables.end(), variable), equation->mStateVariables.end());
+                equation->mVariables.erase(std::remove(equation->mVariables.begin(), equation->mVariables.end(), variable), equation->mVariables.end());
+            } else {
+                variable->mUncausalisedEquations.push_back(equation);
+            }
         }
     }
 
