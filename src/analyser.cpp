@@ -206,6 +206,44 @@ bool AnalyserInternalEquation::variableOnLhsOrRhs(const AnalyserInternalVariable
            || variableOnRhs(variable);
 }
 
+bool AnalyserInternalEquation::containsUncausalisedVariable(const AnalyserInternalVariablePtr &variable,
+                                                            const AnalyserEquationAstPtr &astChild)
+{
+    if (astChild == nullptr) {
+        return false;
+    }
+
+    if (astChild->variable() == variable->mVariable) {
+        if (variable->mType == AnalyserInternalVariable::Type::STATE) {
+            // State variables should be considered known and thus return false if they're used
+            // as a typical variable (rather than in a differential).
+
+            return astChild->parent()->type() == AnalyserEquationAst::Type::DIFF;
+        }
+
+        return true;
+    }
+
+    return containsUncausalisedVariable(variable, astChild->leftChild())
+           || containsUncausalisedVariable(variable, astChild->rightChild());
+}
+
+bool AnalyserInternalEquation::variableIsolated(const AnalyserInternalVariablePtr &variable)
+{
+    bool isolatedOnLeft = variableOnLhsRhs(variable, mAst->leftChild());
+    bool isolatedOnRight = variableOnLhsRhs(variable, mAst->rightChild());
+
+    if (isolatedOnLeft) {
+        return !containsUncausalisedVariable(variable, mAst->rightChild());
+    } else if (isolatedOnRight) {
+        return !containsUncausalisedVariable(variable, mAst->leftChild());
+    }
+
+    // if we've reached here then variable is not isolated on either side.
+
+    return false;
+}
+
 SymEngineEquationResult AnalyserInternalEquation::parseAstToSymEngine(const AnalyserEquationAstPtr &ast,
                                                                       SymEngineSymbolMap &symbolMap,
                                                                       SymEngineVariableMap &variableMap)
@@ -2904,7 +2942,10 @@ bool Analyser::AnalyserImpl::causaliseRelationship(const AnalyserInternalVariabl
                                                    SymEngineVariableMap &variableMap)
 {
     // Check if we need to attempt to isolate our variable.
-    if (!equation->variableOnLhsOrRhs(variable)) {
+    // Note that dx/dt = x should consider dx/dt as isolated since x is a state variable used outside of a differential,
+    // and is thus treated as known before we began the matching algorithm.
+
+    if (!equation->variableIsolated(variable)) {
         if (equation->mSeEquation == SymEngine::null) {
             return false;
         }

@@ -145,6 +145,10 @@ struct AnalyserInternalEquation
     bool variableOnRhs(const AnalyserInternalVariablePtr &variable);
     bool variableOnLhsOrRhs(const AnalyserInternalVariablePtr &variable);
 
+    bool containsUncausalisedVariable(const AnalyserInternalVariablePtr &variable,
+                                      const AnalyserEquationAstPtr &astChild);
+    bool variableIsolated(const AnalyserInternalVariablePtr &variable);
+
     SymEngineEquationResult parseAstToSymEngine(const AnalyserEquationAstPtr &ast, SymEngineSymbolMap &symbolMap, SymEngineVariableMap &variableMap);
     AnalyserEquationAstPtr parseSymEngineToAst(const SymEngine::RCP<const SymEngine::Basic> &seExpression, const AnalyserEquationAstPtr &parentAst, const SymEngineVariableMap &variableMap);
     bool isSymEngineExpressionComplex(const SymEngine::RCP<const SymEngine::Basic> &seExpression);
