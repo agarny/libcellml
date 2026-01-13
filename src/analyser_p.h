@@ -47,8 +47,8 @@ using AnalyserExternalVariablePtrs = std::vector<AnalyserExternalVariablePtr>;
 
 using AnalyserEquationAstPtrs = std::vector<AnalyserEquationAstPtr>;
 
-using SymEngineVariableMap = std::map<SymEngine::RCP<const SymEngine::Symbol>, VariablePtr, SymEngine::RCPBasicKeyLess>;
-using SymEngineSymbolMap = std::map<VariablePtr, SymEngine::RCP<const SymEngine::Symbol>>;
+using SymEngineVariableMap = std::map<SymEngine::RCP<const SymEngine::Dummy>, VariablePtr, SymEngine::RCPBasicKeyLess>;
+using SymEngineDummyMap = std::map<AnalyserInternalVariablePtr, SymEngine::RCP<const SymEngine::Dummy>>;
 using SymEngineEquationResult = std::tuple<bool, SymEngine::RCP<const SymEngine::Basic>>;
 
 struct AnalyserInternalVariable
@@ -147,12 +147,12 @@ struct AnalyserInternalEquation
 
     bool containsUncausalisedVariable(const AnalyserInternalVariablePtr &variable,
                                       const AnalyserEquationAstPtr &astChild);
+    bool validTerm(const AnalyserInternalVariablePtr &variable,
+                   const AnalyserEquationAstPtr &astChild);
     bool variableIsolated(const AnalyserInternalVariablePtr &variable);
 
-    SymEngineEquationResult parseAstToSymEngine(const AnalyserEquationAstPtr &ast, SymEngineSymbolMap &symbolMap, SymEngineVariableMap &variableMap);
-    AnalyserEquationAstPtr parseSymEngineToAst(const SymEngine::RCP<const SymEngine::Basic> &seExpression, const AnalyserEquationAstPtr &parentAst, const SymEngineVariableMap &variableMap);
     bool isSymEngineExpressionComplex(const SymEngine::RCP<const SymEngine::Basic> &seExpression);
-    SymEngine::RCP<const SymEngine::Basic> rearrangeFor(const SymEngine::RCP<const SymEngine::Symbol> &symbol);
+    SymEngine::RCP<const SymEngine::Basic> rearrangeFor(const SymEngine::RCP<const SymEngine::Dummy> &dummy);
 
     bool check(const AnalyserModelPtr &analyserModel, bool checkNlaSystems);
 };
@@ -282,8 +282,10 @@ public:
     void addInvalidVariableIssue(const AnalyserInternalVariablePtr &variable,
                                  Issue::ReferenceRule referenceRule);
 
+    SymEngineEquationResult parseAstToSymEngine(const AnalyserEquationAstPtr &ast, SymEngineDummyMap &dummyMap, SymEngineVariableMap &variableMap);
+    AnalyserEquationAstPtr parseSymEngineToAst(const SymEngine::RCP<const SymEngine::Basic> &seExpression, const AnalyserEquationAstPtr &parentAst, const SymEngineVariableMap &variableMap);
     void replaceAstTree(const AnalyserInternalEquationPtr &equation, const AnalyserEquationAstPtr &newAst);
-    bool causaliseRelationship(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &equation, SymEngineSymbolMap &symbolMap, SymEngineVariableMap &variableMap);
+    bool causaliseRelationship(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &equation, SymEngineDummyMap &dummyMap, SymEngineVariableMap &variableMap);
     void matchRelationships(const AnalyserInternalVariablePtrs &variables, const AnalyserInternalEquationPtrs &equations);
 
     void analyseModel(const ModelPtr &model);

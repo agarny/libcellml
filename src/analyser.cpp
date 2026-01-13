@@ -213,25 +213,49 @@ bool AnalyserInternalEquation::containsUncausalisedVariable(const AnalyserIntern
         return false;
     }
 
-    if (astChild->variable() == variable->mVariable) {
-        if (variable->mType == AnalyserInternalVariable::Type::STATE) {
-            // State variables should be considered known and thus return false if they're used
-            // as a typical variable (rather than in a differential).
+    if (astChild->type() == AnalyserEquationAst::Type::CI) {
+        if (variable->mVariable == astChild->variable()
+            || variable->mVariable->hasEquivalentVariable(astChild->variable())) {
+            if (variable->mType == AnalyserInternalVariable::Type::STATE) {
+                // State variables should be considered known and thus return false if they're used
+                // as a typical variable (rather than in a differential).
 
-            return astChild->parent()->type() == AnalyserEquationAst::Type::DIFF;
+                return astChild->parent()->type() == AnalyserEquationAst::Type::DIFF;
+            }
+
+            return true;
         }
-
-        return true;
     }
 
     return containsUncausalisedVariable(variable, astChild->leftChild())
            || containsUncausalisedVariable(variable, astChild->rightChild());
 }
 
+bool AnalyserInternalEquation::validTerm(const AnalyserInternalVariablePtr &variable,
+                                         const AnalyserEquationAstPtr &astChild)
+{
+    VariablePtr astVariable;
+
+    switch (astChild->type()) {
+    case AnalyserEquationAst::Type::CI:
+        astVariable = astChild->variable();
+
+        break;
+    case AnalyserEquationAst::Type::DIFF:
+        astVariable = astChild->rightChild()->variable();
+
+        break;
+    default:
+        return false;
+    }
+
+    return astVariable == variable->mVariable || astVariable->hasEquivalentVariable(variable->mVariable);
+}
+
 bool AnalyserInternalEquation::variableIsolated(const AnalyserInternalVariablePtr &variable)
 {
-    bool isolatedOnLeft = variableOnLhsRhs(variable, mAst->leftChild());
-    bool isolatedOnRight = variableOnLhsRhs(variable, mAst->rightChild());
+    bool isolatedOnLeft = validTerm(variable, mAst->leftChild());
+    bool isolatedOnRight = validTerm(variable, mAst->rightChild());
 
     if (isolatedOnLeft) {
         return !containsUncausalisedVariable(variable, mAst->rightChild());
@@ -244,9 +268,9 @@ bool AnalyserInternalEquation::variableIsolated(const AnalyserInternalVariablePt
     return false;
 }
 
-SymEngineEquationResult AnalyserInternalEquation::parseAstToSymEngine(const AnalyserEquationAstPtr &ast,
-                                                                      SymEngineSymbolMap &symbolMap,
-                                                                      SymEngineVariableMap &variableMap)
+SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const AnalyserEquationAstPtr &ast,
+                                                                    SymEngineDummyMap &dummyMap,
+                                                                    SymEngineVariableMap &variableMap)
 {
     // Make sure that we have an AST to convert.
 
@@ -259,8 +283,8 @@ SymEngineEquationResult AnalyserInternalEquation::parseAstToSymEngine(const Anal
     auto leftAst = ast->leftChild();
     auto rightAst = ast->rightChild();
 
-    auto [leftSuccess, left] = parseAstToSymEngine(leftAst, symbolMap, variableMap);
-    auto [rightSuccess, right] = parseAstToSymEngine(rightAst, symbolMap, variableMap);
+    auto [leftSuccess, left] = parseAstToSymEngine(leftAst, dummyMap, variableMap);
+    auto [rightSuccess, right] = parseAstToSymEngine(rightAst, dummyMap, variableMap);
 
     if (!leftSuccess || !rightSuccess) {
         return {false, SymEngine::null};
@@ -392,15 +416,16 @@ SymEngineEquationResult AnalyserInternalEquation::parseAstToSymEngine(const Anal
     case AnalyserEquationAst::Type::INF:
         return {true, SymEngine::Inf};
     case AnalyserEquationAst::Type::CI: {
-        auto variable = ast->variable();
-        if (symbolMap.find(variable) == symbolMap.end()) {
-            // Variable is not currently in map, so we need to add it.
+        auto variable = internalVariable(ast->variable());
 
-            SymEngine::RCP<const SymEngine::Symbol> symbol = SymEngine::symbol(variable->name());
-            symbolMap[variable] = symbol;
-            variableMap[symbol] = variable;
+        if (dummyMap.find(variable) == dummyMap.end()) {
+            auto dummy = SymEngine::dummy(variable->mVariable->name());
+
+            dummyMap[variable] = dummy;
+            variableMap[dummy] = variable->mVariable;
         }
-        return {true, symbolMap.at(variable)};
+
+        return {true, dummyMap.at(variable)};
     }
     case AnalyserEquationAst::Type::CN: {
         // SymEngine distinguishes between integers and real numbers.
@@ -435,9 +460,9 @@ bool AnalyserInternalEquation::isSymEngineExpressionComplex(const SymEngine::RCP
     return false;
 }
 
-AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineToAst(const SymEngine::RCP<const SymEngine::Basic> &seExpression,
-                                                                     const AnalyserEquationAstPtr &parentAst,
-                                                                     const SymEngineVariableMap &variableMap)
+AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngine::RCP<const SymEngine::Basic> &seExpression,
+                                                                   const AnalyserEquationAstPtr &parentAst,
+                                                                   const SymEngineVariableMap &variableMap)
 {
     // The headAst is the highest level ast for the converted seExpression and will be returned at the end.
     // Comparatively, the currentAst is the ast we are presently populating.
@@ -621,10 +646,10 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineToAst(const SymEn
         currentAst->setType(AnalyserEquationAst::Type::ACOTH);
 
         break;
-    case SymEngine::SYMENGINE_SYMBOL: {
-        auto symbol = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(seExpression);
+    case SymEngine::SYMENGINE_DUMMY: {
+        auto dummy = SymEngine::rcp_dynamic_cast<const SymEngine::Dummy>(seExpression);
         currentAst->setType(AnalyserEquationAst::Type::CI);
-        currentAst->setVariable(variableMap.at(symbol));
+        currentAst->setVariable(variableMap.at(dummy));
 
         break;
     }
@@ -738,12 +763,12 @@ AnalyserEquationAstPtr AnalyserInternalEquation::parseSymEngineToAst(const SymEn
     return headAst;
 }
 
-SymEngine::RCP<const SymEngine::Basic> AnalyserInternalEquation::rearrangeFor(const SymEngine::RCP<const SymEngine::Symbol> &symbol)
+SymEngine::RCP<const SymEngine::Basic> AnalyserInternalEquation::rearrangeFor(const SymEngine::RCP<const SymEngine::Dummy> &dummy)
 {
     SymEngine::RCP<const SymEngine::Set> solutionSet;
 
     try {
-        solutionSet = solve(mSeEquation, symbol);
+        solutionSet = solve(mSeEquation, dummy);
     } catch (const SymEngine::SymEngineException &) {
         // SymEngine failed to solve the equation. This is likely because to the variable we're trying
         // to solve for is nested within a function that SymEngine cannot invert (e.g. sin, log, etc).
@@ -848,21 +873,24 @@ bool AnalyserInternalEquation::check(const AnalyserModelPtr &analyserModel, bool
                                    mVariables.front() :
                                    nullptr;
 
-    // If we have one variable left, but it's not isolated, try to rearrange it.
-    if ((unknownVariableLeft != nullptr) && !variableOnLhsOrRhs(unknownVariableLeft)) {
-        SymEngineVariableMap variableMap;
-        SymEngineSymbolMap symbolMap;
+    // TODO See what can be done about the rearrangement functionality here since we no longer have access
+    // to parsing to and from SymEngine at the internal equation level.
 
-        auto [success, seEquation] = parseAstToSymEngine(mAst, symbolMap, variableMap);
-        if (success) {
-            mSeEquation = seEquation;
-            auto rearrangedEquation = rearrangeFor(symbolMap[unknownVariableLeft->mVariable]);
-            if (!rearrangedEquation.is_null()) {
-                // TODO Update variables and/or equation type when necessary.
-                mAst = parseSymEngineToAst(SymEngine::Eq(symbolMap[unknownVariableLeft->mVariable], seEquation), nullptr, variableMap);
-            }
-        }
-    }
+    // If we have one variable left, but it's not isolated, try to rearrange it.
+    // if ((unknownVariableLeft != nullptr) && !variableOnLhsOrRhs(unknownVariableLeft)) {
+    //     SymEngineVariableMap variableMap;
+    //     SymEngineDummyMap dummyMap;
+
+    //     auto [success, seEquation] = parseAstToSymEngine(mAst, dummyMap, variableMap, mAllVariables);
+    //     if (success) {
+    //         mSeEquation = seEquation;
+    //         auto rearrangedEquation = rearrangeFor(dummyMap[unknownVariableLeft->mVariable]);
+    //         if (!rearrangedEquation.is_null()) {
+    //             // TODO Update variables and/or equation type when necessary.
+    //             mAst = parseSymEngineToAst(SymEngine::Eq(dummyMap[unknownVariableLeft->mVariable], seEquation), nullptr, variableMap);
+    //         }
+    //     }
+    // }
 
     if (((unknownVariableLeft != nullptr)
          && (checkNlaSystems || variableOnLhsOrRhs(unknownVariableLeft)))
@@ -2939,7 +2967,7 @@ void Analyser::AnalyserImpl::replaceAstTree(const AnalyserInternalEquationPtr &e
 
 bool Analyser::AnalyserImpl::causaliseRelationship(const AnalyserInternalVariablePtr &variable,
                                                    const AnalyserInternalEquationPtr &equation,
-                                                   SymEngineSymbolMap &symbolMap,
+                                                   SymEngineDummyMap &dummyMap,
                                                    SymEngineVariableMap &variableMap)
 {
     // Check if we need to attempt to isolate our variable.
@@ -2951,15 +2979,15 @@ bool Analyser::AnalyserImpl::causaliseRelationship(const AnalyserInternalVariabl
             return false;
         }
 
-        const auto symbol = symbolMap[variable->mVariable];
-        const auto seRearranged = equation->rearrangeFor(symbolMap[variable->mVariable]);
+        const auto dummy = dummyMap[variable];
+        const auto seRearranged = equation->rearrangeFor(dummyMap[variable]);
         if (seRearranged == SymEngine::null) {
             return false;
         }
 
-        const auto seEquation = SymEngine::Eq(symbol, seRearranged);
+        const auto seEquation = SymEngine::Eq(dummy, seRearranged);
         equation->mSeEquation = seEquation;
-        equation->mAst = equation->parseSymEngineToAst(seEquation, nullptr, variableMap);
+        equation->mAst = parseSymEngineToAst(seEquation, nullptr, variableMap);
     }
 
     equation->mUnknownVariables.push_back(variable);
@@ -3021,7 +3049,7 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
 
     // SymEngine helper maps.
 
-    SymEngineSymbolMap symbolMap;
+    SymEngineDummyMap dummyMap;
     SymEngineVariableMap variableMap;
 
     // Keep track of variables based on when we're able to determine them.
@@ -3033,7 +3061,7 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
     // Also begin tracking the causality from the perspective of variables.
 
     for (const auto &equation : unknownEquations) {
-        auto [result, seEquation] = equation->parseAstToSymEngine(equation->mAst, symbolMap, variableMap);
+        auto [result, seEquation] = parseAstToSymEngine(equation->mAst, dummyMap, variableMap);
         if (result) {
             equation->mSeEquation = seEquation;
         }
@@ -3078,7 +3106,7 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
 
                 auto variable = equation->mVariables.size() == 1 ? equation->mVariables.front() : equation->mStateVariables.front();
 
-                const auto success = causaliseRelationship(variable, equation, symbolMap, variableMap);
+                const auto success = causaliseRelationship(variable, equation, dummyMap, variableMap);
 
                 if (!success) {
                     ++iter;
@@ -3112,7 +3140,7 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
 
                 auto equation = variable->mUncausalisedEquations.front();
 
-                const auto success = causaliseRelationship(variable, equation, symbolMap, variableMap);
+                const auto success = causaliseRelationship(variable, equation, dummyMap, variableMap);
 
                 if (!success) {
                     ++iter;
@@ -3211,15 +3239,15 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
         // SymEngine equation directly to determine where our isolated expression is.
 
         const auto lhs = seChildren.front();
-        SymEngine::RCP<const SymEngine::Symbol> symbol;
+        SymEngine::RCP<const SymEngine::Dummy> dummy;
 
-        if (lhs->get_type_code() == SymEngine::SYMENGINE_SYMBOL) {
-            symbol = SymEngine::rcp_static_cast<const SymEngine::Symbol>(lhs);
+        if (lhs->get_type_code() == SymEngine::SYMENGINE_DUMMY) {
+            dummy = SymEngine::rcp_static_cast<const SymEngine::Dummy>(lhs);
         } else if (lhs->get_type_code() == SymEngine::SYMENGINE_DERIVATIVE) {
-            symbol = SymEngine::rcp_static_cast<const SymEngine::Symbol>(lhs->get_args().back());
+            dummy = SymEngine::rcp_static_cast<const SymEngine::Dummy>(lhs->get_args().back());
         }
 
-        if (!symbol.is_null() && variableMap[symbol] == equation->mUnknownVariables.front()->mVariable) {
+        if (!dummy.is_null() && variableMap[dummy] == equation->mUnknownVariables.front()->mVariable) {
             seSubstitutionMap[seChildren.front()] = seChildren.back();
         } else {
             seSubstitutionMap[seChildren.back()] = seChildren.front();
@@ -3241,7 +3269,7 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
             unknownEquation->mSeEquation = SymEngine::msubs(unknownEquation->mSeEquation, seSubstitutionMap);
         }
 
-        const auto newAst = unknownEquation->parseSymEngineToAst(unknownEquation->mSeEquation, nullptr, variableMap);
+        const auto newAst = parseSymEngineToAst(unknownEquation->mSeEquation, nullptr, variableMap);
         replaceAstTree(unknownEquation, newAst);
     }
 
@@ -3251,7 +3279,7 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
 
         // TODO Handle case where this fails.
 
-        causaliseRelationship(variable, equation, symbolMap, variableMap);
+        causaliseRelationship(variable, equation, dummyMap, variableMap);
     } else {
         // TODO Currently we assume that we are just left with an NLA system, but this is not
         // always the case.
@@ -3299,7 +3327,7 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
             // We haven't been able to successfully rearrange the equation, so we can't
             // currently classify it.
 
-            if (!equation->variableOnLhsOrRhs(variable)) {
+            if (!equation->variableIsolated(variable)) {
                 continue;
             }
 
