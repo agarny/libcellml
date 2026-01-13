@@ -3041,7 +3041,8 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
 
     std::copy_if(variables.begin(), variables.end(),
                  std::back_inserter(unknownVariables),
-                 [](auto variable) { return variable->mType != AnalyserInternalVariable::Type::INITIALISED; });
+                 [](auto variable) { return variable->mType != AnalyserInternalVariable::Type::INITIALISED
+                                            && variable->mType != AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION; });
 
     // The variables our system will assume our known.
 
@@ -3069,10 +3070,10 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
         for (auto iter = equation->mVariables.begin(); iter != equation->mVariables.end();) {
             auto &variable = *iter;
 
-            // Initialised variables should already be assumed to be constants and thus already causalised.
-            // State variables that are used as variables in equations should be causalised elsewhere.
+            // Ignore variables that are not uncausalised. Also ignore state variables that are used as
+            // variables in equations since they should be causalised elsewhere.
 
-            if (variable->mType == AnalyserInternalVariable::Type::INITIALISED
+            if (std::find(unknownVariables.begin(), unknownVariables.end(), variable) == unknownVariables.end()
                 || variable->mType == AnalyserInternalVariable::Type::STATE) {
                 iter = equation->mVariables.erase(iter);
             } else {
@@ -3355,6 +3356,7 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
                 case (AnalyserInternalVariable::Type::STATE):
                 case (AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE):
                 case (AnalyserInternalVariable::Type::INITIALISED_ALGEBRAIC_VARIABLE):
+                case (AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION):
                     onlyComputedConstants = false;
                 case (AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT):
                 case (AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT):
