@@ -3074,7 +3074,8 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
             // variables in equations since they should be causalised elsewhere.
 
             if (std::find(unknownVariables.begin(), unknownVariables.end(), variable) == unknownVariables.end()
-                || variable->mType == AnalyserInternalVariable::Type::STATE) {
+                || variable->mType == AnalyserInternalVariable::Type::STATE
+                || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
                 iter = equation->mVariables.erase(iter);
             } else {
                 variable->mUncausalisedEquations.push_back(equation);
@@ -3332,7 +3333,8 @@ void Analyser::AnalyserImpl::matchRelationships(const AnalyserInternalVariablePt
                 continue;
             }
 
-            if (variable->mType == AnalyserInternalVariable::Type::STATE) {
+            if (variable->mType == AnalyserInternalVariable::Type::STATE
+                || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
                 equation->mType = AnalyserInternalEquation::Type::ODE;
                 continue;
             }
