@@ -148,7 +148,7 @@ TEST(AnalyserSymEngine, rearrangePolynomialEquations)
 #endif
 }
 
-TEST(Analyser, rearrangeExponentialEquations)
+TEST(AnalyserSymEngine, rearrangeExponentialEquations)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/exponential.cellml"));
@@ -165,7 +165,7 @@ TEST(Analyser, rearrangeExponentialEquations)
     EXPECT_EQ("b = -(pow(2.71828182845905, 200.0)-pow(2.71828182845905, 10.0))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
 }
 
-TEST(Analyser, rearrangeLogarithmicEquations)
+TEST(AnalyserSymEngine, rearrangeLogarithmicEquations)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/logarithmic.cellml"));
@@ -183,7 +183,7 @@ TEST(Analyser, rearrangeLogarithmicEquations)
     EXPECT_EQ("c = pow(log(2.0), -1.0)*(2.5*log(2.0)-log(z))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
 }
 
-TEST(Analyser, rearrangeUncommonArithmeticEquations)
+TEST(AnalyserSymEngine, rearrangeUncommonArithmeticEquations)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/uncommon_arithmetic.cellml"));
@@ -206,7 +206,7 @@ TEST(Analyser, rearrangeUncommonArithmeticEquations)
     EXPECT_EQ("h = -fmod(z, w)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(7)->ast()));
 }
 
-TEST(Analyser, rearrangeDifferentialEquations)
+TEST(AnalyserSymEngine, rearrangeDifferentialEquations)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/differential.cellml"));
@@ -222,7 +222,7 @@ TEST(Analyser, rearrangeDifferentialEquations)
     EXPECT_EQ("x = -dy/dt", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
 }
 
-TEST(Analyser, unrearrangeableEquations)
+TEST(AnalyserSymEngine, unrearrangeableEquations)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/unrearrangeable.cellml"));
@@ -259,7 +259,7 @@ TEST(Analyser, unrearrangeableEquations)
     EXPECT_EQ("fmod(v, 3.0)-x2", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(20)->ast()));
 }
 
-TEST(Analyser, breakAlgebraicLoop)
+TEST(AnalyserSymEngine, breakAlgebraicLoop)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/simple_capillary.cellml"));
@@ -279,4 +279,68 @@ TEST(Analyser, breakAlgebraicLoop)
     EXPECT_EQ("P_R_v = v_y*R_v", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(4)->ast()));
     EXPECT_EQ("dq/dt = v_y", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(5)->ast()));
     EXPECT_EQ("P_C = q/C", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(6)->ast()));
+}
+
+TEST(AnalyserSymEngine, breakTwoIndependentAlgebraicLoops)
+{
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(fileContents("analyser/symengine/winograd_destexhe_sanchezvives_2008.cellml"));
+
+    EXPECT_EQ(size_t(0), parser->issueCount());
+
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    EXPECT_EQ(libcellml::AnalyserModel::Type::ODE, analyser->analyserModel()->type());
+
+    // TODO Add checks for the rearranged equations once implemented.
+}
+
+TEST(Analyser, break2dLinearSystem)
+{
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(fileContents("analyser/symengine/linear_system_2d.cellml"));
+
+    EXPECT_EQ(size_t(0), parser->issueCount());
+
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    EXPECT_EQ(libcellml::AnalyserModel::Type::ALGEBRAIC, analyser->analyserModel()->type());
+
+    // TODO Add checks for the rearranged equations once implemented.
+}
+
+TEST(Analyser, break3dLinearSystem)
+{
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(fileContents("analyser/symengine/linear_system_3d.cellml"));
+
+    EXPECT_EQ(size_t(0), parser->issueCount());
+
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    EXPECT_EQ(libcellml::AnalyserModel::Type::ALGEBRAIC, analyser->analyserModel()->type());
+
+    // TODO Add checks for the rearranged equations once implemented.
+}
+
+TEST(Analyser, break4dLinearSystem)
+{
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(fileContents("analyser/symengine/linear_system_4d.cellml"));
+
+    EXPECT_EQ(size_t(0), parser->issueCount());
+
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    EXPECT_EQ(libcellml::AnalyserModel::Type::ALGEBRAIC, analyser->analyserModel()->type());
+
+    // TODO Add checks for the rearranged equations once implemented.
 }
