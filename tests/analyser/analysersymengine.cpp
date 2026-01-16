@@ -33,7 +33,7 @@ TEST(AnalyserSymEngine, rearrangeAdditiveEquations)
 
     EXPECT_EQ(libcellml::AnalyserModel::Type::ALGEBRAIC, analyser->analyserModel()->type());
 
-    EXPECT_EQ("a = 10.0-(w+x)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
+    EXPECT_EQ("a = 10.0-(x+w)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
     EXPECT_EQ("b = 1.0-(2.0-y)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
 #ifdef _WIN32
     EXPECT_EQ("c = -z-(1.0+x)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
@@ -202,7 +202,7 @@ TEST(AnalyserSymEngine, rearrangeUncommonArithmeticEquations)
     EXPECT_EQ("d = w-ceil(0.4+x)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
     EXPECT_EQ("e = 1.0+floor(1/2.0*z)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(4)->ast()));
     EXPECT_EQ("f = 1/5.0*min(y, x)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(5)->ast()));
-    EXPECT_EQ("g = w*pow(max(z, y), -1.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(6)->ast()));
+    EXPECT_EQ("g = w*pow(max(y, z), -1.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(6)->ast()));
     EXPECT_EQ("h = -fmod(z, w)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(7)->ast()));
 }
 
@@ -274,7 +274,7 @@ TEST(AnalyserSymEngine, breakAlgebraicLoop)
 
     EXPECT_EQ("v_z = v_in-v_y", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
     EXPECT_EQ("P_x = P_out+P_R", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
-    EXPECT_EQ("v_y = -pow(-R*C-C*R_v, -1.0)*(C*(P_out+R*v_in)-q)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
+    EXPECT_EQ("v_y = 1/200.0*(600.0-q)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
     EXPECT_EQ("P_R = v_z*R", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
     EXPECT_EQ("P_R_v = v_y*R_v", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(4)->ast()));
     EXPECT_EQ("dq/dt = v_y", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(5)->ast()));
@@ -294,10 +294,11 @@ TEST(AnalyserSymEngine, breakTwoIndependentAlgebraicLoops)
 
     EXPECT_EQ(libcellml::AnalyserModel::Type::ODE, analyser->analyserModel()->type());
 
-    // TODO Add checks for the rearranged equations once implemented.
+    EXPECT_EQ("p_1 = pow(pow(Ca_c, n_Ca)+pow(Ca_i, n_Ca), -1.0)*pow(Ca_i, n_Ca)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(37)->ast()));
+    EXPECT_EQ("o_1 = pow(p_C, n_exp)*pow(pow(p_1, n_exp)-pow(p_C, n_exp)*(-1.0-pow(2.71828182845905, 0.181818181818182*(75.0+V-V_S))), -1.0)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(40)->ast()));
 }
 
-TEST(Analyser, break2dLinearSystem)
+TEST(AnalyserSymEngine, break2dLinearSystem)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/linear_system_2d.cellml"));
@@ -310,10 +311,11 @@ TEST(Analyser, break2dLinearSystem)
 
     EXPECT_EQ(libcellml::AnalyserModel::Type::ALGEBRAIC, analyser->analyserModel()->type());
 
-    // TODO Add checks for the rearranged equations once implemented.
+    EXPECT_EQ("x = 3.0-y", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
+    EXPECT_EQ("y = 2.0", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
 }
 
-TEST(Analyser, break3dLinearSystem)
+TEST(AnalyserSymEngine, break3dLinearSystem)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/linear_system_3d.cellml"));
@@ -326,10 +328,12 @@ TEST(Analyser, break3dLinearSystem)
 
     EXPECT_EQ(libcellml::AnalyserModel::Type::ALGEBRAIC, analyser->analyserModel()->type());
 
-    // TODO Add checks for the rearranged equations once implemented.
+    EXPECT_EQ("x = 6.0-(z+y)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
+    EXPECT_EQ("y = -1/3.0*(3.0-(2.0*(6.0-z)+z))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
+    EXPECT_EQ("z = 12/7.0", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
 }
 
-TEST(Analyser, break4dLinearSystem)
+TEST(AnalyserSymEngine, break4dLinearSystem)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("analyser/symengine/linear_system_4d.cellml"));
@@ -342,5 +346,8 @@ TEST(Analyser, break4dLinearSystem)
 
     EXPECT_EQ(libcellml::AnalyserModel::Type::ALGEBRAIC, analyser->analyserModel()->type());
 
-    // TODO Add checks for the rearranged equations once implemented.
+    EXPECT_EQ("a = -(3.0*c+2.0*b+4.0*d)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
+    EXPECT_EQ("b = -(3.0*c+4.0*d)+c+d", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
+    EXPECT_EQ("c = -4/3.0*d", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
+    EXPECT_EQ("d = 0.0", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
 }
