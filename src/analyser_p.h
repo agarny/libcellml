@@ -188,6 +188,11 @@ public:
     AnalyserInternalVariablePtrs mInternalVariables;
     AnalyserInternalEquationPtrs mInternalEquations;
 
+    SymEngineDummyMap mDummyMap;
+    SymEngineVariableMap mVariableMap;
+    AnalyserInternalVariablePtrs mFirstVariables;
+    AnalyserInternalVariablePtrs mLastVariables;
+
     GeneratorProfilePtr mGeneratorProfile = GeneratorProfile::create();
 
     std::map<std::string, UnitsPtr> mStandardUnits;
@@ -282,11 +287,15 @@ public:
     void addInvalidVariableIssue(const AnalyserInternalVariablePtr &variable,
                                  Issue::ReferenceRule referenceRule);
 
-    SymEngineEquationResult parseAstToSymEngine(const AnalyserEquationAstPtr &ast, SymEngineDummyMap &dummyMap, SymEngineVariableMap &variableMap);
-    AnalyserEquationAstPtr parseSymEngineToAst(const SymEngine::RCP<const SymEngine::Basic> &seExpression, const AnalyserEquationAstPtr &parentAst, const SymEngineVariableMap &variableMap);
+    SymEngineEquationResult parseAstToSymEngine(const AnalyserEquationAstPtr &ast);
+    AnalyserEquationAstPtr parseSymEngineToAst(const SymEngine::RCP<const SymEngine::Basic> &seExpression,
+                                               const AnalyserEquationAstPtr &parentAst);
     void replaceAstTree(const AnalyserInternalEquationPtr &equation, const AnalyserEquationAstPtr &newAst);
-    bool causaliseRelationship(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &equation, SymEngineDummyMap &dummyMap, SymEngineVariableMap &variableMap);
-    void matchRelationships(const AnalyserInternalVariablePtrs &variables, const AnalyserInternalEquationPtrs &equations);
+    bool causaliseRelationship(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &equation);
+    void matchRelationships(AnalyserInternalVariablePtrs &unknownVariables,
+                            AnalyserInternalEquationPtrs &unknownEquations,
+                            bool firstPass);
+    void classifyInternalSystem();
 
     void analyseModel(const ModelPtr &model);
 
