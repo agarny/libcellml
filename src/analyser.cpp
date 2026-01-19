@@ -2962,6 +2962,29 @@ void Analyser::AnalyserImpl::replaceAstTree(const AnalyserInternalEquationPtr &e
     }
 }
 
+void Analyser::AnalyserImpl::makeVariableKnown(const AnalyserInternalVariablePtr &variable,
+                                               const AnalyserInternalEquationPtr &matchedEquation)
+{
+    // Update all other equations to consider this variable known.
+
+    for (auto &otherEquation : variable->mUncausalisedEquations) {
+        if (otherEquation == matchedEquation) {
+            continue;
+        }
+
+        otherEquation->mDependencies.push_back(variable->mVariable);
+
+        // Stop tracking the variable since it is now known.
+
+        otherEquation->mStateVariables.erase(std::remove(otherEquation->mStateVariables.begin(), otherEquation->mStateVariables.end(), variable), otherEquation->mStateVariables.end());
+        otherEquation->mVariables.erase(std::remove(otherEquation->mVariables.begin(), otherEquation->mVariables.end(), variable), otherEquation->mVariables.end());
+    }
+
+    // Since the variable's causalisation has been defined, it no longer has any unclassified edges.
+
+    variable->mUncausalisedEquations.clear();
+}
+
 bool Analyser::AnalyserImpl::causaliseRelationship(const AnalyserInternalVariablePtr &variable,
                                                    const AnalyserInternalEquationPtr &equation)
 {
@@ -2975,7 +2998,8 @@ bool Analyser::AnalyserImpl::causaliseRelationship(const AnalyserInternalVariabl
         }
 
         const auto dummy = mDummyMap[variable];
-        const auto seRearranged = equation->rearrangeFor(mDummyMap[variable]);
+
+        const auto seRearranged = equation->rearrangeFor(dummy);
         if (seRearranged == SymEngine::null) {
             return false;
         }
@@ -3007,20 +3031,7 @@ bool Analyser::AnalyserImpl::causaliseRelationship(const AnalyserInternalVariabl
     equation->mStateVariables.clear();
     equation->mVariables.clear();
 
-    // Update all other equations to consider this variable known.
-    for (auto &otherEquation : variable->mUncausalisedEquations) {
-        if (otherEquation == equation) {
-            continue;
-        }
-
-        otherEquation->mDependencies.push_back(variable->mVariable);
-
-        // Stop tracking the variable since it is now known.
-        otherEquation->mStateVariables.erase(std::remove(otherEquation->mStateVariables.begin(), otherEquation->mStateVariables.end(), variable), otherEquation->mStateVariables.end());
-        otherEquation->mVariables.erase(std::remove(otherEquation->mVariables.begin(), otherEquation->mVariables.end(), variable), otherEquation->mVariables.end());
-    }
-    // Since the variable's causalisation has been defined, it no longer has any unclassified edges.
-    variable->mUncausalisedEquations.clear();
+    makeVariableKnown(variable, equation);
 
     return true;
 }
@@ -3096,26 +3107,27 @@ void Analyser::AnalyserImpl::matchRelationships(AnalyserInternalVariablePtrs &un
                 const auto success = causaliseRelationship(variable, equation);
 
                 if (!success) {
-                    ++iter;
-                    continue;
+                    // If we can't causalise the variable to the only equation it has an association with, then it's an
+                    // 'impossible assignment' and should immediately be considered as one of our tearing variables.
+
+                    tearingVariables.push_back(variable);
+                    makeVariableKnown(variable, nullptr);
+                } else {
+                    unknownEquations.erase(std::remove(unknownEquations.begin(), unknownEquations.end(), equation), unknownEquations.end());
+                    progressMade = true;
+
+                    if (firstPass) {
+                        // Since this variable must be defined by this equation, it should exist at the end of our dependency
+                        // chain (but before other variables that have been previously been identified the same way).
+
+                        mLastVariables.insert(mLastVariables.begin(), variable);
+                    }
                 }
 
-                if (firstPass) {
-                    // Since this variable must be defined by this equation, it should exist at the end of our dependency chain
-                    // (but before other variables that have been previously been identified the same way).
-
-                    mLastVariables.insert(mLastVariables.begin(), variable);
-                }
-
-                unknownEquations.erase(std::remove(unknownEquations.begin(), unknownEquations.end(), equation), unknownEquations.end());
                 iter = unknownVariables.erase(iter);
-
                 changed = true;
-                progressMade = true;
             }
         }
-
-        // TODO Prioritise choosing 'impossible variables'.
 
         // Pick a tearing variable using modified Cellier-Heuristic 3.
 
@@ -3147,26 +3159,8 @@ void Analyser::AnalyserImpl::matchRelationships(AnalyserInternalVariablePtrs &un
 
         if (tearingVariable != nullptr) {
             tearingVariables.push_back(tearingVariable);
-
             unknownVariables.erase(std::remove(unknownVariables.begin(), unknownVariables.end(), tearingVariable), unknownVariables.end());
-
-            // We will need to make the assumption from here on out that this variable is known.
-
-            // TODO Probably want to refactor since this is duplicated from causaliseRelationship().
-            // Make all other relationships originating at the variable into utilisation relationships.
-            // Update all other equations to consider this variable known.
-
-            for (auto &otherEquation : tearingVariable->mUncausalisedEquations) {
-                otherEquation->mDependencies.push_back(tearingVariable->mVariable);
-
-                // Stop tracking the variable since it is now known.
-
-                otherEquation->mStateVariables.erase(std::remove(otherEquation->mStateVariables.begin(), otherEquation->mStateVariables.end(), tearingVariable), otherEquation->mStateVariables.end());
-                otherEquation->mVariables.erase(std::remove(otherEquation->mVariables.begin(), otherEquation->mVariables.end(), tearingVariable), otherEquation->mVariables.end());
-            }
-            // Since the variable's causalisation has been defined, it no longer has any unclassified edges.
-
-            tearingVariable->mUncausalisedEquations.clear();
+            makeVariableKnown(tearingVariable, nullptr);
         }
     }
 
@@ -3176,7 +3170,7 @@ void Analyser::AnalyserImpl::matchRelationships(AnalyserInternalVariablePtrs &un
         return;
     }
 
-    // Reset tearing variable uncausalised equations as they will be repopulated after rearrangement.
+    // Reset tearing variable uncausalised equations as they will be repopulated after equation substitution.
 
     for (auto &tearingVariable : tearingVariables) {
         tearingVariable->mUncausalisedEquations.clear();
@@ -3258,6 +3252,7 @@ void Analyser::AnalyserImpl::matchRelationships(AnalyserInternalVariablePtrs &un
             for (const auto &variable : unknownEquation->mAllVariables) {
                 if (variable->mCausalisedEquation == nullptr) {
                     variable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
+                    unknownEquation->mUnknownVariables.push_back(variable);
                 }
             }
         }

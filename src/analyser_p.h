@@ -291,6 +291,8 @@ public:
     AnalyserEquationAstPtr parseSymEngineToAst(const SymEngine::RCP<const SymEngine::Basic> &seExpression,
                                                const AnalyserEquationAstPtr &parentAst);
     void replaceAstTree(const AnalyserInternalEquationPtr &equation, const AnalyserEquationAstPtr &newAst);
+
+    void makeVariableKnown(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &matchedEquation);
     bool causaliseRelationship(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &equation);
     void matchRelationships(AnalyserInternalVariablePtrs &unknownVariables,
                             AnalyserInternalEquationPtrs &unknownEquations,
