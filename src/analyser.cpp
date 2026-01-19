@@ -2459,7 +2459,7 @@ SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const Analys
     case AnalyserEquationAst::Type::PLUS:
         // Handle the case where we have a unary plus.
 
-        if (right == SymEngine::null) {
+        if (right.is_null()) {
             return {true, left};
         }
 
@@ -2467,7 +2467,7 @@ SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const Analys
     case AnalyserEquationAst::Type::MINUS:
         // Handle the case where we have a unary minus.
 
-        if (right == SymEngine::null) {
+        if (right.is_null()) {
             return {true, SymEngine::mul(SymEngine::integer(-1), left)};
         }
 
@@ -2479,7 +2479,7 @@ SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const Analys
     case AnalyserEquationAst::Type::POWER:
         return {true, SymEngine::pow(left, right)};
     case AnalyserEquationAst::Type::ROOT:
-        if (right == SymEngine::null) {
+        if (right.is_null()) {
             // Square root is expected.
 
             return {true, SymEngine::pow(left, SymEngine::div(SymEngine::integer(1), SymEngine::integer(2)))};
@@ -2493,7 +2493,7 @@ SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const Analys
     case AnalyserEquationAst::Type::EXP:
         return {true, SymEngine::exp(left)};
     case AnalyserEquationAst::Type::LOG:
-        if (right == SymEngine::null) {
+        if (right.is_null()) {
             // Base 10 logarithm is expected.
             return {true, SymEngine::div(SymEngine::log(left), SymEngine::log(SymEngine::integer(10)))};
         } else {
@@ -2985,14 +2985,14 @@ bool Analyser::AnalyserImpl::causaliseRelationship(const AnalyserInternalVariabl
     // and is thus treated as known before we began the matching algorithm.
 
     if (!equation->variableIsolated(variable)) {
-        if (equation->mSeEquation == SymEngine::null) {
+        if (equation->mSeEquation.is_null()) {
             return false;
         }
 
         const auto symbol = mSymbolMap[variable];
 
         const auto seRearranged = equation->rearrangeFor(symbol);
-        if (seRearranged == SymEngine::null) {
+        if (seRearranged.is_null()) {
             return false;
         }
 
