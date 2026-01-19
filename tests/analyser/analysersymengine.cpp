@@ -351,3 +351,17 @@ TEST(AnalyserSymEngine, break4dLinearSystem)
     EXPECT_EQ("c = -4/3.0*d", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
     EXPECT_EQ("d = 0.0", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
 }
+
+TEST(AnalyserSymEngine, intercomponentRearrangement)
+{
+    auto parser = libcellml::Parser::create(false);
+    auto model = parser->parseModel(fileContents("analyser/symengine/capillary_network/capillary_network.cellml"));
+
+    EXPECT_EQ(size_t(0), parser->issueCount());
+
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    EXPECT_EQ(libcellml::AnalyserModel::Type::ODE, analyser->analyserModel()->type());
+}
