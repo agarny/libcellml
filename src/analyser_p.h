@@ -47,8 +47,8 @@ using AnalyserExternalVariablePtrs = std::vector<AnalyserExternalVariablePtr>;
 
 using AnalyserEquationAstPtrs = std::vector<AnalyserEquationAstPtr>;
 
-using SymEngineVariableMap = std::map<SymEngine::RCP<const SymEngine::Dummy>, VariablePtr, SymEngine::RCPBasicKeyLess>;
-using SymEngineDummyMap = std::map<AnalyserInternalVariablePtr, SymEngine::RCP<const SymEngine::Dummy>>;
+using SymEngineVariableMap = std::map<SymEngine::RCP<const SymEngine::Symbol>, VariablePtr, SymEngine::RCPBasicKeyLess>;
+using SymEngineSymbolMap = std::map<AnalyserInternalVariablePtr, SymEngine::RCP<const SymEngine::Symbol>>;
 using SymEngineEquationResult = std::tuple<bool, SymEngine::RCP<const SymEngine::Basic>>;
 
 struct AnalyserInternalVariable
@@ -152,7 +152,7 @@ struct AnalyserInternalEquation
     bool variableIsolated(const AnalyserInternalVariablePtr &variable);
 
     bool isSymEngineExpressionComplex(const SymEngine::RCP<const SymEngine::Basic> &seExpression);
-    SymEngine::RCP<const SymEngine::Basic> rearrangeFor(const SymEngine::RCP<const SymEngine::Dummy> &dummy);
+    SymEngine::RCP<const SymEngine::Basic> rearrangeFor(const SymEngine::RCP<const SymEngine::Symbol> &symbol);
 
     bool check(const AnalyserModelPtr &analyserModel, bool checkNlaSystems);
 };
@@ -188,7 +188,7 @@ public:
     AnalyserInternalVariablePtrs mInternalVariables;
     AnalyserInternalEquationPtrs mInternalEquations;
 
-    SymEngineDummyMap mDummyMap;
+    SymEngineSymbolMap mSymbolMap;
     SymEngineVariableMap mVariableMap;
     AnalyserInternalVariablePtrs mFirstVariables;
     AnalyserInternalVariablePtrs mLastVariables;

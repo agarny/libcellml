@@ -283,12 +283,12 @@ bool AnalyserInternalEquation::isSymEngineExpressionComplex(const SymEngine::RCP
     return false;
 }
 
-SymEngine::RCP<const SymEngine::Basic> AnalyserInternalEquation::rearrangeFor(const SymEngine::RCP<const SymEngine::Dummy> &dummy)
+SymEngine::RCP<const SymEngine::Basic> AnalyserInternalEquation::rearrangeFor(const SymEngine::RCP<const SymEngine::Symbol> &symbol)
 {
     SymEngine::RCP<const SymEngine::Set> solutionSet;
 
     try {
-        solutionSet = solve(mSeEquation, dummy);
+        solutionSet = solve(mSeEquation, symbol);
     } catch (const SymEngine::SymEngineException &) {
         // SymEngine failed to solve the equation. This is likely because to the variable we're trying
         // to solve for is nested within a function that SymEngine cannot invert (e.g. sin, log, etc).
@@ -392,25 +392,6 @@ bool AnalyserInternalEquation::check(const AnalyserModelPtr &analyserModel, bool
                                    mStateVariables.front() :
                                    mVariables.front() :
                                    nullptr;
-
-    // TODO See what can be done about the rearrangement functionality here since we no longer have access
-    // to parsing to and from SymEngine at the internal equation level.
-
-    // If we have one variable left, but it's not isolated, try to rearrange it.
-    // if ((unknownVariableLeft != nullptr) && !variableOnLhsOrRhs(unknownVariableLeft)) {
-    //     SymEngineVariableMap variableMap;
-    //     SymEngineDummyMap dummyMap;
-
-    //     auto [success, seEquation] = parseAstToSymEngine(mAst, dummyMap, variableMap, mAllVariables);
-    //     if (success) {
-    //         mSeEquation = seEquation;
-    //         auto rearrangedEquation = rearrangeFor(dummyMap[unknownVariableLeft->mVariable]);
-    //         if (!rearrangedEquation.is_null()) {
-    //             // TODO Update variables and/or equation type when necessary.
-    //             mAst = parseSymEngineToAst(SymEngine::Eq(dummyMap[unknownVariableLeft->mVariable], seEquation), nullptr, variableMap);
-    //         }
-    //     }
-    // }
 
     if (((unknownVariableLeft != nullptr)
          && (checkNlaSystems || variableOnLhsOrRhs(unknownVariableLeft)))
@@ -2598,14 +2579,25 @@ SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const Analys
     case AnalyserEquationAst::Type::CI: {
         auto variable = internalVariable(ast->variable());
 
-        if (mDummyMap.find(variable) == mDummyMap.end()) {
-            auto dummy = SymEngine::dummy(variable->mVariable->name());
+        if (mSymbolMap.find(variable) == mSymbolMap.end()) {
+            // Find a unique unused name to create our new variable with.
 
-            mDummyMap[variable] = dummy;
-            mVariableMap[dummy] = variable->mVariable;
+            auto baseName = variable->mVariable->name();
+            auto name = baseName;
+            auto symbol = SymEngine::symbol(name);
+
+            size_t counter = 1;
+            while (mVariableMap[symbol] != nullptr) {
+                counter++;
+                name = baseName + std::to_string(counter);
+                symbol = SymEngine::symbol(name);
+            }
+
+            mSymbolMap[variable] = symbol;
+            mVariableMap[symbol] = variable->mVariable;
         }
 
-        return {true, mDummyMap.at(variable)};
+        return {true, mSymbolMap.at(variable)};
     }
     case AnalyserEquationAst::Type::CN: {
         // SymEngine distinguishes between integers and real numbers.
@@ -2810,10 +2802,10 @@ AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngi
         currentAst->setType(AnalyserEquationAst::Type::ACOTH);
 
         break;
-    case SymEngine::SYMENGINE_DUMMY: {
-        auto dummy = SymEngine::rcp_dynamic_cast<const SymEngine::Dummy>(seExpression);
+    case SymEngine::SYMENGINE_SYMBOL: {
+        auto symbol = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(seExpression);
         currentAst->setType(AnalyserEquationAst::Type::CI);
-        currentAst->setVariable(mVariableMap.at(dummy));
+        currentAst->setVariable(mVariableMap.at(symbol));
 
         break;
     }
@@ -2997,14 +2989,14 @@ bool Analyser::AnalyserImpl::causaliseRelationship(const AnalyserInternalVariabl
             return false;
         }
 
-        const auto dummy = mDummyMap[variable];
+        const auto symbol = mSymbolMap[variable];
 
-        const auto seRearranged = equation->rearrangeFor(dummy);
+        const auto seRearranged = equation->rearrangeFor(symbol);
         if (seRearranged == SymEngine::null) {
             return false;
         }
 
-        const auto seEquation = SymEngine::Eq(dummy, seRearranged);
+        const auto seEquation = SymEngine::Eq(symbol, seRearranged);
         equation->mSeEquation = seEquation;
         equation->mAst = parseSymEngineToAst(seEquation, nullptr);
     }
@@ -3199,16 +3191,16 @@ void Analyser::AnalyserImpl::matchRelationships(AnalyserInternalVariablePtrs &un
         // SymEngine equation directly to determine where our isolated expression is.
 
         const auto lhs = seChildren.front();
-        SymEngine::RCP<const SymEngine::Dummy> dummy;
+        SymEngine::RCP<const SymEngine::Symbol> symbol;
 
-        if (lhs->get_type_code() == SymEngine::SYMENGINE_DUMMY) {
-            dummy = SymEngine::rcp_static_cast<const SymEngine::Dummy>(lhs);
+        if (lhs->get_type_code() == SymEngine::SYMENGINE_SYMBOL) {
+            symbol = SymEngine::rcp_static_cast<const SymEngine::Symbol>(lhs);
         } else if (lhs->get_type_code() == SymEngine::SYMENGINE_FUNCTIONSYMBOL
                    && SymEngine::rcp_static_cast<const SymEngine::FunctionSymbol>(lhs)->get_name() == "diff") {
-            dummy = SymEngine::rcp_static_cast<const SymEngine::Dummy>(lhs->get_args().back());
+            symbol = SymEngine::rcp_static_cast<const SymEngine::Symbol>(lhs->get_args().back());
         }
 
-        if (!dummy.is_null() && mVariableMap[dummy] == equation->mUnknownVariables.front()->mVariable) {
+        if (!symbol.is_null() && mVariableMap[symbol] == equation->mUnknownVariables.front()->mVariable) {
             seSubstitutionMap[seChildren.front()] = seChildren.back();
         } else {
             seSubstitutionMap[seChildren.back()] = seChildren.front();
