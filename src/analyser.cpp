@@ -3327,6 +3327,7 @@ void Analyser::AnalyserImpl::classifyInternalSystem()
                 case (AnalyserInternalVariable::Type::INITIALISED_ALGEBRAIC_VARIABLE):
                 case (AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION):
                     onlyComputedConstants = false;
+                case (AnalyserInternalVariable::Type::INITIALISED):
                 case (AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT):
                 case (AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT):
                     // Set to false if type is ANY of state, (initialised) algebraic variable, computed
