@@ -3242,7 +3242,8 @@ void Analyser::AnalyserImpl::matchRelationships(AnalyserInternalVariablePtrs &un
             unknownEquation->mType = AnalyserInternalEquation::Type::NLA;
 
             for (const auto &variable : unknownEquation->mAllVariables) {
-                if (variable->mCausalisedEquation == nullptr) {
+                if (variable->mCausalisedEquation == nullptr
+                    && variable->mType != AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION) {
                     variable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
                     unknownEquation->mUnknownVariables.push_back(variable);
                 }
@@ -3572,12 +3573,14 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         for (auto iter = equation->mVariables.begin(); iter != equation->mVariables.end();) {
             auto &variable = *iter;
 
-            // Ignore variables that are not uncausalised. Also ignore state variables that are used as
-            // variables in equations since they should be causalised elsewhere.
+            // Ignore variables that are not uncausalised. Also immediately add state variables used as
+            // variables in equations as a dependency since they should be causalised elsewhere.
 
-            if (std::find(unknownVariables.begin(), unknownVariables.end(), variable) == unknownVariables.end()
-                || variable->mType == AnalyserInternalVariable::Type::STATE
-                || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
+            if (std::find(unknownVariables.begin(), unknownVariables.end(), variable) == unknownVariables.end()) {
+                iter = equation->mVariables.erase(iter);
+            } else if (variable->mType == AnalyserInternalVariable::Type::STATE
+                       || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
+                equation->mDependencies.push_back(variable->mVariable);
                 iter = equation->mVariables.erase(iter);
             } else {
                 variable->mUncausalisedEquations.push_back(equation);
