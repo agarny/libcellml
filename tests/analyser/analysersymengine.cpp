@@ -354,10 +354,13 @@ TEST(AnalyserSymEngine, break4dLinearSystem)
 
 TEST(AnalyserSymEngine, intercomponentRearrangement)
 {
+    const std::string issue = "Given model is a CellML 1.1 model, the parser will try to represent this model in CellML 2.0.";
+
     auto parser = libcellml::Parser::create(false);
     auto model = parser->parseModel(fileContents("analyser/symengine/capillary_network/capillary_network.cellml"));
 
-    EXPECT_EQ(size_t(0), parser->issueCount());
+    EXPECT_EQ(size_t(1), parser->issueCount());
+    EXPECT_EQ(issue, parser->issue(0)->description());
 
     auto importer = libcellml::Importer::create(false);
     importer->resolveImports(model, resourcePath("analyser/symengine/capillary_network"));
