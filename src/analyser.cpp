@@ -28,6 +28,7 @@ limitations under the License.
 #include "symenginebegin.h"
 #include <symengine/solve.h>
 #include <symengine/subs.h>
+#include <symengine/simplify.h>
 #include "symengineend.h"
 // clang-format on
 
@@ -310,7 +311,7 @@ SymEngine::RCP<const SymEngine::Basic> AnalyserInternalEquation::rearrangeFor(co
         return SymEngine::null;
     }
 
-    return solutions.front();
+    return SymEngine::simplify(SymEngine::expand(solutions.front()));
 }
 
 bool AnalyserInternalEquation::check(const AnalyserModelPtr &analyserModel, bool checkNlaSystems)
@@ -3248,6 +3249,8 @@ void Analyser::AnalyserImpl::matchRelationships(AnalyserInternalVariablePtrs &un
         for (size_t i = 0; i < seSubstitutionMap.size(); ++i) {
             unknownEquation->mSeEquation = SymEngine::msubs(unknownEquation->mSeEquation, seSubstitutionMap);
         }
+
+        unknownEquation->mSeEquation = SymEngine::simplify(SymEngine::expand(unknownEquation->mSeEquation));
 
         const auto newAst = parseSymEngineToAst(unknownEquation->mSeEquation, nullptr);
         replaceAstTree(unknownEquation, newAst);
