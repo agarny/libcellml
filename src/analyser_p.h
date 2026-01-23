@@ -292,6 +292,7 @@ public:
                                                const AnalyserEquationAstPtr &parentAst);
     void replaceAstTree(const AnalyserInternalEquationPtr &equation, const AnalyserEquationAstPtr &newAst);
 
+    void populateUncausalised(const AnalyserInternalEquationPtrs &equations, const AnalyserInternalVariablePtrs &variables);
     void makeVariableKnown(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &matchedEquation);
     bool causaliseRelationship(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &equation);
     void matchRelationships(AnalyserInternalVariablePtrs &unknownVariables,

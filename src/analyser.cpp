@@ -2954,6 +2954,33 @@ void Analyser::AnalyserImpl::replaceAstTree(const AnalyserInternalEquationPtr &e
     }
 }
 
+void Analyser::AnalyserImpl::populateUncausalised(const AnalyserInternalEquationPtrs &equations, const AnalyserInternalVariablePtrs &variables)
+{
+    for (auto &equation : equations) {
+        for (auto iter = equation->mVariables.begin(); iter != equation->mVariables.end();) {
+            auto &variable = *iter;
+
+            // Ignore variables that are not uncausalised. Also immediately add state variables used as
+            // variables in equations as a dependency since they should be causalised elsewhere.
+
+            if (std::find(variables.begin(), variables.end(), variable) == variables.end()) {
+                iter = equation->mVariables.erase(iter);
+            } else if (variable->mType == AnalyserInternalVariable::Type::STATE
+                       || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
+                equation->mDependencies.push_back(variable->mVariable);
+                iter = equation->mVariables.erase(iter);
+            } else {
+                variable->mUncausalisedEquations.push_back(equation);
+                ++iter;
+            }
+        }
+
+        for (auto &variable : equation->mStateVariables) {
+            variable->mUncausalisedEquations.push_back(equation);
+        }
+    }
+}
+
 void Analyser::AnalyserImpl::makeVariableKnown(const AnalyserInternalVariablePtr &variable,
                                                const AnalyserInternalEquationPtr &matchedEquation)
 {
@@ -3032,6 +3059,8 @@ void Analyser::AnalyserImpl::matchRelationships(AnalyserInternalVariablePtrs &un
                                                 AnalyserInternalEquationPtrs &unknownEquations,
                                                 bool firstPass)
 {
+    populateUncausalised(unknownEquations, unknownVariables);
+
     // Implements a version of practical Cellier tearing to match equations and break algebraic loops.
 
     AnalyserInternalEquationPtrs allEquations = unknownEquations;
@@ -3222,17 +3251,6 @@ void Analyser::AnalyserImpl::matchRelationships(AnalyserInternalVariablePtrs &un
 
         const auto newAst = parseSymEngineToAst(unknownEquation->mSeEquation, nullptr);
         replaceAstTree(unknownEquation, newAst);
-
-        for (auto &variable : unknownEquation->mAllVariables) {
-            if (std::find(mFirstVariables.begin(), mFirstVariables.end(), variable) != mFirstVariables.end()) {
-                unknownEquation->mStateVariables.erase(std::remove(unknownEquation->mStateVariables.begin(), unknownEquation->mStateVariables.end(), variable), unknownEquation->mStateVariables.end());
-                unknownEquation->mVariables.erase(std::remove(unknownEquation->mVariables.begin(), unknownEquation->mVariables.end(), variable), unknownEquation->mVariables.end());
-                unknownEquation->mDependencies.push_back(variable->mVariable);
-            } else if (std::find(tearingVariables.begin(), tearingVariables.end(), variable) != tearingVariables.end()) {
-                unknownEquation->mDependencies.push_back(variable->mVariable);
-                variable->mUncausalisedEquations.push_back(unknownEquation);
-            }
-        }
     }
 
     if (!progressMade) {
@@ -3568,28 +3586,6 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         auto [result, seEquation] = parseAstToSymEngine(equation->mAst);
         if (result) {
             equation->mSeEquation = seEquation;
-        }
-
-        for (auto iter = equation->mVariables.begin(); iter != equation->mVariables.end();) {
-            auto &variable = *iter;
-
-            // Ignore variables that are not uncausalised. Also immediately add state variables used as
-            // variables in equations as a dependency since they should be causalised elsewhere.
-
-            if (std::find(unknownVariables.begin(), unknownVariables.end(), variable) == unknownVariables.end()) {
-                iter = equation->mVariables.erase(iter);
-            } else if (variable->mType == AnalyserInternalVariable::Type::STATE
-                       || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
-                equation->mDependencies.push_back(variable->mVariable);
-                iter = equation->mVariables.erase(iter);
-            } else {
-                variable->mUncausalisedEquations.push_back(equation);
-                ++iter;
-            }
-        }
-
-        for (auto &variable : equation->mStateVariables) {
-            variable->mUncausalisedEquations.push_back(equation);
         }
     }
 
