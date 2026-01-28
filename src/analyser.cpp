@@ -2982,13 +2982,11 @@ void Analyser::AnalyserImpl::initialiseMatching(const AnalyserInternalEquationPt
         for (auto iter = equation->mVariables.begin(); iter != equation->mVariables.end();) {
             auto &variable = *iter;
 
-            // Ignore variables that do not require matching. Also immediately add state variables used as
-            // variables in equations as a dependency since they should be matched elsewhere.
+            // Ignore variables that do not require matching, instead add them as a dependencies
+            // since they are already defined or should be matched elsewhere.
 
-            if (std::find(variables.begin(), variables.end(), variable) == variables.end()) {
-                iter = equation->mVariables.erase(iter);
-            } else if (variable->mType == AnalyserInternalVariable::Type::STATE
-                       || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
+            if (std::find(variables.begin(), variables.end(), variable) == variables.end() || variable->mType == AnalyserInternalVariable::Type::STATE
+                || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
                 equation->mDependencies.push_back(variable);
                 iter = equation->mVariables.erase(iter);
             } else {
