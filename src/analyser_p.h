@@ -77,8 +77,8 @@ struct AnalyserInternalVariable
     VariablePtr mVariable;
     VariablePtrs mDependencies;
 
-    AnalyserInternalEquationPtrs mUncausalisedEquations;
-    AnalyserInternalEquationPtr mCausalisedEquation;
+    AnalyserInternalEquationPtrs mUnmatchedEquations;
+    AnalyserInternalEquationPtr mMatchedEquation;
 
     static AnalyserInternalVariablePtr create(const VariablePtr &variable);
 
@@ -145,10 +145,10 @@ struct AnalyserInternalEquation
     bool variableOnRhs(const AnalyserInternalVariablePtr &variable);
     bool variableOnLhsOrRhs(const AnalyserInternalVariablePtr &variable);
 
-    bool containsUncausalisedVariable(const AnalyserInternalVariablePtr &variable,
-                                      const AnalyserEquationAstPtr &astChild);
-    bool validTerm(const AnalyserInternalVariablePtr &variable,
-                   const AnalyserEquationAstPtr &astChild);
+    bool containsVariable(const AnalyserInternalVariablePtr &variable,
+                          const AnalyserEquationAstPtr &astChild);
+    bool isVariable(const AnalyserInternalVariablePtr &variable,
+                    const AnalyserEquationAstPtr &astChild);
     bool variableIsolated(const AnalyserInternalVariablePtr &variable);
 
     void simplifySeEquation();
@@ -293,12 +293,12 @@ public:
                                                const AnalyserEquationAstPtr &parentAst);
     void replaceAstTree(const AnalyserInternalEquationPtr &equation, const AnalyserEquationAstPtr &newAst);
 
-    void populateUncausalised(const AnalyserInternalEquationPtrs &equations, const AnalyserInternalVariablePtrs &variables);
+    void initialiseMatching(const AnalyserInternalEquationPtrs &equations, const AnalyserInternalVariablePtrs &variables);
     void makeVariableKnown(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &matchedEquation);
-    bool causaliseRelationship(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &equation);
-    void matchRelationships(AnalyserInternalVariablePtrs &unknownVariables,
-                            AnalyserInternalEquationPtrs &unknownEquations,
-                            bool firstPass);
+    bool matchPair(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &equation);
+    void matchSystem(AnalyserInternalVariablePtrs &unknownVariables,
+                     AnalyserInternalEquationPtrs &unknownEquations,
+                     bool firstPass);
     void classifyInternalSystem();
 
     void analyseModel(const ModelPtr &model);
