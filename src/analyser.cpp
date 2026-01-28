@@ -354,7 +354,7 @@ bool AnalyserInternalEquation::check(const AnalyserModelPtr &analyserModel, bool
 
     for (const auto &variable : mVariables) {
         if (isKnownVariable(variable)) {
-            mDependencies.push_back(variable->mVariable);
+            mDependencies.push_back(variable);
         }
     }
 
@@ -493,7 +493,7 @@ bool AnalyserInternalEquation::check(const AnalyserModelPtr &analyserModel, bool
         // on our unknown variables or we will end up in a circular dependency.
 
         for (const auto &unknownVariable : mUnknownVariables) {
-            auto it = std::find(mDependencies.begin(), mDependencies.end(), unknownVariable->mVariable);
+            auto it = std::find(mDependencies.begin(), mDependencies.end(), unknownVariable);
 
             if (it != mDependencies.end()) {
                 mDependencies.erase(it);
@@ -2616,7 +2616,7 @@ SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const Analys
             }
 
             mSymbolMap[variable] = symbol;
-            mVariableMap[symbol] = variable->mVariable;
+            mVariableMap[symbol] = variable;
         }
 
         return {true, mSymbolMap.at(variable)};
@@ -2827,7 +2827,7 @@ AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngi
     case SymEngine::SYMENGINE_SYMBOL: {
         auto symbol = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(seExpression);
         currentAst->setType(AnalyserEquationAst::Type::CI);
-        currentAst->setVariable(mVariableMap.at(symbol));
+        currentAst->setVariable(mVariableMap.at(symbol)->mVariable);
 
         break;
     }
@@ -2989,7 +2989,7 @@ void Analyser::AnalyserImpl::initialiseMatching(const AnalyserInternalEquationPt
                 iter = equation->mVariables.erase(iter);
             } else if (variable->mType == AnalyserInternalVariable::Type::STATE
                        || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
-                equation->mDependencies.push_back(variable->mVariable);
+                equation->mDependencies.push_back(variable);
                 iter = equation->mVariables.erase(iter);
             } else {
                 variable->mUnmatchedEquations.push_back(equation);
@@ -3013,7 +3013,7 @@ void Analyser::AnalyserImpl::makeVariableKnown(const AnalyserInternalVariablePtr
             continue;
         }
 
-        otherEquation->mDependencies.push_back(variable->mVariable);
+        otherEquation->mDependencies.push_back(variable);
 
         // Stop tracking the variable since it is now known.
 
@@ -3063,7 +3063,7 @@ bool Analyser::AnalyserImpl::matchPair(const AnalyserInternalVariablePtr &variab
             auto linkedEquations = variable->mUnmatchedEquations;
             linkedEquations.erase(std::remove(linkedEquations.begin(), linkedEquations.end(), equation), linkedEquations.end());
 
-            equation->mDependencies.push_back(otherVariable->mVariable);
+            equation->mDependencies.push_back(otherVariable);
         }
     }
 
@@ -3072,6 +3072,14 @@ bool Analyser::AnalyserImpl::matchPair(const AnalyserInternalVariablePtr &variab
     equation->mVariables.clear();
 
     makeVariableKnown(variable, equation);
+
+    for (size_t i = 0; i < equation->mComponent->variableCount(); ++i) {
+        auto localVariable = equation->mComponent->variable(i);
+        if (mAnalyserModel->areEquivalentVariables(variable->mVariable, localVariable)) {
+            variable->setVariable(localVariable, false);
+            break;
+        }
+    }
 
     return true;
 }
@@ -3251,7 +3259,7 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
             symbol = SymEngine::rcp_static_cast<const SymEngine::Symbol>(lhs->get_args().back());
         }
 
-        if (!symbol.is_null() && mVariableMap[symbol] == equation->mUnknownVariables.front()->mVariable) {
+        if (!symbol.is_null() && mVariableMap[symbol] == equation->mUnknownVariables.front()) {
             seSubstitutionMap[seChildren.front()] = seChildren.back();
         } else {
             seSubstitutionMap[seChildren.back()] = seChildren.front();
@@ -3318,7 +3326,7 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
         for (auto iter = mFirstVariables.begin(); iter != mFirstVariables.end(); ++iter) {
             const auto &variable = *iter;
             const auto &dependencies = variable->mMatchedEquation->mDependencies;
-            const auto dependencyIter = std::find(dependencies.begin(), dependencies.end(), tearingVariable->mVariable);
+            const auto dependencyIter = std::find(dependencies.begin(), dependencies.end(), tearingVariable);
 
             if (dependencyIter != dependencies.end()) {
                 mFirstVariables.insert(iter, tearingVariable);
@@ -3465,7 +3473,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
                     internalVariable->mIsExternalVariable = true;
 
                     for (const auto &dependency : externalVariable->dependencies()) {
-                        internalVariable->mDependencies.push_back(Analyser::AnalyserImpl::internalVariable(dependency)->mVariable);
+                        internalVariable->mDependencies.push_back(Analyser::AnalyserImpl::internalVariable(dependency));
                     }
                 }
             }
@@ -4196,7 +4204,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         // Determine the equation's dependencies, i.e. the equations for the
         // variables on which this equation depends.
 
-        VariablePtrs variableDependencies;
+        AnalyserInternalVariablePtrs variableDependencies;
 
         if (equationType == AnalyserEquation::Type::EXTERNAL) {
             for (const auto &unknownVariable : internalEquation->mUnknownVariables) {
@@ -4211,7 +4219,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         AnalyserEquationPtrs equationDependencies;
 
         for (const auto &variableDependency : variableDependencies) {
-            auto analyserVariable = v2avMappings[variableDependency];
+            auto analyserVariable = v2avMappings[variableDependency->mVariable];
 
             if (analyserVariable != nullptr) {
                 for (const auto &analyserEquation : analyserVariable->analyserEquations()) {

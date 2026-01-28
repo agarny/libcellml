@@ -47,7 +47,7 @@ using AnalyserExternalVariablePtrs = std::vector<AnalyserExternalVariablePtr>;
 
 using AnalyserEquationAstPtrs = std::vector<AnalyserEquationAstPtr>;
 
-using SymEngineVariableMap = std::map<SymEngine::RCP<const SymEngine::Symbol>, VariablePtr, SymEngine::RCPBasicKeyLess>;
+using SymEngineVariableMap = std::map<SymEngine::RCP<const SymEngine::Symbol>, AnalyserInternalVariablePtr, SymEngine::RCPBasicKeyLess>;
 using SymEngineSymbolMap = std::map<AnalyserInternalVariablePtr, SymEngine::RCP<const SymEngine::Symbol>>;
 using SymEngineEquationResult = std::tuple<bool, SymEngine::RCP<const SymEngine::Basic>>;
 
@@ -75,8 +75,8 @@ struct AnalyserInternalVariable
 
     VariablePtr mInitialisingVariable;
     VariablePtr mVariable;
-    VariablePtrs mDependencies;
 
+    AnalyserInternalVariablePtrs mDependencies;
     AnalyserInternalEquationPtrs mUnmatchedEquations;
     AnalyserInternalEquationPtr mMatchedEquation;
 
@@ -104,12 +104,11 @@ struct AnalyserInternalEquation
 
     Type mType = Type::UNKNOWN;
 
-    VariablePtrs mDependencies;
-
     AnalyserEquationAstPtr mAst;
 
     ComponentPtr mComponent;
 
+    AnalyserInternalVariablePtrs mDependencies;
     AnalyserInternalVariablePtrs mVariables;
     AnalyserInternalVariablePtrs mStateVariables;
     AnalyserInternalVariablePtrs mAllVariables;
