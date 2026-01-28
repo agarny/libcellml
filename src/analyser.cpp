@@ -3073,6 +3073,14 @@ bool Analyser::AnalyserImpl::matchPair(const AnalyserInternalVariablePtr &variab
 
     makeVariableKnown(variable, equation);
 
+    // Remove from dependencies since it is the unknown the equation now solves for.
+    // This is necessary for state variables that were initially assumed to be dependencies.
+    auto it = std::find(equation->mDependencies.begin(), equation->mDependencies.end(), variable);
+
+    if (it != equation->mDependencies.end()) {
+        equation->mDependencies.erase(it);
+    }
+
     for (size_t i = 0; i < equation->mComponent->variableCount(); ++i) {
         auto localVariable = equation->mComponent->variable(i);
         if (mAnalyserModel->areEquivalentVariables(variable->mVariable, localVariable)) {
