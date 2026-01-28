@@ -151,6 +151,7 @@ struct AnalyserInternalEquation
                    const AnalyserEquationAstPtr &astChild);
     bool variableIsolated(const AnalyserInternalVariablePtr &variable);
 
+    void simplifySeEquation();
     bool isSymEngineExpressionComplex(const SymEngine::RCP<const SymEngine::Basic> &seExpression);
     SymEngine::RCP<const SymEngine::Basic> rearrangeFor(const SymEngine::RCP<const SymEngine::Symbol> &symbol);
 

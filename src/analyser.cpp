@@ -269,6 +269,27 @@ bool AnalyserInternalEquation::variableIsolated(const AnalyserInternalVariablePt
     return false;
 }
 
+void AnalyserInternalEquation::simplifySeEquation()
+{
+    std::vector<SymEngine::RCP<const SymEngine::Basic>> candidates = {
+        mSeEquation,
+        SymEngine::simplify(mSeEquation),
+        SymEngine::simplify(SymEngine::expand(mSeEquation))};
+
+    auto bestEquation = candidates.front();
+    auto leastOperations = SymEngine::count_ops({bestEquation});
+
+    for (const auto &expr : candidates) {
+        auto operations = SymEngine::count_ops({expr});
+        if (bestEquation.is_null() || operations < leastOperations) {
+            bestEquation = expr;
+            leastOperations = operations;
+        }
+    }
+
+    mSeEquation = bestEquation;
+}
+
 bool AnalyserInternalEquation::isSymEngineExpressionComplex(const SymEngine::RCP<const SymEngine::Basic> &seExpression)
 {
     if (SymEngine::is_a_Complex(*seExpression)) {
@@ -311,7 +332,7 @@ SymEngine::RCP<const SymEngine::Basic> AnalyserInternalEquation::rearrangeFor(co
         return SymEngine::null;
     }
 
-    return SymEngine::simplify(SymEngine::expand(solutions.front()));
+    return solutions.front();
 }
 
 bool AnalyserInternalEquation::check(const AnalyserModelPtr &analyserModel, bool checkNlaSystems)
@@ -3026,6 +3047,7 @@ bool Analyser::AnalyserImpl::causaliseRelationship(const AnalyserInternalVariabl
 
         const auto seEquation = SymEngine::Eq(symbol, seRearranged);
         equation->mSeEquation = seEquation;
+        equation->simplifySeEquation();
         equation->mAst = parseSymEngineToAst(seEquation, nullptr);
     }
 
@@ -3250,7 +3272,7 @@ void Analyser::AnalyserImpl::matchRelationships(AnalyserInternalVariablePtrs &un
             unknownEquation->mSeEquation = SymEngine::msubs(unknownEquation->mSeEquation, seSubstitutionMap);
         }
 
-        unknownEquation->mSeEquation = SymEngine::simplify(SymEngine::expand(unknownEquation->mSeEquation));
+        unknownEquation->simplifySeEquation();
 
         const auto newAst = parseSymEngineToAst(unknownEquation->mSeEquation, nullptr);
         replaceAstTree(unknownEquation, newAst);
