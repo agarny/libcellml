@@ -3276,6 +3276,9 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
 
     for (const auto &unknownEquation : unknownEquations) {
         if (unknownEquation->mSeEquation.is_null()) {
+            // Need to regenerate AST tree regardless to refresh variable lists.
+
+            replaceAstTree(unknownEquation, unknownEquation->mAst);
             continue;
         }
 
