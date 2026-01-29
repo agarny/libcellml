@@ -3413,6 +3413,41 @@ void Analyser::AnalyserImpl::classifyInternalSystem()
             }
         }
     }
+
+    for (const auto &equation : mInternalEquations) {
+        if (equation->mUnknownVariables.size() != 0) {
+            continue;
+        }
+
+        // TODO Should change test cases to no longer require below.
+        // This is technically NOT correct since variables depending on the initialised variables below
+        // may be used in the NLA equations to solve for the variables.
+
+        AnalyserInternalVariablePtrs initialisedVariables;
+
+        for (const auto &variable : equation->mAllVariables) {
+            if (variable->mType == AnalyserInternalVariable::Type::INITIALISED
+                || variable->mType == AnalyserInternalVariable::Type::INITIALISED_ALGEBRAIC_VARIABLE) {
+                initialisedVariables.push_back(variable);
+            }
+        }
+
+        if (initialisedVariables.empty()) {
+            for (const auto &variable : equation->mAllVariables) {
+                if (variable->mIsExternalVariable) {
+                    continue;
+                }
+                variable->mType = AnalyserInternalVariable::Type::OVERCONSTRAINED;
+            }
+            continue;
+        }
+
+        equation->mType = AnalyserInternalEquation::Type::NLA;
+        for (const auto &variable : initialisedVariables) {
+            variable->mType = AnalyserInternalVariable::Type::INITIALISED_ALGEBRAIC_VARIABLE;
+            equation->mUnknownVariables.push_back(variable);
+        }
+    }
 }
 
 void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
