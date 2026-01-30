@@ -3059,8 +3059,8 @@ bool Analyser::AnalyserImpl::matchPair(const AnalyserInternalVariablePtr &variab
             }
 
             // Remove the unknown link from our other variable to this equation.
-            auto linkedEquations = variable->mUnmatchedEquations;
-            linkedEquations.erase(std::remove(linkedEquations.begin(), linkedEquations.end(), equation), linkedEquations.end());
+            auto &unmatchedEquations = otherVariable->mUnmatchedEquations;
+            unmatchedEquations.erase(std::remove(unmatchedEquations.begin(), unmatchedEquations.end(), equation), unmatchedEquations.end());
 
             equation->mDependencies.push_back(otherVariable);
         }
