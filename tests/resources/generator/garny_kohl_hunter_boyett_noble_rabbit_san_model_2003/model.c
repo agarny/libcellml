@@ -443,14 +443,14 @@ void computeRates(double voi, double *states, double *rates, double *constants, 
     algebraicVariables[7] = computedConstants[20]*pow(states[13], 2.0)*(states[0]-computedConstants[12]);
     algebraicVariables[6] = (constants[1] != 2.0)?computedConstants[21]*states[14]*(states[0]-computedConstants[4]):computedConstants[21]*states[14]*(states[0]-77.6);
     algebraicVariables[5] = (constants[1] != 2.0)?computedConstants[22]*states[14]*(states[0]-computedConstants[6]):computedConstants[22]*states[14]*(states[0]+102.0);
+    algebraicVariables[4] = computedConstants[3]*(states[0]-computedConstants[4]);
     algebraicVariables[2] = computedConstants[5]*(states[0]-computedConstants[6]);
     algebraicVariables[3] = computedConstants[7]*(states[0]-computedConstants[8]);
-    algebraicVariables[4] = computedConstants[3]*(states[0]-computedConstants[4]);
-    algebraicVariables[42] = 0.6*states[12]+0.4*states[11];
-    algebraicVariables[8] = computedConstants[18]*algebraicVariables[42]*states[10]*(states[0]-computedConstants[6]);
     algebraicVariables[17] = (constants[1] == 0.0)?0.0952*exp(-0.063*(states[0]+34.4))/(1.0+1.66*exp(-0.225*(states[0]+63.7)))+0.0869:0.09518*exp(-0.06306*(states[0]+34.4))/(1.0+1.662*exp(-0.2251*(states[0]+63.7)))+0.08693;
     algebraicVariables[14] = (1.0-algebraicVariables[17])*states[3]+algebraicVariables[17]*states[2];
     algebraicVariables[13] = computedConstants[13]*pow(states[1], 3.0)*algebraicVariables[14]*constants[34]*pow(constants[7], 2.0)/(constants[5]*constants[6])*(exp((states[0]-computedConstants[4])*constants[7]/(constants[5]*constants[6]))-1.0)/(exp(states[0]*constants[7]/(constants[5]*constants[6]))-1.0)*states[0];
+    algebraicVariables[42] = 0.6*states[12]+0.4*states[11];
+    algebraicVariables[8] = computedConstants[18]*algebraicVariables[42]*states[10]*(states[0]-computedConstants[6]);
     rates[0] = -1.0/computedConstants[1]*(algebraicVariables[13]+algebraicVariables[12]+algebraicVariables[11]+algebraicVariables[10]+algebraicVariables[9]+algebraicVariables[8]+algebraicVariables[7]+algebraicVariables[6]+algebraicVariables[5]+algebraicVariables[4]+algebraicVariables[3]+algebraicVariables[2]+algebraicVariables[1]+algebraicVariables[0]+computedConstants[2]);
     algebraicVariables[16] = (constants[1] == 0.0)?pow(1.0/(1.0+exp(-states[0]/5.46)), 1.0/3.0):pow(1.0/(1.0+exp(-(states[0]+30.32)/5.46)), 1.0/3.0);
     algebraicVariables[15] = (constants[1] == 0.0)?0.0006247/(0.832*exp(-0.335*(states[0]+56.7))+0.627*exp(0.082*(states[0]+65.01)))+4.0e-5:0.0006247/(0.8322166*exp(-0.33566*(states[0]+56.7062))+0.6274*exp(0.0823*(states[0]+65.0131)))+4.569e-5;
