@@ -3091,8 +3091,7 @@ bool Analyser::AnalyserImpl::matchPair(const AnalyserInternalVariablePtr &variab
 }
 
 void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVariables,
-                                         AnalyserInternalEquationPtrs &unknownEquations,
-                                         bool firstPass)
+                                         AnalyserInternalEquationPtrs &unknownEquations)
 {
     initialiseMatching(unknownEquations, unknownVariables);
 
@@ -3131,11 +3130,18 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
                     continue;
                 }
 
-                if (firstPass) {
-                    // Since this equation only has one undefined variable, its variable must be next in our dependency chain.
+                // Place the variable in its correct position along our dependency chain.
+                // This is done by inserting it before the first variable that depends on this variable.
 
-                    mFirstVariables.push_back(variable);
-                }
+                auto insertIter = std::find_if(
+                    mFirstVariables.begin(),
+                    mFirstVariables.end(),
+                    [&](const auto &otherVariable) {
+                        const auto &dependencies = otherVariable->mMatchedEquation->mDependencies;
+                        return std::find(dependencies.begin(), dependencies.end(), variable) != dependencies.end();
+                    });
+
+                mFirstVariables.insert(insertIter, variable);
 
                 unknownVariables.erase(std::remove(unknownVariables.begin(), unknownVariables.end(), variable), unknownVariables.end());
                 iter = unknownEquations.erase(iter);
@@ -3173,12 +3179,10 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
                     unknownEquations.erase(std::remove(unknownEquations.begin(), unknownEquations.end(), equation), unknownEquations.end());
                     progressMade = true;
 
-                    if (firstPass) {
-                        // Since this variable must be defined by this equation, it should exist at the end of our dependency
-                        // chain (but before other variables that have been previously been identified the same way).
+                    // Since this variable must be defined by this equation, it should exist at the end of our dependency
+                    // chain (but before other variables that have been previously been identified the same way).
 
-                        mLastVariables.insert(mLastVariables.begin(), variable);
-                    }
+                    mLastVariables.push_back(variable);
                 }
 
                 iter = unknownVariables.erase(iter);
@@ -3315,35 +3319,7 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
     // Progress has been made, so we can continue matching.
 
     auto newUnknownVariables = tearingVariables;
-    matchSystem(newUnknownVariables, unknownEquations, false);
-
-    if (!firstPass) {
-        return;
-    }
-
-    // Place each tearing variable in its correct position along our dependency chain.
-    // This should be placed right before a variable defined using an equation with a dependency
-    // on this tearing variable.
-
-    for (const auto &tearingVariable : tearingVariables) {
-        const auto &equation = tearingVariable->mMatchedEquation;
-
-        if (equation == nullptr) {
-            continue;
-        }
-
-        for (auto iter = mFirstVariables.begin(); iter != mFirstVariables.end(); ++iter) {
-            const auto &variable = *iter;
-            const auto &dependencies = variable->mMatchedEquation->mDependencies;
-            const auto dependencyIter = std::find(dependencies.begin(), dependencies.end(), tearingVariable);
-
-            if (dependencyIter != dependencies.end()) {
-                mFirstVariables.insert(iter, tearingVariable);
-
-                break;
-            }
-        }
-    }
+    matchSystem(newUnknownVariables, unknownEquations);
 }
 
 void Analyser::AnalyserImpl::classifyInternalSystem()
@@ -3672,7 +3648,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         }
     }
 
-    matchSystem(unknownVariables, unknownEquations, true);
+    matchSystem(unknownVariables, unknownEquations);
 
     classifyInternalSystem();
 
