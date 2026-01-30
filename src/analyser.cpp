@@ -2985,7 +2985,8 @@ void Analyser::AnalyserImpl::initialiseMatching(const AnalyserInternalEquationPt
             // Ignore variables that do not require matching, instead add them as a dependencies
             // since they are already defined or should be matched elsewhere.
 
-            if (std::find(variables.begin(), variables.end(), variable) == variables.end() || variable->mType == AnalyserInternalVariable::Type::STATE
+            if (std::find(variables.begin(), variables.end(), variable) == variables.end()
+                || variable->mType == AnalyserInternalVariable::Type::STATE
                 || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
                 equation->mDependencies.push_back(variable);
                 iter = equation->mVariables.erase(iter);
@@ -3354,6 +3355,12 @@ void Analyser::AnalyserImpl::classifyInternalSystem()
                     continue;
                 }
 
+                if (dependentVariable->mIsExternalVariable) {
+                    onlyComputedConstants = false;
+                    onlyConstants = false;
+                    continue;
+                }
+
                 switch (dependentVariable->mType) {
                 case (AnalyserInternalVariable::Type::UNKNOWN):
                     noUnknowns = false;
@@ -3638,13 +3645,6 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         auto [result, seEquation] = parseAstToSymEngine(equation->mAst);
         if (result) {
             equation->mSeEquation = seEquation;
-        }
-    }
-
-    for (const auto &internalVariable : mInternalVariables) {
-        if (internalVariable->mIsExternalVariable
-            && (internalVariable->mType == AnalyserInternalVariable::Type::UNKNOWN)) {
-            internalVariable->mType = AnalyserInternalVariable::Type::INITIALISED;
         }
     }
 
