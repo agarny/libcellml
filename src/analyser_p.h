@@ -296,7 +296,8 @@ public:
     void makeVariableKnown(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &matchedEquation);
     bool matchPair(const AnalyserInternalVariablePtr &variable, const AnalyserInternalEquationPtr &equation);
     void matchSystem(AnalyserInternalVariablePtrs &unknownVariables,
-                     AnalyserInternalEquationPtrs &unknownEquations);
+                     AnalyserInternalEquationPtrs &unknownEquations,
+                     bool externalsInitialised);
     void classifyInternalSystem();
 
     void analyseModel(const ModelPtr &model);

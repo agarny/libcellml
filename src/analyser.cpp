@@ -3092,7 +3092,8 @@ bool Analyser::AnalyserImpl::matchPair(const AnalyserInternalVariablePtr &variab
 }
 
 void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVariables,
-                                         AnalyserInternalEquationPtrs &unknownEquations)
+                                         AnalyserInternalEquationPtrs &unknownEquations,
+                                         bool externalsInitialised)
 {
     initialiseMatching(unknownEquations, unknownVariables);
 
@@ -3305,28 +3306,42 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
         replaceAstTree(unknownEquation, newAst);
     }
 
-    if (!progressMade) {
-        // Our matching algorithm has stalled, meaning the rest of the system must be classified as an NLA.
+    if (progressMade) {
+        // Progress has been made, so we can continue matching.
 
-        for (const auto &unknownEquation : unknownEquations) {
-            unknownEquation->mType = AnalyserInternalEquation::Type::NLA;
-
-            for (const auto &variable : unknownEquation->mAllVariables) {
-                if (variable->mMatchedEquation == nullptr
-                    && variable->mType != AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION) {
-                    variable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
-                    unknownEquation->mUnknownVariables.push_back(variable);
-                }
-            }
-        }
-
+        auto newUnknownVariables = tearingVariables;
+        matchSystem(newUnknownVariables, unknownEquations, externalsInitialised);
         return;
     }
 
-    // Progress has been made, so we can continue matching.
+    if (!externalsInitialised && mExternalVariables.size() > 0) {
+        // Try again assuming external variables are known.
 
-    auto newUnknownVariables = tearingVariables;
-    matchSystem(newUnknownVariables, unknownEquations);
+        AnalyserInternalVariablePtrs newUnknownVariables;
+
+        for (auto &variable : tearingVariables) {
+            if (!variable->mIsExternalVariable) {
+                newUnknownVariables.push_back(variable);
+            }
+        }
+
+        matchSystem(newUnknownVariables, unknownEquations, true);
+        return;
+    }
+
+    // Our matching algorithm has stalled, meaning the rest of the system must be classified as an NLA.
+
+    for (const auto &unknownEquation : unknownEquations) {
+        unknownEquation->mType = AnalyserInternalEquation::Type::NLA;
+
+        for (const auto &variable : unknownEquation->mAllVariables) {
+            if (variable->mMatchedEquation == nullptr
+                && variable->mType != AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION) {
+                variable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
+                unknownEquation->mUnknownVariables.push_back(variable);
+            }
+        }
+    }
 }
 
 void Analyser::AnalyserImpl::classifyInternalSystem()
@@ -3654,7 +3669,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         }
     }
 
-    matchSystem(unknownVariables, unknownEquations);
+    matchSystem(unknownVariables, unknownEquations, false);
 
     classifyInternalSystem();
 
