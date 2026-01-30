@@ -274,7 +274,8 @@ void AnalyserInternalEquation::simplifySeEquation()
     std::vector<SymEngine::RCP<const SymEngine::Basic>> candidates = {
         mSeEquation,
         SymEngine::simplify(mSeEquation),
-        SymEngine::simplify(SymEngine::expand(mSeEquation))};
+        SymEngine::simplify(SymEngine::Eq(mSeEquation->get_args()[0], SymEngine::expand(mSeEquation->get_args()[1]))),
+    };
 
     auto bestEquation = candidates.front();
     auto leastOperations = SymEngine::count_ops({bestEquation});
