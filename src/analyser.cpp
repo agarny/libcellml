@@ -3108,9 +3108,10 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
     // Tearing variables are declared when no matches can be found.
 
     while (unknownVariables.size() > 0) {
-        bool changed = true;
-        while (changed) {
-            changed = false;
+        bool localEquationProgress = true;
+
+        while (localEquationProgress) {
+            localEquationProgress = false;
 
             // Identify equations that we can currently match.
 
@@ -3147,10 +3148,15 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
                 unknownVariables.erase(std::remove(unknownVariables.begin(), unknownVariables.end(), variable), unknownVariables.end());
                 iter = unknownEquations.erase(iter);
 
-                changed = true;
+                localEquationProgress = true;
                 progressMade = true;
             }
+        }
 
+        bool localVariableProgress = true;
+
+        while (localVariableProgress) {
+            localVariableProgress = false;
             // Identify variables that we can currently match.
 
             for (auto iter = unknownVariables.begin(); iter != unknownVariables.end();) {
@@ -3187,7 +3193,7 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
                 }
 
                 iter = unknownVariables.erase(iter);
-                changed = true;
+                localVariableProgress = true;
             }
         }
 
