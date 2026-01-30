@@ -2933,6 +2933,10 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
 
     bool progressMade = false;
 
+    // Stores variables that tearing variables can use as dependencies.
+
+    AnalyserInternalVariablePtrs preTearingVariables;
+
     // Match all unmatched equations with a single unmatched variable it can rearrange for.
     // Match all unmatched variables with a single unmatched equation it can be rearranged for.
     // Tearing variables are declared when no matches can be found.
@@ -2974,6 +2978,10 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
                     });
 
                 mFirstVariables.insert(insertIter, variable);
+
+                if (tearingVariables.size() == 0) {
+                    preTearingVariables.push_back(variable);
+                }
 
                 unknownVariables.erase(std::remove(unknownVariables.begin(), unknownVariables.end(), variable), unknownVariables.end());
                 iter = unknownEquations.erase(iter);
@@ -3074,19 +3082,17 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
         tearingVariable->mUnmatchedEquations.clear();
     }
 
-    // TODO Instead of subbing for (almost) everything, it would be better to keep track of our dependencies,
-    // so we don't substitute for variables we would already know (which would consequently result in
-    // redundant recalculations).
-
     // Substitute to isolate tearing variables. We operate on a copy of our equations to ensure that
     // the original linked SymEngine equation will still in a simple form.
 
     SymEngine::map_basic_basic seSubstitutionMap;
     for (const auto &equation : allEquations) {
-        // Ignore equations we haven't managed to match or don't have a SymEngine equivalent for.
+        // Ignore equations we haven't managed to match, don't have a SymEngine equivalent for, or our tearing
+        // variables can depend on.
 
         if (std::find(unknownEquations.begin(), unknownEquations.end(), equation) != unknownEquations.end()
-            || equation->mSeEquation.is_null()) {
+            || equation->mSeEquation.is_null()
+            || std::find(preTearingVariables.begin(), preTearingVariables.end(), equation->mUnknownVariables.front()) != preTearingVariables.end()) {
             continue;
         }
 
