@@ -3019,7 +3019,7 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
                     // Since this variable must be defined by this equation, it should exist at the end of our dependency
                     // chain (but before other variables that have been previously been identified the same way).
 
-                    mLastVariables.push_back(variable);
+                    mLastVariables.insert(mLastVariables.begin(), variable);
                 }
 
                 iter = unknownVariables.erase(iter);
