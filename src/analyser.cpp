@@ -183,30 +183,6 @@ bool AnalyserInternalEquation::hasNonConstantVariables()
     return hasNonConstantVariables(mVariables) || hasNonConstantVariables(mStateVariables);
 }
 
-bool AnalyserInternalEquation::variableOnLhsRhs(const AnalyserInternalVariablePtr &variable,
-                                                const AnalyserEquationAstPtr &astChild)
-{
-    switch (astChild->type()) {
-    case AnalyserEquationAst::Type::CI:
-        return astChild->variable()->name() == variable->mVariable->name();
-    case AnalyserEquationAst::Type::DIFF:
-        return astChild->rightChild()->variable()->name() == variable->mVariable->name();
-    default:
-        return false;
-    }
-}
-
-bool AnalyserInternalEquation::variableOnRhs(const AnalyserInternalVariablePtr &variable)
-{
-    return variableOnLhsRhs(variable, mAst->rightChild());
-}
-
-bool AnalyserInternalEquation::variableOnLhsOrRhs(const AnalyserInternalVariablePtr &variable)
-{
-    return variableOnLhsRhs(variable, mAst->leftChild())
-           || variableOnRhs(variable);
-}
-
 bool AnalyserInternalEquation::containsVariable(const AnalyserInternalVariablePtr &variable,
                                                 const AnalyserEquationAstPtr &astChild)
 {
@@ -319,7 +295,7 @@ SymEngine::RCP<const SymEngine::Basic> AnalyserInternalEquation::rearrangeFor(co
         return SymEngine::null;
     }
 
-    SymEngine::vec_basic solutions = solutionSet->get_args();
+    auto solutions = solutionSet->get_args();
 
     // Attempt to isolate a single real solution.
 
@@ -2347,6 +2323,7 @@ SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const Analys
     case AnalyserEquationAst::Type::LOG:
         if (right.is_null()) {
             // Base 10 logarithm is expected.
+
             return {true, SymEngine::div(SymEngine::log(left), SymEngine::log(SymEngine::integer(10)))};
         } else {
             return {true, SymEngine::div(SymEngine::log(right), SymEngine::log(left))};
@@ -2414,13 +2391,10 @@ SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const Analys
     case AnalyserEquationAst::Type::ACOTH:
         return {true, SymEngine::acoth(left)};
     case AnalyserEquationAst::Type::DEGREE:
-        // Parent should be ROOT so we can just return the left child.
-        return {true, left};
     case AnalyserEquationAst::Type::LOGBASE:
-        // Parent should be LOG so we can just return the left child.
-        return {true, left};
     case AnalyserEquationAst::Type::BVAR:
-        // Parent should be DIFF so we can just return the left child.
+        // Parent should be ROOT, LOG, or DIFF respectively so we can just return the left child.
+
         return {true, left};
     case AnalyserEquationAst::Type::E:
         return {true, SymEngine::E};
@@ -2500,6 +2474,7 @@ AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngi
             if (children.size() > 1) {
                 // Multiple terms being multiplied, e.g. -1 * x * y.
                 // Retrieve the unary minus as a parent node and process the rest as a TIMES node.
+
                 auto newAst = AnalyserEquationAst::create();
 
                 newAst->setType(AnalyserEquationAst::Type::TIMES);
@@ -2547,6 +2522,7 @@ AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngi
         // This is a special case where we need to manually wrap the left child in a BVAR node.
         // Note that the variable of differentiation will be the second child of a symengine
         // derivative expression.
+
         auto bVarAst = AnalyserEquationAst::create();
         bVarAst->setType(AnalyserEquationAst::Type::BVAR);
         bVarAst->setParent(currentAst);
@@ -2555,6 +2531,7 @@ AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngi
 
         // We must also set the right child here, since the the loop below doesn't know we've ready
         // set the left child.
+
         currentAst->setRightChild(parseSymEngineToAst(children[0], currentAst));
         return headAst;
     }
@@ -2681,6 +2658,7 @@ AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngi
         break;
     case SymEngine::SYMENGINE_INFTY:
         currentAst->setType(AnalyserEquationAst::Type::INF);
+
         break;
     default: {
         // The only case left should be SymEngine::SYMENGINE_FUNCTIONSYMBOL.
@@ -2716,6 +2694,7 @@ AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngi
     }
 
     // All children (except the last) are guaranteed to be left children in the AST tree.
+
     for (int i = 0; i + 1 < children.size(); ++i) {
         auto childAst = parseSymEngineToAst(children[i], currentAst);
 
@@ -2784,11 +2763,11 @@ void Analyser::AnalyserImpl::replaceAstTree(const AnalyserInternalEquationPtr &e
     astStack.push_back(newAst);
 
     while (astStack.size() > 0) {
-        const auto ast = astStack.back();
+        auto ast = astStack.back();
         astStack.pop_back();
 
         if (ast->type() == AnalyserEquationAst::Type::CI) {
-            const auto variable = ast->variable();
+            auto variable = ast->variable();
             if (ast->parent()->type() == AnalyserEquationAst::Type::DIFF) {
                 equation->addStateVariable(internalVariable(variable));
             } else if (ast->parent()->type() != AnalyserEquationAst::Type::BVAR) {
@@ -2808,9 +2787,9 @@ void Analyser::AnalyserImpl::replaceAstTree(const AnalyserInternalEquationPtr &e
 
 void Analyser::AnalyserImpl::initialiseMatching(const AnalyserInternalEquationPtrs &equations, const AnalyserInternalVariablePtrs &variables)
 {
-    for (auto &equation : equations) {
+    for (const auto &equation : equations) {
         for (auto iter = equation->mVariables.begin(); iter != equation->mVariables.end();) {
-            auto &variable = *iter;
+            auto variable = *iter;
 
             // Ignore variables that do not require matching, instead add them as a dependencies
             // since they are already defined or should be matched elsewhere.
@@ -2826,7 +2805,7 @@ void Analyser::AnalyserImpl::initialiseMatching(const AnalyserInternalEquationPt
             }
         }
 
-        for (auto &variable : equation->mStateVariables) {
+        for (const auto &variable : equation->mStateVariables) {
             variable->mUnmatchedEquations.push_back(equation);
         }
     }
@@ -2837,7 +2816,7 @@ void Analyser::AnalyserImpl::makeVariableKnown(const AnalyserInternalVariablePtr
 {
     // Update all other equations to consider this variable known.
 
-    for (auto &otherEquation : variable->mUnmatchedEquations) {
+    for (const auto &otherEquation : variable->mUnmatchedEquations) {
         if (otherEquation == matchedEquation) {
             continue;
         }
@@ -2865,14 +2844,14 @@ bool Analyser::AnalyserImpl::matchPair(const AnalyserInternalVariablePtr &variab
             return false;
         }
 
-        const auto symbol = mSymbolMap[variable];
+        auto symbol = mSymbolMap[variable];
 
-        const auto seRearranged = equation->rearrangeFor(symbol);
+        auto seRearranged = equation->rearrangeFor(symbol);
         if (seRearranged.is_null()) {
             return false;
         }
 
-        const auto seEquation = SymEngine::Eq(symbol, seRearranged);
+        auto seEquation = SymEngine::Eq(symbol, seRearranged);
         equation->mSeEquation = seEquation;
         equation->simplifySeEquation();
         equation->mAst = parseSymEngineToAst(seEquation, nullptr);
@@ -2883,14 +2862,16 @@ bool Analyser::AnalyserImpl::matchPair(const AnalyserInternalVariablePtr &variab
 
     // Update so that equations depends on all other (state) variables.
     for (const auto *otherVariables : {&equation->mStateVariables, &equation->mVariables}) {
-        for (auto &otherVariable : *otherVariables) {
+        for (const auto &otherVariable : *otherVariables) {
             if (otherVariable == variable) {
                 continue;
             }
 
             // Remove the unknown link from our other variable to this equation.
-            auto &unmatchedEquations = otherVariable->mUnmatchedEquations;
-            unmatchedEquations.erase(std::remove(unmatchedEquations.begin(), unmatchedEquations.end(), equation), unmatchedEquations.end());
+            otherVariable->mUnmatchedEquations.erase(std::remove(otherVariable->mUnmatchedEquations.begin(),
+                                                                 otherVariable->mUnmatchedEquations.end(),
+                                                                 equation),
+                                                     otherVariable->mUnmatchedEquations.end());
 
             equation->mDependencies.push_back(otherVariable);
         }
@@ -2927,7 +2908,8 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
 {
     initialiseMatching(unknownEquations, unknownVariables);
 
-    // Implements a version of practical Cellier tearing to match equations and break algebraic loops.
+    // Implements a version of Täuber et al.'s practical realisation of the Cellier
+    // tearing algorithm in order to match equations and break algebraic loops.
 
     AnalyserInternalEquationPtrs allEquations = unknownEquations;
     AnalyserInternalVariablePtrs tearingVariables;
@@ -2951,16 +2933,18 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
             // Identify equations that we can currently match.
 
             for (auto iter = unknownEquations.begin(); iter != unknownEquations.end();) {
-                auto &equation = *iter;
+                auto equation = *iter;
 
                 if (equation->mVariables.size() + equation->mStateVariables.size() != 1) {
                     ++iter;
                     continue;
                 }
 
-                auto variable = equation->mVariables.size() == 1 ? equation->mVariables.front() : equation->mStateVariables.front();
+                auto variable = equation->mVariables.size() == 1 ?
+                                    equation->mVariables.front() :
+                                    equation->mStateVariables.front();
 
-                const auto success = matchPair(variable, equation);
+                auto success = matchPair(variable, equation);
 
                 if (!success) {
                     ++iter;
@@ -2999,13 +2983,13 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
             // Identify variables that we can currently match.
 
             for (auto iter = unknownVariables.begin(); iter != unknownVariables.end();) {
-                auto &variable = *iter;
+                auto variable = *iter;
 
                 if (variable->mUnmatchedEquations.size() > 1) {
                     ++iter;
                     continue;
                 } else if (variable->mUnmatchedEquations.size() == 0 || variable->mIsExternalVariable) {
-                    // Either -
+                    // Either is true:
                     // 1. No equations left that include this variable. This means we won't be able to match this.
                     // 2. This is an external variable, and since we don't know whether they have a non-external
                     // assignment or must always be defined externally, we can't match in this direction.
@@ -3016,7 +3000,7 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
 
                 auto equation = variable->mUnmatchedEquations.front();
 
-                const auto success = matchPair(variable, equation);
+                auto success = matchPair(variable, equation);
 
                 if (!success) {
                     // If we can't match the variable to the only equation it has an association with, then it's an
@@ -3054,7 +3038,7 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
 
         for (const auto &variable : unknownVariables) {
             size_t matchMaking = 0;
-            for (auto equation : variable->mUnmatchedEquations) {
+            for (const auto &equation : variable->mUnmatchedEquations) {
                 if (equation->mStateVariables.size() + equation->mVariables.size() == 2) {
                     ++matchMaking;
                 }
@@ -3082,7 +3066,7 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
 
     // Reset the unmatched equations of tearing variablesas they will be repopulated after equation substitution.
 
-    for (auto &tearingVariable : tearingVariables) {
+    for (const auto &tearingVariable : tearingVariables) {
         tearingVariable->mUnmatchedEquations.clear();
     }
 
@@ -3100,13 +3084,13 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
             continue;
         }
 
-        const auto seChildren = equation->mSeEquation->get_args();
+        auto seChildren = equation->mSeEquation->get_args();
 
         // SymEngine's equality canonical ordering of equations means that our LHS and RHS
         // may have been swapped by SymEngine's representation. So we need to inspect the
         // SymEngine equation directly to determine where our isolated expression is.
 
-        const auto lhs = seChildren.front();
+        auto lhs = seChildren.front();
         SymEngine::RCP<const SymEngine::Symbol> symbol;
 
         if (lhs->get_type_code() == SymEngine::SYMENGINE_SYMBOL) {
@@ -3133,15 +3117,13 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
             continue;
         }
 
-        // TODO Potentially undesireable time complexity as the equation may converge beforehand.
-
         for (size_t i = 0; i < seSubstitutionMap.size(); ++i) {
             unknownEquation->mSeEquation = SymEngine::msubs(unknownEquation->mSeEquation, seSubstitutionMap);
         }
 
         unknownEquation->simplifySeEquation();
 
-        const auto newAst = parseSymEngineToAst(unknownEquation->mSeEquation, nullptr);
+        auto newAst = parseSymEngineToAst(unknownEquation->mSeEquation, nullptr);
         replaceAstTree(unknownEquation, newAst);
     }
 
@@ -3158,7 +3140,7 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
 
         AnalyserInternalVariablePtrs newUnknownVariables;
 
-        for (auto &variable : tearingVariables) {
+        for (const auto &variable : tearingVariables) {
             if (!variable->mIsExternalVariable) {
                 newUnknownVariables.push_back(variable);
             }
@@ -3185,11 +3167,11 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
 
 void Analyser::AnalyserImpl::classifyInternalSystem()
 {
-    // Classify our equations and variables.
+    // Classify our analyser internal equations and analyser internal variables.
 
     for (const auto *orderedVariables : {&mFirstVariables, &mLastVariables}) {
-        for (auto &variable : *orderedVariables) {
-            auto &equation = variable->mMatchedEquation;
+        for (const auto &variable : *orderedVariables) {
+            auto equation = variable->mMatchedEquation;
 
             // Ignore variables without a matching equation since they will have been classified as part
             // of an NLA system.
@@ -3210,7 +3192,7 @@ void Analyser::AnalyserImpl::classifyInternalSystem()
             bool onlyConstants = true;
             bool onlyComputedConstants = true;
 
-            for (const auto dependentVariable : equation->mAllVariables) {
+            for (const auto &dependentVariable : equation->mAllVariables) {
                 if (dependentVariable == variable) {
                     continue;
                 }
@@ -3257,7 +3239,7 @@ void Analyser::AnalyserImpl::classifyInternalSystem()
         }
     }
 
-    for (const auto &variable: mInternalVariables) {
+    for (const auto &variable : mInternalVariables) {
         if (variable->mIsExternalVariable && variable->mType == AnalyserInternalVariable::Type::UNKNOWN) {
             variable->mType = AnalyserInternalVariable::Type::INITIALISED;
         }
@@ -3268,9 +3250,10 @@ void Analyser::AnalyserImpl::classifyInternalSystem()
             continue;
         }
 
-        // TODO Should change test cases to no longer require below.
-        // This is technically NOT correct since variables depending on the initialised variables below
-        // may be used in the NLA equations to solve for the variables.
+        // TODO Test cases need to be updated to stop NLAs from forming due to initial values. Afterwards,
+        // the code below should be removed. The implementation below is NOT correct as variables depending
+        // on the initialised variables below may be used in the NLA equations to solve for the variables.
+        // I.e. we may accidentally introduce an algebraic loop.
 
         AnalyserInternalVariablePtrs initialisedVariables;
 
@@ -3501,8 +3484,8 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
 
     std::copy_if(mInternalVariables.begin(), mInternalVariables.end(),
                  std::back_inserter(unknownVariables),
-                 [](auto variable) { return variable->mType != AnalyserInternalVariable::Type::INITIALISED
-                                            && variable->mType != AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION; });
+                 [](const auto &variable) { return variable->mType != AnalyserInternalVariable::Type::INITIALISED
+                                                   && variable->mType != AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION; });
 
     // Generate SymEngine expressions for our equations.
     // Also begin tracking equation matching from the perspective of variables.
@@ -4030,7 +4013,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
             // Swap the LHS and RHS of the equation if its unknown variable is
             // on its RHS.
 
-            if (internalEquation->variableOnRhs(internalEquation->mUnknownVariables.front())) {
+            if (internalEquation->isVariable(internalEquation->mUnknownVariables.front(), internalEquation->mAst->rightChild())) {
                 internalEquation->mAst->swapLeftAndRightChildren();
             }
 

@@ -22,12 +22,6 @@ limitations under the License.
 #include "logger_p.h"
 #include "utilities.h"
 
-namespace SymEngine {
-template<class T> class RCP;
-class Basic;
-class Symbol;
-} // namespace SymEngine
-
 namespace libcellml {
 
 struct AnalyserInternalEquation;
@@ -139,11 +133,6 @@ struct AnalyserInternalEquation
     static bool hasNonConstantVariables(const AnalyserInternalVariablePtrs &variables);
     bool hasNonConstantVariables();
 
-    bool variableOnLhsRhs(const AnalyserInternalVariablePtr &variable,
-                          const AnalyserEquationAstPtr &astChild);
-    bool variableOnRhs(const AnalyserInternalVariablePtr &variable);
-    bool variableOnLhsOrRhs(const AnalyserInternalVariablePtr &variable);
-
     bool containsVariable(const AnalyserInternalVariablePtr &variable,
                           const AnalyserEquationAstPtr &astChild);
     bool isVariable(const AnalyserInternalVariablePtr &variable,
@@ -153,8 +142,6 @@ struct AnalyserInternalEquation
     void simplifySeEquation();
     bool isSymEngineExpressionComplex(const SymEngine::RCP<const SymEngine::Basic> &seExpression);
     SymEngine::RCP<const SymEngine::Basic> rearrangeFor(const SymEngine::RCP<const SymEngine::Symbol> &symbol);
-
-    bool check(const AnalyserModelPtr &analyserModel, bool checkNlaSystems);
 };
 
 /**
