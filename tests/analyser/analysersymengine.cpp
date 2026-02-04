@@ -329,7 +329,7 @@ TEST(AnalyserSymEngine, break3dLinearSystem)
     EXPECT_EQ(libcellml::AnalyserModel::Type::ALGEBRAIC, analyser->analyserModel()->type());
 
     EXPECT_EQ("x = 6.0-(y+z)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
-    EXPECT_EQ("y = -1/3.0*(3.0-(z+2.0*(6.0-z)))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
+    EXPECT_EQ("y = -1/3.0*(3.0-(12.0-z))", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
     EXPECT_EQ("z = 12/7.0", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
 }
 
@@ -347,7 +347,7 @@ TEST(AnalyserSymEngine, break4dLinearSystem)
     EXPECT_EQ(libcellml::AnalyserModel::Type::ALGEBRAIC, analyser->analyserModel()->type());
 
     EXPECT_EQ("a = -(3.0*c+4.0*d+2.0*b)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(0)->ast()));
-    EXPECT_EQ("b = c+d-(3.0*c+4.0*d)", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
+    EXPECT_EQ("b = -2.0*c+-3.0*d", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(1)->ast()));
     EXPECT_EQ("c = -4/3.0*d", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(2)->ast()));
     EXPECT_EQ("d = 0.0", libcellml::Generator::equationCode(analyser->analyserModel()->analyserEquation(3)->ast()));
 }
