@@ -3004,8 +3004,11 @@ void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVa
                 if (variable->mUnmatchedEquations.size() > 1) {
                     ++iter;
                     continue;
-                } else if (variable->mUnmatchedEquations.size() == 0) {
-                    // No equations left that include this variable. This means we won't be able to match this.
+                } else if (variable->mUnmatchedEquations.size() == 0 || variable->mIsExternalVariable) {
+                    // Either -
+                    // 1. No equations left that include this variable. This means we won't be able to match this.
+                    // 2. This is an external variable, and since we don't know whether they have a non-external
+                    // assignment or must always be defined externally, we can't match in this direction.
 
                     iter = unknownVariables.erase(iter);
                     continue;
@@ -3251,6 +3254,12 @@ void Analyser::AnalyserImpl::classifyInternalSystem()
                 variable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
                 equation->mType = AnalyserInternalEquation::Type::ALGEBRAIC;
             }
+        }
+    }
+
+    for (const auto &variable: mInternalVariables) {
+        if (variable->mIsExternalVariable && variable->mType == AnalyserInternalVariable::Type::UNKNOWN) {
+            variable->mType = AnalyserInternalVariable::Type::INITIALISED;
         }
     }
 
