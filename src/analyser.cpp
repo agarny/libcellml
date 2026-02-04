@@ -2695,7 +2695,7 @@ AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngi
 
     // All children (except the last) are guaranteed to be left children in the AST tree.
 
-    for (int i = 0; i + 1 < children.size(); ++i) {
+    for (size_t i = 0; i + 1 < children.size(); ++i) {
         auto childAst = parseSymEngineToAst(children[i], currentAst);
 
         currentAst->setLeftChild(childAst);
@@ -3206,19 +3206,26 @@ void Analyser::AnalyserImpl::classifyInternalSystem()
                 switch (dependentVariable->mType) {
                 case (AnalyserInternalVariable::Type::UNKNOWN):
                     noUnknowns = false;
+
                     break;
                 case (AnalyserInternalVariable::Type::STATE):
+                case (AnalyserInternalVariable::Type::SHOULD_BE_STATE):
                 case (AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE):
                 case (AnalyserInternalVariable::Type::INITIALISED_ALGEBRAIC_VARIABLE):
                 case (AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION):
                     onlyComputedConstants = false;
+                    onlyConstants = false;
+
+                    break;
                 case (AnalyserInternalVariable::Type::INITIALISED):
                 case (AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT):
                 case (AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT):
-                    // Set to false if type is ANY of state, (initialised) algebraic variable, computed
-                    // true constant, or computed variable-based constant.
-
                     onlyConstants = false;
+
+                    break;
+                default:
+
+                    break;
                 }
             }
 
