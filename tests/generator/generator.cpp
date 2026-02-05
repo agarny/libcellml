@@ -1556,8 +1556,7 @@ TEST(Generator, robertsonDaeModel1966)
     EXPECT_EQ_FILE_CONTENTS("generator/robertson_model_1966/model.dae.py", generator->implementationCode(analyserModel, profile));
 }
 
-// TODO: Rayen to check.
-/*TEST(Generator, sineImports)
+TEST(Generator, sineImports)
 {
     auto parser = libcellml::Parser::create();
     auto model = parser->parseModel(fileContents("sine_approximations_import.xml"));
@@ -1587,7 +1586,7 @@ TEST(Generator, robertsonDaeModel1966)
     auto profile = libcellml::GeneratorProfile::create(libcellml::GeneratorProfile::Profile::PYTHON);
 
     EXPECT_EQ_FILE_CONTENTS("generator/sine_model_imports/model.py", generator->implementationCode(analyserModel, profile));
-}*/
+}
 
 TEST(Generator, analyserModelScopeTest)
 {
