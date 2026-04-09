@@ -950,7 +950,7 @@ IdList listIds(const ModelPtr &model)
     // Collect all existing identifiers in a list and return. NB can't use a map or a set as we need to be able to print
     // invalid models (with duplicated identifiers) too.
 
-    std::unordered_set<std::string> idList;
+    IdList idList;
     // Model.
     std::string id = model->id();
     if (!id.empty()) {
