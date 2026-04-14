@@ -1767,14 +1767,14 @@ TEST(Generator, veryBigModelMultipleTimes)
 
             ++issueCount;
 
-            fingerprint += std::to_string(static_cast<int>(issue->level())) + "|";
-            fingerprint += std::to_string(static_cast<int>(issue->referenceRule())) + "|";
-            fingerprint += std::to_string(static_cast<int>(issue->item()->type())) + "|";
+            fingerprint += std::format("{}", static_cast<int>(issue->level())) + "|";
+            fingerprint += std::format("{}", static_cast<int>(issue->referenceRule())) + "|";
+            fingerprint += std::format("{}", static_cast<int>(issue->item()->type())) + "|";
             fingerprint += issue->url() + "|";
             fingerprint += issue->description() + "\n";
         }
 
-        return "issues=" + std::to_string(issueCount) + "\n" + fingerprint;
+        return "issues=" + std::format("{}", issueCount) + "\n" + fingerprint;
     };
 
     auto veryBigModel = fileContents("very_big_model.cellml");
