@@ -273,11 +273,7 @@ TEST(Analyser, variableInitialisedUsingAnotherVariable)
 
     const std::vector<std::string> expectedIssues = {
         "Variable 'kStateStateAlgebraic' in component 'main' is initialised using variable 'kStateAlgebraic', which is an algebraic variable. Only a reference to a constant, a computed constant, a state variable, or a computable non-linear algebraic variable is allowed.",
-        "Variable 'kNlaStateAlgebraic' in component 'main' is initialised using variable 'kStateAlgebraic', which is an algebraic variable. Only a reference to a constant, a computed constant, a state variable, or a computable non-linear algebraic variable is allowed.",
-        "Variable 'xStateNlaAlgebraic' in component 'main' is initialised using variable 'kStateNlaAlgebraic', which is an algebraic variable. Only a reference to a constant, a computed constant, a state variable, or a computable non-linear algebraic variable is allowed.",
-        "Variable 'xNlaNlaAlgebraic' in component 'main' is initialised using variable 'kNlaNlaAlgebraic', which is an algebraic variable. Only a reference to a constant, a computed constant, a state variable, or a computable non-linear algebraic variable is allowed.",
         "Variable 'xStateAlgebraic' in component 'main' is initialised using variable 'kStateAlgebraic', which is an algebraic variable. Only a reference to a constant, a computed constant, a state variable, or a computable non-linear algebraic variable is allowed.",
-        "Variable 'xNlaAlgebraic' in component 'main' is initialised using variable 'kNlaAlgebraic', which is an algebraic variable. Only a reference to a constant, a computed constant, a state variable, or a computable non-linear algebraic variable is allowed.",
     };
 
     auto analyser = libcellml::Analyser::create();

@@ -220,7 +220,7 @@
         <apply><rem/><ci>v</ci><cn cellml:units="dimensionless">3</cn></apply>
         <ci>x2</ci>
       </apply>
-      
+
       <!-- Initialise constants -->
       <apply><eq/><ci>x1</ci><cn cellml:units="dimensionless">0.5</cn></apply>
       <apply><eq/><ci>x2</ci><cn cellml:units="dimensionless">1.0</cn></apply>

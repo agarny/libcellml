@@ -398,7 +398,7 @@ TEST(Generator, algebraicSystemWithVariousDependenciesOrdered)
     EXPECT_EQ_FILE_CONTENTS("generator/algebraic_system_with_various_dependencies/model.ordered.py", generator->implementationCode(analyserModel, profile));
 }
 
-// TODO: Rayen to check.
+// TODO: ---GRY--- To be checked.
 /*
 TEST(Generator, algebraicSystemWithVariousDependenciesNotOrdered)
 {
@@ -1400,7 +1400,7 @@ TEST(Generator, hodgkinHuxleySquidAxonModel1952WithVariousExternalVariables)
     EXPECT_EQ_FILE_CONTENTS("generator/hodgkin_huxley_squid_axon_model_1952/model.external.py", generator->implementationCode(analyserModel, profile));
 }
 
-// TODO: Rayen to check.
+// TODO: ---GRY--- To be checked.
 /*
 TEST(Generator, hodgkinHuxleySquidAxonModel195Dae)
 {
@@ -1434,7 +1434,7 @@ TEST(Generator, hodgkinHuxleySquidAxonModel195Dae)
 }
 */
 
-// TODO: Rayen to check.
+// TODO: ---GRY--- To be checked.
 /*
 TEST(Generator, hodgkinHuxleySquidAxonModel1952DaeWithVariousExternalVariables)
 {
@@ -1609,6 +1609,30 @@ TEST(Generator, analyserModelScopeTest)
 
     EXPECT_EQ_FILE_CONTENTS("generator/hodgkin_huxley_squid_axon_model_1952/model.h", generator->interfaceCode(analyserModel));
     EXPECT_EQ_FILE_CONTENTS("generator/hodgkin_huxley_squid_axon_model_1952/model.c", generator->implementationCode(analyserModel));
+}
+
+TEST(Generator, daeModel)
+{
+    auto parser = libcellml::Parser::create(false);
+    auto model = parser->parseModel(fileContents("generator/dae_cellml_1_1_model/model.cellml"));
+
+    EXPECT_EQ(size_t(0), parser->errorCount());
+
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    EXPECT_EQ(size_t(0), analyser->errorCount());
+
+    auto analyserModel = analyser->analyserModel();
+    auto generator = libcellml::Generator::create();
+
+    EXPECT_EQ_FILE_CONTENTS("generator/dae_cellml_1_1_model/model.h", generator->interfaceCode(analyserModel));
+    EXPECT_EQ_FILE_CONTENTS("generator/dae_cellml_1_1_model/model.c", generator->implementationCode(analyserModel));
+
+    auto profile = libcellml::GeneratorProfile::create(libcellml::GeneratorProfile::Profile::PYTHON);
+
+    EXPECT_EQ_FILE_CONTENTS("generator/dae_cellml_1_1_model/model.py", generator->implementationCode(analyserModel, profile));
 }
 
 TEST(Generator, variableInitialisedUsingAnotherVariable)

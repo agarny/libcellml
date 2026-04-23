@@ -20,17 +20,11 @@ limitations under the License.
 
 #include "libcellml/analyser.h"
 
-#include <cmath>
-#include <iterator>
 #include <symengine/derivative.h>
-
-// clang-format off
-#include "symenginebegin.h"
+#include <symengine/eval_double.h>
+#include <symengine/simplify.h>
 #include <symengine/solve.h>
 #include <symengine/subs.h>
-#include <symengine/simplify.h>
-#include "symengineend.h"
-// clang-format on
 
 #include "libcellml/analyserequation.h"
 #include "libcellml/analyserexternalvariable.h"
@@ -49,7 +43,7 @@ namespace libcellml {
 
 AnalyserInternalVariablePtr AnalyserInternalVariable::create(const VariablePtr &variable)
 {
-    auto res = AnalyserInternalVariablePtr {new AnalyserInternalVariable {}};
+    auto res = std::make_shared<AnalyserInternalVariable>();
 
     res->setVariable(variable);
 
@@ -88,7 +82,9 @@ void AnalyserInternalVariable::makeState()
         mType = Type::STATE;
 
         break;
-    default: // Other types we don't care about.
+    default:
+        // Other types we don't care about.
+
         break;
     }
 }
@@ -100,7 +96,7 @@ void AnalyserInternalVariable::makeConstant()
 
 AnalyserInternalEquationPtr AnalyserInternalEquation::create(const ComponentPtr &component)
 {
-    auto res = AnalyserInternalEquationPtr {new AnalyserInternalEquation {}};
+    auto res = std::make_shared<AnalyserInternalEquation>();
 
     res->mAst = AnalyserEquationAst::create();
     res->mComponent = component;
@@ -110,29 +106,59 @@ AnalyserInternalEquationPtr AnalyserInternalEquation::create(const ComponentPtr 
 
 AnalyserInternalEquationPtr AnalyserInternalEquation::create(const AnalyserInternalVariablePtr &variable)
 {
-    auto res = AnalyserInternalEquationPtr {new AnalyserInternalEquation {}};
+    auto res = std::make_shared<AnalyserInternalEquation>();
 
     res->mComponent = owningComponent(variable->mVariable);
 
-    res->mUnknownVariables.push_back(variable);
+    res->addUnknownVariable(variable);
 
     return res;
 }
 
 void AnalyserInternalEquation::addVariable(const AnalyserInternalVariablePtr &variable)
 {
-    if (std::find(mVariables.begin(), mVariables.end(), variable) == mVariables.end()) {
+    if (mVariablesSet.insert(variable.get()).second) {
         mVariables.push_back(variable);
         mAllVariables.push_back(variable);
     }
 }
 
+AnalyserInternalVariablePtrs::iterator AnalyserInternalEquation::removeVariable(const AnalyserInternalVariablePtr &variable)
+{
+    mAllVariables.erase(std::remove(mAllVariables.begin(), mAllVariables.end(), variable), mAllVariables.end());
+    mVariablesSet.erase(variable.get());
+
+    return mVariables.erase(std::remove(mVariables.begin(), mVariables.end(), variable), mVariables.end());
+}
+
 void AnalyserInternalEquation::addStateVariable(const AnalyserInternalVariablePtr &stateVariable)
 {
-    if (std::find(mStateVariables.begin(), mStateVariables.end(), stateVariable) == mStateVariables.end()) {
+    if (mStateVariablesSet.insert(stateVariable.get()).second) {
         mStateVariables.push_back(stateVariable);
         mAllVariables.push_back(stateVariable);
     }
+}
+
+AnalyserInternalVariablePtrs::iterator AnalyserInternalEquation::removeStateVariable(const AnalyserInternalVariablePtr &stateVariable)
+{
+    mAllVariables.erase(std::remove(mAllVariables.begin(), mAllVariables.end(), stateVariable), mAllVariables.end());
+    mStateVariablesSet.erase(stateVariable.get());
+
+    return mStateVariables.erase(std::remove(mStateVariables.begin(), mStateVariables.end(), stateVariable), mStateVariables.end());
+}
+
+void AnalyserInternalEquation::addUnknownVariable(const AnalyserInternalVariablePtr &unknownVariable)
+{
+    if (mUnknownVariablesSet.insert(unknownVariable.get()).second) {
+        mUnknownVariables.push_back(unknownVariable);
+    }
+}
+
+AnalyserInternalVariablePtrs::iterator AnalyserInternalEquation::removeUnknownVariable(const AnalyserInternalVariablePtr &unknownVariable)
+{
+    mUnknownVariablesSet.erase(unknownVariable.get());
+
+    return mUnknownVariables.erase(std::remove(mUnknownVariables.begin(), mUnknownVariables.end(), unknownVariable), mUnknownVariables.end());
 }
 
 bool AnalyserInternalEquation::isKnownVariable(const AnalyserInternalVariablePtr &variable)
@@ -183,31 +209,6 @@ bool AnalyserInternalEquation::hasNonConstantVariables()
     return hasNonConstantVariables(mVariables) || hasNonConstantVariables(mStateVariables);
 }
 
-bool AnalyserInternalEquation::containsVariable(const AnalyserInternalVariablePtr &variable,
-                                                const AnalyserEquationAstPtr &astChild)
-{
-    if (astChild == nullptr) {
-        return false;
-    }
-
-    if (astChild->type() == AnalyserEquationAst::Type::CI) {
-        if (variable->mVariable == astChild->variable()
-            || variable->mVariable->hasEquivalentVariable(astChild->variable())) {
-            if (variable->mType == AnalyserInternalVariable::Type::STATE) {
-                // State variables should be considered known and thus return false if they're used
-                // as a typical variable (rather than in a differential).
-
-                return astChild->parent()->type() == AnalyserEquationAst::Type::DIFF;
-            }
-
-            return true;
-        }
-    }
-
-    return containsVariable(variable, astChild->leftChild())
-           || containsVariable(variable, astChild->rightChild());
-}
-
 bool AnalyserInternalEquation::isVariable(const AnalyserInternalVariablePtr &variable,
                                           const AnalyserEquationAstPtr &astChild)
 {
@@ -226,90 +227,276 @@ bool AnalyserInternalEquation::isVariable(const AnalyserInternalVariablePtr &var
         return false;
     }
 
-    return astVariable == variable->mVariable || astVariable->hasEquivalentVariable(variable->mVariable);
+    return (astVariable == variable->mVariable) || astVariable->hasEquivalentVariable(variable->mVariable);
 }
 
-bool AnalyserInternalEquation::variableIsolated(const AnalyserInternalVariablePtr &variable)
+bool AnalyserInternalEquation::containsVariable(const AnalyserInternalVariablePtr &variable,
+                                                const AnalyserEquationAstPtr &astChild)
 {
-    bool isolatedOnLeft = isVariable(variable, mAst->leftChild());
-    bool isolatedOnRight = isVariable(variable, mAst->rightChild());
-
-    if (isolatedOnLeft) {
-        return !containsVariable(variable, mAst->rightChild());
-    } else if (isolatedOnRight) {
-        return !containsVariable(variable, mAst->leftChild());
+    if (astChild == nullptr) {
+        return false;
     }
 
-    // if we've reached here then variable is not isolated on either side.
+    if ((astChild->type() == AnalyserEquationAst::Type::CI) && ((variable->mVariable == astChild->variable()) || variable->mVariable->hasEquivalentVariable(astChild->variable()))) {
+        if (variable->mType == AnalyserInternalVariable::Type::STATE) {
+            // State variables should be considered known and thus return false if they are used as a typical variable
+            // (rather than in an ODE).
 
-    return false;
-}
-
-void AnalyserInternalEquation::simplifySeEquation()
-{
-    std::vector<SymEngine::RCP<const SymEngine::Basic>> candidates = {
-        mSeEquation,
-        SymEngine::simplify(mSeEquation),
-        SymEngine::simplify(SymEngine::Eq(mSeEquation->get_args()[0], SymEngine::expand(mSeEquation->get_args()[1]))),
-    };
-
-    auto bestEquation = candidates.front();
-    auto leastOperations = SymEngine::count_ops({bestEquation});
-
-    for (const auto &expr : candidates) {
-        auto operations = SymEngine::count_ops({expr});
-        if (bestEquation.is_null() || operations < leastOperations) {
-            bestEquation = expr;
-            leastOperations = operations;
+            return astChild->parent()->type() == AnalyserEquationAst::Type::DIFF;
         }
-    }
 
-    mSeEquation = bestEquation;
-}
-
-bool AnalyserInternalEquation::isSymEngineExpressionComplex(const SymEngine::RCP<const SymEngine::Basic> &seExpression)
-{
-    if (SymEngine::is_a_Complex(*seExpression)) {
         return true;
     }
 
-    for (const auto &child : seExpression->get_args()) {
-        if (isSymEngineExpressionComplex(child)) {
-            return true;
-        }
+    return containsVariable(variable, astChild->leftChild()) || containsVariable(variable, astChild->rightChild());
+}
+
+bool AnalyserInternalEquation::isVariableIsolated(const AnalyserInternalVariablePtr &variable)
+{
+    if (isVariable(variable, mAst->leftChild())) {
+        return !containsVariable(variable, mAst->rightChild());
     }
+
+    if (isVariable(variable, mAst->rightChild())) {
+        return !containsVariable(variable, mAst->leftChild());
+    }
+
+    // The variable is not isolated on either side.
 
     return false;
 }
 
-SymEngine::RCP<const SymEngine::Basic> AnalyserInternalEquation::rearrangeFor(const SymEngine::RCP<const SymEngine::Symbol> &symbol)
+SymEngineEquation AnalyserInternalEquation::rearrangeForSymEngineSymbol(const SymEngineVariable &symEngineVariable)
 {
+    auto isSymEngineEquationComplex = [&](const auto &self, const SymEngineEquation &symEngineEquation) -> bool {
+        if (SymEngine::is_a_Complex(*symEngineEquation)) {
+            return true;
+        }
+
+        for (const auto &arg : symEngineEquation->get_args()) {
+            if (self(self, arg)) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    auto containsSymEngineByPredicate = [&](const auto &self,
+                                            const SymEngineEquation &symEngineEquation,
+                                            const auto &predicate) -> bool {
+        if (symEngineEquation.is_null()) {
+            return false;
+        }
+
+        if (predicate(symEngineEquation)) {
+            return true;
+        }
+
+        for (const auto &arg : symEngineEquation->get_args()) {
+            if (self(self, arg, predicate)) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    auto containsSymEngineVariable = [&](const SymEngineEquation &symEngineEquation) -> bool {
+        auto predicate = [&](const SymEngineEquation &candidate) {
+            return (candidate->get_type_code() == SymEngine::SYMENGINE_SYMBOL)
+                   && (SymEngine::rcp_static_cast<const SymEngine::Symbol>(candidate)->get_name() == symEngineVariable->get_name());
+        };
+
+        return containsSymEngineByPredicate(containsSymEngineByPredicate, symEngineEquation, predicate);
+    };
+
+    auto containsAnySymEngineSymbol = [&](const SymEngineEquation &symEngineEquation) -> bool {
+        auto predicate = [&](const SymEngineEquation &candidate) {
+            return candidate->get_type_code() == SymEngine::SYMENGINE_SYMBOL;
+        };
+
+        return containsSymEngineByPredicate(containsSymEngineByPredicate, symEngineEquation, predicate);
+    };
+
+    auto filterSolutions = [&](SymEngine::vec_basic solutions) {
+        solutions.erase(std::remove_if(solutions.begin(), solutions.end(),
+                                       [&](const SymEngineEquation &solution) {
+                                           return isSymEngineEquationComplex(isSymEngineEquationComplex, solution)
+                                                  || containsSymEngineVariable(solution);
+                                       }),
+                        solutions.end());
+
+        return solutions;
+    };
+
+    auto containsSymEngineExp = [&](const SymEngineEquation &symEngineEquation) -> bool {
+        auto predicate = [&](const SymEngineEquation &candidate) {
+            if (candidate->get_type_code() != SymEngine::SYMENGINE_POW) {
+                return false;
+            }
+
+            auto args = candidate->get_args();
+
+            return SymEngine::eq(*args[0], *SymEngine::E);
+        };
+
+        return containsSymEngineByPredicate(containsSymEngineByPredicate, symEngineEquation, predicate);
+    };
+
+    auto containsSymEngineLog = [&](const SymEngineEquation &symEngineEquation) -> bool {
+        auto predicate = [&](const SymEngineEquation &candidate) {
+            return candidate->get_type_code() == SymEngine::SYMENGINE_LOG;
+        };
+
+        return containsSymEngineByPredicate(containsSymEngineByPredicate, symEngineEquation, predicate);
+    };
+
+    auto simplifySymEngineExpression = [&](const auto &self, const SymEngineEquation &symEngineEquation) -> SymEngineEquation {
+        if (symEngineEquation.is_null()) {
+            return symEngineEquation;
+        }
+
+        auto simplifiedArgs = [&](const SymEngineEquation &symEngineEquation) {
+            SymEngine::vec_basic args;
+
+            args.reserve(symEngineEquation->get_args().size());
+
+            for (const auto &arg : symEngineEquation->get_args()) {
+                args.push_back(self(self, arg));
+            }
+
+            return args;
+        };
+
+        if (symEngineEquation->get_type_code() == SymEngine::SYMENGINE_POW) {
+            auto args = simplifiedArgs(symEngineEquation);
+            auto simplifiedBase = args[0];
+            auto simplifiedExponent = args[1];
+
+            if (SymEngine::eq(*simplifiedBase, *SymEngine::E)) {
+                auto simplifiedExponentExpanded = SymEngine::simplify(SymEngine::expand(simplifiedExponent));
+
+                if (SymEngine::eq(*simplifiedExponentExpanded, *SymEngine::integer(0))
+                    || SymEngine::eq(*simplifiedExponentExpanded, *SymEngine::number(0.0))) {
+                    return SymEngine::integer(1);
+                }
+
+                simplifiedExponent = simplifiedExponentExpanded;
+            }
+
+            return SymEngine::simplify(SymEngine::pow(simplifiedBase, simplifiedExponent));
+        }
+
+        if (symEngineEquation->get_type_code() == SymEngine::SYMENGINE_ADD) {
+            return SymEngine::simplify(SymEngine::expand(SymEngine::add(simplifiedArgs(symEngineEquation))));
+        }
+
+        if (symEngineEquation->get_type_code() == SymEngine::SYMENGINE_MUL) {
+            return SymEngine::simplify(SymEngine::expand(SymEngine::mul(simplifiedArgs(symEngineEquation))));
+        }
+
+        if (symEngineEquation->get_type_code() == SymEngine::SYMENGINE_CONSTANT) {
+            return symEngineEquation;
+        }
+
+        if (!containsAnySymEngineSymbol(symEngineEquation)) {
+            try {
+                return SymEngine::number(SymEngine::eval_double(*symEngineEquation));
+            } catch (const std::exception &) {
+                // Not evaluable as a number, so keep the symbolic form.
+            }
+        }
+
+        return SymEngine::simplify(symEngineEquation);
+    };
+
+    auto invertSimpleOddPower = [&](const SymEngineEquation &symEngineEquation) -> SymEngineEquation {
+        if (symEngineEquation.is_null() || (symEngineEquation->get_type_code() != SymEngine::SYMENGINE_EQUALITY)) {
+            return SymEngine::null;
+        }
+
+        auto equalityArgs = symEngineEquation->get_args();
+
+        for (size_t i = 0; i < 2; ++i) {
+            auto powerSide = equalityArgs[i];
+            auto otherSide = equalityArgs[1 - i];
+
+            if (powerSide->get_type_code() != SymEngine::SYMENGINE_POW) {
+                continue;
+            }
+
+            auto powerArgs = powerSide->get_args();
+
+            if ((powerArgs.size() != 2)
+                || (powerArgs[0]->get_type_code() != SymEngine::SYMENGINE_SYMBOL)
+                || (powerArgs[1]->get_type_code() != SymEngine::SYMENGINE_INTEGER)) {
+                continue;
+            }
+
+            auto baseSymbol = SymEngine::rcp_static_cast<const SymEngine::Symbol>(powerArgs[0]);
+            auto exponent = SymEngine::rcp_static_cast<const SymEngine::Integer>(powerArgs[1])->as_int();
+
+            if ((baseSymbol->get_name() == symEngineVariable->get_name())
+                && (exponent > 0) && ((exponent % 2) == 1)) {
+                return SymEngine::pow(otherSide, SymEngine::div(SymEngine::integer(1), SymEngine::integer(exponent)));
+            }
+        }
+
+        return SymEngine::null;
+    };
+
+    // Solve the equation for the given variable.
+
     SymEngine::RCP<const SymEngine::Set> solutionSet;
 
     try {
-        solutionSet = solve(mSeEquation, symbol);
-    } catch (const SymEngine::SymEngineException &) {
-        // SymEngine failed to solve the equation. This is likely because to the variable we're trying
-        // to solve for is nested within a function that SymEngine cannot invert (e.g. sin, log, etc).
+        solutionSet = solve(mSymEngineEquation, symEngineVariable);
+    } catch (const std::exception &) {
+        // SymEngine failed to solve the equation. This is likely because the variable we are trying to rearrange for is
+        // nested within a function that SymEngine cannot invert (e.g., sin(), log()), or because the equation is not a
+        // polynomial that SymEngine can handle.
 
         return SymEngine::null;
     }
 
-    auto solutions = solutionSet->get_args();
+    // Filter the solutions to remove any that are complex or that contain the variable we are trying to rearrange for.
 
-    // Attempt to isolate a single real solution.
+    auto solutions = filterSolutions(solutionSet->get_args());
 
-    solutions.erase(std::remove_if(solutions.begin(), solutions.end(),
-                                   [this](const SymEngine::RCP<const SymEngine::Basic> &solution) {
-                                       return isSymEngineExpressionComplex(solution);
-                                   }),
-                    solutions.end());
+    // If there isn't exactly one solution left, we cannot be sure which one to return, so return null.
 
     if (solutions.size() != 1) {
         return SymEngine::null;
     }
 
-    return solutions.front();
+    auto exactSolution = solutions[0];
+
+    // If the exact solution is not complex and does not contain the variable we are trying to rearrange for, return it.
+
+    try {
+        return SymEngine::number(SymEngine::eval_double(*exactSolution));
+    } catch (const std::exception &) {
+        // The solution is not a number, so return the exact solution, but first try to simplify it, if possible.
+
+        // Try to simplify exponentials and logarithms in the solution, if there are any.
+
+        auto simplifiedSolution = exactSolution;
+
+        if (containsSymEngineExp(exactSolution) || containsSymEngineLog(exactSolution)) {
+            simplifiedSolution = simplifySymEngineExpression(simplifySymEngineExpression, exactSolution);
+        }
+
+        if (simplifiedSolution.is_null()) {
+            simplifiedSolution = exactSolution;
+        }
+
+        // Try to do a simple odd-power inversion, if possible.
+
+        auto oddPowerInversion = invertSimpleOddPower(mSymEngineEquation);
+
+        return oddPowerInversion.is_null() ? simplifiedSolution : oddPowerInversion;
+    }
 }
 
 Analyser::AnalyserImpl::AnalyserImpl()
@@ -342,11 +529,22 @@ Analyser::AnalyserImpl::AnalyserImpl()
 
 AnalyserInternalVariablePtr Analyser::AnalyserImpl::internalVariable(const VariablePtr &variable)
 {
-    // Find and return, if there is one, the internal variable associated with
-    // the given variable.
+    // Check the direct pointer cache first.
+
+    auto cacheIt = mInternalVariableCache.find(variable.get());
+
+    if (cacheIt != mInternalVariableCache.end()) {
+        return cacheIt->second;
+    }
+
+    // Not in the cache, so do the equivalence-based search.
 
     for (const auto &internalVariable : mInternalVariables) {
         if (mAnalyserModel->areEquivalentVariables(variable, internalVariable->mVariable)) {
+            // Cache this internal variable pointer for future lookups.
+
+            mInternalVariableCache.emplace(variable.get(), internalVariable);
+
             return internalVariable;
         }
     }
@@ -357,6 +555,7 @@ AnalyserInternalVariablePtr Analyser::AnalyserImpl::internalVariable(const Varia
     auto res = AnalyserInternalVariable::create(variable);
 
     mInternalVariables.push_back(res);
+    mInternalVariableCache.emplace(variable.get(), res);
 
     return res;
 }
@@ -397,8 +596,11 @@ void Analyser::AnalyserImpl::analyseNode(const XmlNodePtr &node,
     }
 
     // Basic content elements.
+    // Note: we don't need to check for the MathML namespace here since we can only analyse if a model is valid.
 
-    if (node->isMathmlElement("apply")) {
+    const char *elemName = node->rawName();
+
+    if (strcmp(elemName, "apply") == 0) {
         // We may have 1, 2, 3 or more child nodes, e.g.
         //
         //                 +--------+
@@ -457,7 +659,7 @@ void Analyser::AnalyserImpl::analyseNode(const XmlNodePtr &node,
 
         // Relational and logical operators.
 
-    } else if (node->isMathmlElement("eq")) {
+    } else if (strcmp(elemName, "eq") == 0) {
         // This element is used both to describe "a = b" and "a == b". We can
         // distinguish between the two by checking its grandparent. If it's a
         // "math" element then it means that it is used to describe "a = b"
@@ -470,163 +672,163 @@ void Analyser::AnalyserImpl::analyseNode(const XmlNodePtr &node,
 
             mAnalyserModel->mPimpl->mNeedEqFunction = true;
         }
-    } else if (node->isMathmlElement("neq")) {
+    } else if (strcmp(elemName, "neq") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::NEQ, astParent);
 
         mAnalyserModel->mPimpl->mNeedNeqFunction = true;
-    } else if (node->isMathmlElement("lt")) {
+    } else if (strcmp(elemName, "lt") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::LT, astParent);
 
         mAnalyserModel->mPimpl->mNeedLtFunction = true;
-    } else if (node->isMathmlElement("leq")) {
+    } else if (strcmp(elemName, "leq") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::LEQ, astParent);
 
         mAnalyserModel->mPimpl->mNeedLeqFunction = true;
-    } else if (node->isMathmlElement("gt")) {
+    } else if (strcmp(elemName, "gt") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::GT, astParent);
 
         mAnalyserModel->mPimpl->mNeedGtFunction = true;
-    } else if (node->isMathmlElement("geq")) {
+    } else if (strcmp(elemName, "geq") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::GEQ, astParent);
 
         mAnalyserModel->mPimpl->mNeedGeqFunction = true;
-    } else if (node->isMathmlElement("and")) {
+    } else if (strcmp(elemName, "and") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::AND, astParent);
 
         mAnalyserModel->mPimpl->mNeedAndFunction = true;
-    } else if (node->isMathmlElement("or")) {
+    } else if (strcmp(elemName, "or") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::OR, astParent);
 
         mAnalyserModel->mPimpl->mNeedOrFunction = true;
-    } else if (node->isMathmlElement("xor")) {
+    } else if (strcmp(elemName, "xor") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::XOR, astParent);
 
         mAnalyserModel->mPimpl->mNeedXorFunction = true;
-    } else if (node->isMathmlElement("not")) {
+    } else if (strcmp(elemName, "not") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::NOT, astParent);
 
         mAnalyserModel->mPimpl->mNeedNotFunction = true;
 
         // Arithmetic operators.
 
-    } else if (node->isMathmlElement("plus")) {
+    } else if (strcmp(elemName, "plus") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::PLUS, astParent);
-    } else if (node->isMathmlElement("minus")) {
+    } else if (strcmp(elemName, "minus") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::MINUS, astParent);
-    } else if (node->isMathmlElement("times")) {
+    } else if (strcmp(elemName, "times") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::TIMES, astParent);
-    } else if (node->isMathmlElement("divide")) {
+    } else if (strcmp(elemName, "divide") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::DIVIDE, astParent);
-    } else if (node->isMathmlElement("power")) {
+    } else if (strcmp(elemName, "power") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::POWER, astParent);
-    } else if (node->isMathmlElement("root")) {
+    } else if (strcmp(elemName, "root") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ROOT, astParent);
-    } else if (node->isMathmlElement("abs")) {
+    } else if (strcmp(elemName, "abs") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ABS, astParent);
-    } else if (node->isMathmlElement("exp")) {
+    } else if (strcmp(elemName, "exp") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::EXP, astParent);
-    } else if (node->isMathmlElement("ln")) {
+    } else if (strcmp(elemName, "ln") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::LN, astParent);
-    } else if (node->isMathmlElement("log")) {
+    } else if (strcmp(elemName, "log") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::LOG, astParent);
-    } else if (node->isMathmlElement("ceiling")) {
+    } else if (strcmp(elemName, "ceiling") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::CEILING, astParent);
-    } else if (node->isMathmlElement("floor")) {
+    } else if (strcmp(elemName, "floor") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::FLOOR, astParent);
-    } else if (node->isMathmlElement("min")) {
+    } else if (strcmp(elemName, "min") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::MIN, astParent);
 
         mAnalyserModel->mPimpl->mNeedMinFunction = true;
-    } else if (node->isMathmlElement("max")) {
+    } else if (strcmp(elemName, "max") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::MAX, astParent);
 
         mAnalyserModel->mPimpl->mNeedMaxFunction = true;
-    } else if (node->isMathmlElement("rem")) {
+    } else if (strcmp(elemName, "rem") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::REM, astParent);
 
         // Calculus elements.
 
-    } else if (node->isMathmlElement("diff")) {
+    } else if (strcmp(elemName, "diff") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::DIFF, astParent);
 
         // Trigonometric operators.
 
-    } else if (node->isMathmlElement("sin")) {
+    } else if (strcmp(elemName, "sin") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::SIN, astParent);
-    } else if (node->isMathmlElement("cos")) {
+    } else if (strcmp(elemName, "cos") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::COS, astParent);
-    } else if (node->isMathmlElement("tan")) {
+    } else if (strcmp(elemName, "tan") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::TAN, astParent);
-    } else if (node->isMathmlElement("sec")) {
+    } else if (strcmp(elemName, "sec") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::SEC, astParent);
 
         mAnalyserModel->mPimpl->mNeedSecFunction = true;
-    } else if (node->isMathmlElement("csc")) {
+    } else if (strcmp(elemName, "csc") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::CSC, astParent);
 
         mAnalyserModel->mPimpl->mNeedCscFunction = true;
-    } else if (node->isMathmlElement("cot")) {
+    } else if (strcmp(elemName, "cot") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::COT, astParent);
 
         mAnalyserModel->mPimpl->mNeedCotFunction = true;
-    } else if (node->isMathmlElement("sinh")) {
+    } else if (strcmp(elemName, "sinh") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::SINH, astParent);
-    } else if (node->isMathmlElement("cosh")) {
+    } else if (strcmp(elemName, "cosh") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::COSH, astParent);
-    } else if (node->isMathmlElement("tanh")) {
+    } else if (strcmp(elemName, "tanh") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::TANH, astParent);
-    } else if (node->isMathmlElement("sech")) {
+    } else if (strcmp(elemName, "sech") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::SECH, astParent);
 
         mAnalyserModel->mPimpl->mNeedSechFunction = true;
-    } else if (node->isMathmlElement("csch")) {
+    } else if (strcmp(elemName, "csch") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::CSCH, astParent);
 
         mAnalyserModel->mPimpl->mNeedCschFunction = true;
-    } else if (node->isMathmlElement("coth")) {
+    } else if (strcmp(elemName, "coth") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::COTH, astParent);
 
         mAnalyserModel->mPimpl->mNeedCothFunction = true;
-    } else if (node->isMathmlElement("arcsin")) {
+    } else if (strcmp(elemName, "arcsin") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ASIN, astParent);
-    } else if (node->isMathmlElement("arccos")) {
+    } else if (strcmp(elemName, "arccos") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ACOS, astParent);
-    } else if (node->isMathmlElement("arctan")) {
+    } else if (strcmp(elemName, "arctan") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ATAN, astParent);
-    } else if (node->isMathmlElement("arcsec")) {
+    } else if (strcmp(elemName, "arcsec") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ASEC, astParent);
 
         mAnalyserModel->mPimpl->mNeedAsecFunction = true;
-    } else if (node->isMathmlElement("arccsc")) {
+    } else if (strcmp(elemName, "arccsc") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ACSC, astParent);
 
         mAnalyserModel->mPimpl->mNeedAcscFunction = true;
-    } else if (node->isMathmlElement("arccot")) {
+    } else if (strcmp(elemName, "arccot") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ACOT, astParent);
 
         mAnalyserModel->mPimpl->mNeedAcotFunction = true;
-    } else if (node->isMathmlElement("arcsinh")) {
+    } else if (strcmp(elemName, "arcsinh") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ASINH, astParent);
-    } else if (node->isMathmlElement("arccosh")) {
+    } else if (strcmp(elemName, "arccosh") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ACOSH, astParent);
-    } else if (node->isMathmlElement("arctanh")) {
+    } else if (strcmp(elemName, "arctanh") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ATANH, astParent);
-    } else if (node->isMathmlElement("arcsech")) {
+    } else if (strcmp(elemName, "arcsech") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ASECH, astParent);
 
         mAnalyserModel->mPimpl->mNeedAsechFunction = true;
-    } else if (node->isMathmlElement("arccsch")) {
+    } else if (strcmp(elemName, "arccsch") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ACSCH, astParent);
 
         mAnalyserModel->mPimpl->mNeedAcschFunction = true;
-    } else if (node->isMathmlElement("arccoth")) {
+    } else if (strcmp(elemName, "arccoth") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::ACOTH, astParent);
 
         mAnalyserModel->mPimpl->mNeedAcothFunction = true;
 
         // Piecewise statement.
 
-    } else if (node->isMathmlElement("piecewise")) {
+    } else if (strcmp(elemName, "piecewise") == 0) {
         auto childCount = mathmlChildCount(node);
 
         ast->mPimpl->populate(AnalyserEquationAst::Type::PIECEWISE, astParent);
@@ -656,19 +858,19 @@ void Analyser::AnalyserImpl::analyseNode(const XmlNodePtr &node,
 
             ast->mPimpl->mOwnedRightChild = astRight;
         }
-    } else if (node->isMathmlElement("piece")) {
+    } else if (strcmp(elemName, "piece") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::PIECE, astParent);
 
         analyseNode(mathmlChildNode(node, 0), ast->mPimpl->mOwnedLeftChild, ast, component, equation);
         analyseNode(mathmlChildNode(node, 1), ast->mPimpl->mOwnedRightChild, ast, component, equation);
-    } else if (node->isMathmlElement("otherwise")) {
+    } else if (strcmp(elemName, "otherwise") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::OTHERWISE, astParent);
 
         analyseNode(mathmlChildNode(node, 0), ast->mPimpl->mOwnedLeftChild, ast, component, equation);
 
         // Token elements.
 
-    } else if (node->isMathmlElement("ci")) {
+    } else if (strcmp(elemName, "ci") == 0) {
         auto variableName = node->firstChild()->convertToStrippedString();
         auto variable = component->variable(variableName);
         // Note: we always have a variable. Indeed, if we were not to have one,
@@ -691,7 +893,7 @@ void Analyser::AnalyserImpl::analyseNode(const XmlNodePtr &node,
         ast->mPimpl->populate(AnalyserEquationAst::Type::CI, variable, astParent);
 
         mCiCnUnits.emplace(ast, variable->units());
-    } else if (node->isMathmlElement("cn")) {
+    } else if (strcmp(elemName, "cn") == 0) {
         // Add the number to our AST and keep track of its unit. Note that in
         // the case of a standard unit, we need to create a units since it's
         // not declared in the model.
@@ -723,15 +925,15 @@ void Analyser::AnalyserImpl::analyseNode(const XmlNodePtr &node,
 
         // Qualifier elements.
 
-    } else if (node->isMathmlElement("degree")) {
+    } else if (strcmp(elemName, "degree") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::DEGREE, astParent);
 
         analyseNode(mathmlChildNode(node, 0), ast->mPimpl->mOwnedLeftChild, ast, component, equation);
-    } else if (node->isMathmlElement("logbase")) {
+    } else if (strcmp(elemName, "logbase") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::LOGBASE, astParent);
 
         analyseNode(mathmlChildNode(node, 0), ast->mPimpl->mOwnedLeftChild, ast, component, equation);
-    } else if (node->isMathmlElement("bvar")) {
+    } else if (strcmp(elemName, "bvar") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::BVAR, astParent);
 
         analyseNode(mathmlChildNode(node, 0), ast->mPimpl->mOwnedLeftChild, ast, component, equation);
@@ -744,15 +946,15 @@ void Analyser::AnalyserImpl::analyseNode(const XmlNodePtr &node,
 
         // Constants.
 
-    } else if (node->isMathmlElement("true")) {
+    } else if (strcmp(elemName, "true") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::TRUE, astParent);
-    } else if (node->isMathmlElement("false")) {
+    } else if (strcmp(elemName, "false") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::FALSE, astParent);
-    } else if (node->isMathmlElement("exponentiale")) {
+    } else if (strcmp(elemName, "exponentiale") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::E, astParent);
-    } else if (node->isMathmlElement("pi")) {
+    } else if (strcmp(elemName, "pi") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::PI, astParent);
-    } else if (node->isMathmlElement("infinity")) {
+    } else if (strcmp(elemName, "infinity") == 0) {
         ast->mPimpl->populate(AnalyserEquationAst::Type::INF, astParent);
     } else {
         // We have checked for everything, so if we reach this point it means
@@ -891,29 +1093,6 @@ void Analyser::AnalyserImpl::analyseComponentVariables(const ComponentPtr &compo
     for (size_t i = 0; i < component->componentCount(); ++i) {
         analyseComponentVariables(component->component(i));
     }
-}
-
-void Analyser::AnalyserImpl::equivalentVariables(const VariablePtr &variable,
-                                                 VariablePtrs &equivVariables) const
-{
-    for (size_t i = 0; i < variable->equivalentVariableCount(); ++i) {
-        auto equivVariable = variable->equivalentVariable(i);
-
-        if (std::find(equivVariables.begin(), equivVariables.end(), equivVariable) == equivVariables.end()) {
-            equivVariables.push_back(equivVariable);
-
-            equivalentVariables(equivVariable, equivVariables);
-        }
-    }
-}
-
-VariablePtrs Analyser::AnalyserImpl::equivalentVariables(const VariablePtr &variable) const
-{
-    VariablePtrs res = {variable};
-
-    equivalentVariables(variable, res);
-
-    return res;
 }
 
 void Analyser::AnalyserImpl::analyseEquationAst(const AnalyserEquationAstPtr &ast)
@@ -1146,6 +1325,8 @@ UnitsMaps Analyser::AnalyserImpl::multiplyDivideUnitsMaps(const UnitsMaps &first
 
     UnitsMaps res;
 
+    res.reserve(firstUnitsMaps.size() * secondUnitsMaps.size());
+
     for (const auto &firstUnitsMap : firstUnitsMaps) {
         for (const auto &secondUnitsMap : secondUnitsMaps) {
             res.push_back(multiplyDivideUnitsMaps(firstUnitsMap, secondUnitsMap, multiply));
@@ -1193,6 +1374,8 @@ UnitsMultipliers Analyser::AnalyserImpl::multiplyDivideUnitsMultipliers(const Un
 
     UnitsMultipliers res;
 
+    res.reserve(firstUnitsMultipliers.size() * secondUnitsMultipliers.size());
+
     for (const auto &firstUnitsMultiplier : firstUnitsMultipliers) {
         for (const auto &secondUnitsMultiplier : secondUnitsMultipliers) {
             res.push_back(multiplyDivideUnitsMultipliers(firstUnitsMultiplier,
@@ -1213,6 +1396,8 @@ UnitsMultipliers Analyser::AnalyserImpl::multiplyDivideUnitsMultipliers(double f
 
     UnitsMultipliers res;
 
+    res.reserve(secondUnitsMultipliers.size());
+
     for (const auto &secondUnitsMultiplier : secondUnitsMultipliers) {
         res.push_back(multiplyDivideUnitsMultipliers(firstUnitsMultiplier,
                                                      secondUnitsMultiplier,
@@ -1231,6 +1416,8 @@ UnitsMultipliers Analyser::AnalyserImpl::powerRootUnitsMultipliers(const UnitsMu
 
     UnitsMultipliers res;
     auto realFactor = power ? factor : 1.0 / factor;
+
+    res.reserve(unitsMultipliers.size());
 
     for (const auto &unitsMultiplier : unitsMultipliers) {
         res.push_back(realFactor * unitsMultiplier);
@@ -1450,13 +1637,11 @@ double Analyser::AnalyserImpl::powerValue(const AnalyserEquationAstPtr &ast,
         return std::log(lhs);
     case AnalyserEquationAst::Type::LOG:
         if (ast->mPimpl->mOwnedLeftChild->type() == AnalyserEquationAst::Type::LOGBASE) {
-            auto logBase = lhs;
-
-            if (areNearlyEqual(logBase, 10.0)) {
+            if (areNearlyEqual(lhs, 10.0)) {
                 return std::log10(rhs);
             }
 
-            return std::log(rhs) / std::log(logBase);
+            return std::log(rhs) / std::log(lhs);
         }
 
         return std::log10(lhs);
@@ -1923,6 +2108,8 @@ void Analyser::AnalyserImpl::analyseEquationUnits(const AnalyserEquationAstPtr &
 
         if (!isDimensionlessUnitsMaps) {
             auto isDimensionlessRightUnitsMaps = Analyser::AnalyserImpl::isDimensionlessUnitsMaps(rightUnitsMaps);
+            issueDescription.reserve(512);
+
             issueDescription = "The unit";
 
             if (!isDimensionlessRightUnitsMaps) {
@@ -2087,7 +2274,9 @@ void Analyser::AnalyserImpl::analyseEquationUnits(const AnalyserEquationAstPtr &
         defaultUnitsMapsAndMultipliers(unitsMaps, userUnitsMaps, unitsMultipliers);
 
         break;
-    default: // Other types we don't care about.
+    default:
+        // Other types we don't care about.
+
         break;
     }
 }
@@ -2193,13 +2382,11 @@ bool Analyser::AnalyserImpl::isExternalVariable(const AnalyserInternalVariablePt
 }
 
 bool Analyser::AnalyserImpl::isStateRateBased(const AnalyserEquationPtr &analyserEquation,
-                                              AnalyserEquationPtrs &checkedEquations)
+                                              std::unordered_set<AnalyserEquation *> &checkedEquations)
 {
-    if (std::find(checkedEquations.begin(), checkedEquations.end(), analyserEquation) != checkedEquations.end()) {
+    if (!checkedEquations.insert(analyserEquation.get()).second) {
         return false;
     }
-
-    checkedEquations.push_back(analyserEquation);
 
     for (const auto &dependency : analyserEquation->dependencies()) {
         // A rate is computed either through an ODE equation or through an NLA
@@ -2207,7 +2394,7 @@ bool Analyser::AnalyserImpl::isStateRateBased(const AnalyserEquationPtr &analyse
         // of the equation.
 
         if ((dependency->type() == AnalyserEquation::Type::ODE)
-            // TODO: Rayen to check whether we need to test for dependency->stateCount() == 1 (it's not covered by any tests at the moment).
+            // TODO: ---GRY--- Check whether we need to test for dependency->stateCount() == 1 (it's not covered by any tests at the moment).
             /*
             || ((dependency->type() == AnalyserEquation::Type::NLA)
                 && (dependency->stateCount() == 1))
@@ -2219,6 +2406,138 @@ bool Analyser::AnalyserImpl::isStateRateBased(const AnalyserEquationPtr &analyse
     }
 
     return false;
+}
+
+void Analyser::AnalyserImpl::resolveUnknownVariablesUsingGlobalNlaSystems()
+{
+    struct UnresolvedInternalEquationData
+    {
+        AnalyserInternalEquationPtr internalEquation;
+        AnalyserInternalVariablePtrs unresolvedInternalVariables;
+    };
+
+    std::vector<UnresolvedInternalEquationData> unresolvedInternalEquations;
+    std::unordered_map<AnalyserInternalVariable *, std::vector<size_t>> internalVariableToInternalEquationIndices;
+
+    // Build the unresolved equation/variable graph.
+    // Note: global NLA systems are only for remaining unknown algebraic variables. If an unresolved equation still
+    //       references a state, then that equation should be revisited once its algebraic dependencies have been
+    //       resolved rather than have the state rate folded into the global NLA system.
+
+    for (const auto &internalEquation : mInternalEquations) {
+        if ((internalEquation->mType != AnalyserInternalEquation::Type::UNKNOWN) || (!internalEquation->mStateVariables.empty())) {
+            continue;
+        }
+
+        AnalyserInternalVariablePtrs unresolvedInternalVariables;
+
+        for (const auto &variable : internalEquation->mVariables) {
+            if ((variable->mType == AnalyserInternalVariable::Type::UNKNOWN)
+                || (variable->mType == AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE)) {
+                unresolvedInternalVariables.push_back(variable);
+            }
+        }
+
+        if (unresolvedInternalVariables.empty()) {
+            continue;
+        }
+
+        auto internalEquationIndex = unresolvedInternalEquations.size();
+
+        unresolvedInternalEquations.push_back({internalEquation, unresolvedInternalVariables});
+
+        for (const auto &unresolvedVariable : unresolvedInternalVariables) {
+            internalVariableToInternalEquationIndices[unresolvedVariable.get()].push_back(internalEquationIndex);
+        }
+    }
+
+    // If there are no unresolved equations, then we are done.
+
+    if (unresolvedInternalEquations.empty()) {
+        return;
+    }
+
+    // Find connected systems in the unresolved internal equation/variable graph, which correspond to structurally
+    // square coupled systems, and resolve the unknown internal variables in those systems using global NLA systems.
+
+    std::vector<bool> visitedUnresolvedInternalEquations(unresolvedInternalEquations.size(), false);
+
+    for (size_t unresolvedInternalEquationIndex = 0; unresolvedInternalEquationIndex < unresolvedInternalEquations.size(); ++unresolvedInternalEquationIndex) {
+        if (visitedUnresolvedInternalEquations[unresolvedInternalEquationIndex]) {
+            continue;
+        }
+
+        // We have an unresolved internal equation which is part of a coupled system that we haven't yet visited, so we
+        // need to find all the internal equations and internal variables in that coupled system. We do this by
+        // traversing the unresolved internal equation/variable graph starting from this unresolved internal equation.
+
+        std::vector<size_t> unresolvedInternalEquationStack = {unresolvedInternalEquationIndex};
+        std::vector<size_t> unresolvedInternalEquationIndices;
+        std::unordered_set<AnalyserInternalVariable *> unresolvedInternalVariablesSet;
+        AnalyserInternalVariablePtrs unresolvedInternalVariables;
+
+        while (!unresolvedInternalEquationStack.empty()) {
+            // Get the next unresolved internal equation to visit.
+
+            auto currentUnresolvedEquationIndex = unresolvedInternalEquationStack.back();
+
+            unresolvedInternalEquationStack.pop_back();
+
+            if (visitedUnresolvedInternalEquations[currentUnresolvedEquationIndex]) {
+                continue;
+            }
+
+            visitedUnresolvedInternalEquations[currentUnresolvedEquationIndex] = true;
+
+            // We are visiting an unresolved internal equation which is part of the coupled system, so we add it to the
+            // list of unresolved internal equations and we add its unresolved internal variables to the list of
+            // unresolved internal variables, making sure to avoid duplicates, and we add the linked unresolved internal
+            // equations to the stack of unresolved internal equations to visit.
+
+            unresolvedInternalEquationIndices.push_back(currentUnresolvedEquationIndex);
+
+            for (const auto &unresolvedInternalVariable : unresolvedInternalEquations[currentUnresolvedEquationIndex].unresolvedInternalVariables) {
+                if (unresolvedInternalVariablesSet.insert(unresolvedInternalVariable.get()).second) {
+                    unresolvedInternalVariables.push_back(unresolvedInternalVariable);
+                }
+
+                for (const auto &internalVariableToInternalEquationIndex : internalVariableToInternalEquationIndices[unresolvedInternalVariable.get()]) {
+                    if (!visitedUnresolvedInternalEquations[internalVariableToInternalEquationIndex]) {
+                        unresolvedInternalEquationStack.push_back(internalVariableToInternalEquationIndex);
+                    }
+                }
+            }
+        }
+
+        // Only a structurally square coupled system can be solved as one global NLA system.
+
+        if (unresolvedInternalEquationIndices.size() != unresolvedInternalVariables.size()) {
+            continue;
+        }
+
+        // Mark the unknown internal variables as algebraic variables.
+
+        for (const auto &unresolvedInternalVariable : unresolvedInternalVariables) {
+            unresolvedInternalVariable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
+        }
+
+        // Mark the unresolved internal equations in this coupled system as NLA equations and set their unknown internal
+        // variables to be the unresolved internal variables in this coupled system.
+
+        std::unordered_set<AnalyserInternalVariable *> unknownInternalVariablesSet;
+
+        for (const auto &unresolvedInternalVariable : unresolvedInternalVariables) {
+            unknownInternalVariablesSet.insert(unresolvedInternalVariable.get());
+        }
+
+        for (const auto &systemEquationIndex : unresolvedInternalEquationIndices) {
+            const auto &unresolvedInternalEquation = unresolvedInternalEquations[systemEquationIndex].internalEquation;
+
+            unresolvedInternalEquation->mType = AnalyserInternalEquation::Type::NLA;
+            unresolvedInternalEquation->mUnknownVariables = unresolvedInternalVariables;
+            unresolvedInternalEquation->mUnknownVariablesSet = unknownInternalVariablesSet;
+        }
+    }
 }
 
 void Analyser::AnalyserImpl::addInvalidVariableIssue(const AnalyserInternalVariablePtr &variable,
@@ -2259,7 +2578,7 @@ void Analyser::AnalyserImpl::addInvalidVariableIssue(const AnalyserInternalVaria
     addIssue(issue);
 }
 
-SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const AnalyserEquationAstPtr &ast)
+SymEngineEquationResult Analyser::AnalyserImpl::astToSymEngine(const AnalyserEquationAstPtr &ast)
 {
     // Make sure that we have an AST to convert.
 
@@ -2267,39 +2586,84 @@ SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const Analys
         return {true, SymEngine::null};
     }
 
-    // Recursively call getConvertedAst on left and right children.
+    // Recursively convert the left and right children.
 
     auto leftAst = ast->leftChild();
     auto rightAst = ast->rightChild();
 
-    auto [leftSuccess, left] = parseAstToSymEngine(leftAst);
-    auto [rightSuccess, right] = parseAstToSymEngine(rightAst);
+    auto [leftSuccess, left] = astToSymEngine(leftAst);
+    auto [rightSuccess, right] = astToSymEngine(rightAst);
 
     if (!leftSuccess || !rightSuccess) {
         return {false, SymEngine::null};
     }
 
-    // Check the AST's type and value.
+    // Check the AST's type and return its SymEngine equivalent.
 
-    switch (ast->type()) {
+    auto astType = ast->type();
+
+    switch (astType) {
+        // Equality.
+
     case AnalyserEquationAst::Type::EQUALITY:
         return {true, SymEngine::Eq(left, right)};
+
+        // Relational and logical operators.
+
+    case AnalyserEquationAst::Type::EQ:
+        return {true, SymEngine::Eq(left, right)};
+    case AnalyserEquationAst::Type::NEQ:
+        return {true, SymEngine::Ne(left, right)};
+    case AnalyserEquationAst::Type::LT:
+        return {true, SymEngine::Lt(left, right)};
+    case AnalyserEquationAst::Type::LEQ:
+        return {true, SymEngine::Le(left, right)};
+    case AnalyserEquationAst::Type::GT:
+        return {true, SymEngine::Gt(left, right)};
+    case AnalyserEquationAst::Type::GEQ:
+        return {true, SymEngine::Ge(left, right)};
+    case AnalyserEquationAst::Type::AND:
+    case AnalyserEquationAst::Type::OR:
+    case AnalyserEquationAst::Type::XOR: {
+        if (!SymEngine::is_a_Boolean(*left) || !SymEngine::is_a_Boolean(*right)) {
+            return {false, SymEngine::null};
+        }
+
+        auto leftBoolean = SymEngine::rcp_dynamic_cast<const SymEngine::Boolean>(left);
+        auto rightBoolean = SymEngine::rcp_dynamic_cast<const SymEngine::Boolean>(right);
+
+        if (astType == AnalyserEquationAst::Type::AND) {
+            return {true, SymEngine::logical_and(SymEngine::set_boolean({leftBoolean, rightBoolean}))};
+        }
+
+        if (astType == AnalyserEquationAst::Type::OR) {
+            return {true, SymEngine::logical_or(SymEngine::set_boolean({leftBoolean, rightBoolean}))};
+        }
+
+        return {true, SymEngine::logical_xor(SymEngine::vec_boolean({leftBoolean, rightBoolean}))};
+    }
+    case AnalyserEquationAst::Type::NOT: {
+        if (!SymEngine::is_a_Boolean(*left)) {
+            return {false, SymEngine::null};
+        }
+
+        return {true, SymEngine::logical_not(SymEngine::rcp_dynamic_cast<const SymEngine::Boolean>(left))};
+    }
+
+        // Arithmetic operators.
+
     case AnalyserEquationAst::Type::PLUS:
-        // Handle the case where we have a unary plus.
-
-        if (right.is_null()) {
-            return {true, left};
+        if (!right.is_null()) {
+            return {true, SymEngine::add(left, right)};
         }
 
-        return {true, SymEngine::add(left, right)};
+        return {true, left};
     case AnalyserEquationAst::Type::MINUS:
-        // Handle the case where we have a unary minus.
-
-        if (right.is_null()) {
-            return {true, SymEngine::mul(SymEngine::integer(-1), left)};
+        if (!right.is_null()) {
+            return {true, SymEngine::sub(left, right)};
         }
 
-        return {true, SymEngine::sub(left, right)};
+        return {true, SymEngine::mul(SymEngine::number(-1.0), left)};
     case AnalyserEquationAst::Type::TIMES:
         return {true, SymEngine::mul(left, right)};
     case AnalyserEquationAst::Type::DIVIDE:
@@ -2307,29 +2671,23 @@ SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const Analys
     case AnalyserEquationAst::Type::POWER:
         return {true, SymEngine::pow(left, right)};
     case AnalyserEquationAst::Type::ROOT:
-        if (right.is_null()) {
-            // Square root is expected.
-
-            return {true, SymEngine::pow(left, SymEngine::div(SymEngine::integer(1), SymEngine::integer(2)))};
-        } else {
-            // Left child will have been processed to directly hold the degree of the root.
-
-            return {true, SymEngine::pow(right, SymEngine::div(SymEngine::integer(1), left))};
+        if (!right.is_null()) {
+            return {true, SymEngine::pow(right, SymEngine::div(SymEngine::number(1.0), left))};
         }
+
+        return {true, SymEngine::pow(left, SymEngine::div(SymEngine::number(1.0), SymEngine::number(2.0)))};
     case AnalyserEquationAst::Type::ABS:
         return {true, SymEngine::abs(left)};
     case AnalyserEquationAst::Type::EXP:
         return {true, SymEngine::exp(left)};
-    case AnalyserEquationAst::Type::LOG:
-        if (right.is_null()) {
-            // Base 10 logarithm is expected.
-
-            return {true, SymEngine::div(SymEngine::log(left), SymEngine::log(SymEngine::integer(10)))};
-        } else {
-            return {true, SymEngine::div(SymEngine::log(right), SymEngine::log(left))};
-        }
     case AnalyserEquationAst::Type::LN:
         return {true, SymEngine::log(left)};
+    case AnalyserEquationAst::Type::LOG:
+        if (!right.is_null()) {
+            return {true, SymEngine::div(SymEngine::log(right), SymEngine::log(left))};
+        }
+
+        return {true, SymEngine::div(SymEngine::log(left), SymEngine::log(SymEngine::number(10.0)))};
     case AnalyserEquationAst::Type::CEILING:
         return {true, SymEngine::ceiling(left)};
     case AnalyserEquationAst::Type::FLOOR:
@@ -2340,8 +2698,14 @@ SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const Analys
         return {true, SymEngine::max({left, right})};
     case AnalyserEquationAst::Type::REM:
         return {true, SymEngine::function_symbol("mod", {left, right})};
+
+        // Calculus elements.
+
     case AnalyserEquationAst::Type::DIFF:
         return {true, SymEngine::function_symbol("diff", {left, right})};
+
+        // Trigonometric operators.
+
     case AnalyserEquationAst::Type::SIN:
         return {true, SymEngine::sin(left)};
     case AnalyserEquationAst::Type::COS:
@@ -2390,117 +2754,622 @@ SymEngineEquationResult Analyser::AnalyserImpl::parseAstToSymEngine(const Analys
         return {true, SymEngine::acsch(left)};
     case AnalyserEquationAst::Type::ACOTH:
         return {true, SymEngine::acoth(left)};
+
+        // Token elements.
+
+    case AnalyserEquationAst::Type::CI: {
+        auto aiVariable = internalVariable(ast->variable());
+
+        if (mAIVariableSEVariableMap.find(aiVariable) == mAIVariableSEVariableMap.end()) {
+            // We haven't yet created a SymEngine variable for this internal variable, so create one (making sure that
+            // its name is unique) and add it to mAIVariableSEVariableMap and mSEVariableAIVariableMap.
+
+            auto variableName = aiVariable->mVariable->name();
+            auto uniqueSeVariable = SymEngine::symbol(variableName);
+            auto uniqueVariableNameIndex = MAX_SIZE_T;
+
+            while (mSEVariableAIVariableMap.find(uniqueSeVariable) != mSEVariableAIVariableMap.end()) {
+                uniqueSeVariable = SymEngine::symbol(variableName + "_" + convertToString(++uniqueVariableNameIndex));
+            }
+
+            auto seVariable = std::move(uniqueSeVariable);
+
+            mAIVariableSEVariableMap[aiVariable] = seVariable;
+            mSEVariableAIVariableMap[seVariable] = aiVariable;
+        }
+
+        return {true, mAIVariableSEVariableMap.at(aiVariable)};
+    }
+    case AnalyserEquationAst::Type::CN: {
+        // Whole CN values should be converted to integers, so that SymEngine can simplify them properly.
+
+        auto cnValue = std::stod(ast->value());
+        auto roundedCnValue = std::llround(cnValue);
+
+        if (areNearlyEqual(cnValue, static_cast<double>(roundedCnValue))) {
+            return {true, SymEngine::integer(roundedCnValue)};
+        }
+
+        return {true, SymEngine::number(cnValue)};
+    }
+
+        // Qualifier elements.
+
     case AnalyserEquationAst::Type::DEGREE:
     case AnalyserEquationAst::Type::LOGBASE:
     case AnalyserEquationAst::Type::BVAR:
-        // Parent should be ROOT, LOG, or DIFF respectively so we can just return the left child.
-
         return {true, left};
+
+        // Constants.
+
+    case AnalyserEquationAst::Type::TRUE:
+        return {true, SymEngine::number(1.0)};
+    case AnalyserEquationAst::Type::FALSE:
+        return {true, SymEngine::number(0.0)};
     case AnalyserEquationAst::Type::E:
         return {true, SymEngine::E};
     case AnalyserEquationAst::Type::PI:
         return {true, SymEngine::pi};
     case AnalyserEquationAst::Type::INF:
         return {true, SymEngine::Inf};
-    case AnalyserEquationAst::Type::CI: {
-        auto variable = internalVariable(ast->variable());
-
-        if (mSymbolMap.find(variable) == mSymbolMap.end()) {
-            // Find a unique unused name to create our new variable with.
-
-            auto baseName = variable->mVariable->name();
-            auto name = baseName;
-            auto symbol = SymEngine::symbol(name);
-
-            size_t counter = 1;
-            while (mVariableMap[symbol] != nullptr) {
-                counter++;
-                name = baseName + std::to_string(counter);
-                symbol = SymEngine::symbol(name);
-            }
-
-            mSymbolMap[variable] = symbol;
-            mVariableMap[symbol] = variable;
-        }
-
-        return {true, mSymbolMap.at(variable)};
-    }
-    case AnalyserEquationAst::Type::CN: {
-        // SymEngine distinguishes between integers and real numbers.
-
-        auto astValue = std::stod(ast->value());
-
-        if (std::floor(astValue) == astValue) {
-            return {true, SymEngine::integer(static_cast<long>(astValue))};
-        }
-
-        return {true, SymEngine::number(astValue)};
-    }
     default:
-        // Rearrangement is not possible with this type.
+        // Conversion is not possible with this type.
 
         return {false, SymEngine::null};
     }
 }
 
-AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngine::RCP<const SymEngine::Basic> &seExpression,
-                                                                   const AnalyserEquationAstPtr &parentAst)
+AnalyserEquationAstPtr Analyser::AnalyserImpl::simplifyAst(const AnalyserEquationAstPtr &ast)
 {
-    // The headAst is the highest level ast for the converted seExpression and will be returned at the end.
-    // Comparatively, the currentAst is the ast we are presently populating.
+    auto isCnValue = [](const AnalyserEquationAstPtr &ast, double value) {
+        if ((ast == nullptr) || (ast->type() != AnalyserEquationAst::Type::CN)) {
+            return false;
+        }
 
-    auto headAst = AnalyserEquationAst::create();
-    auto currentAst = headAst;
-    auto children = seExpression->get_args();
+        return areNearlyEqual(std::stod(ast->value()), value);
+    };
 
-    headAst->setParent(parentAst);
+    auto makeUnaryMinus = [](const AnalyserEquationAstPtr &child, const AnalyserEquationAstPtr &parent) {
+        auto unaryMinus = AnalyserEquationAst::create();
 
-    switch (seExpression->get_type_code()) {
+        unaryMinus->setType(AnalyserEquationAst::Type::MINUS);
+        unaryMinus->setParent(parent);
+        unaryMinus->setLeftChild(child);
+
+        if (child != nullptr) {
+            child->setParent(unaryMinus);
+        }
+
+        return unaryMinus;
+    };
+
+    auto simplify = [&](const auto &self, const AnalyserEquationAstPtr &ast) -> AnalyserEquationAstPtr {
+        if (ast == nullptr) {
+            return ast;
+        }
+
+        auto leftChild = self(self, ast->leftChild());
+        auto rightChild = self(self, ast->rightChild());
+
+        if (leftChild != ast->leftChild()) {
+            ast->setLeftChild(leftChild);
+        }
+
+        if (rightChild != ast->rightChild()) {
+            ast->setRightChild(rightChild);
+        }
+
+        if (leftChild != nullptr) {
+            leftChild->setParent(ast);
+        }
+
+        if (rightChild != nullptr) {
+            rightChild->setParent(ast);
+        }
+
+        auto rewriteLeadingNegatedTerm = [&](const AnalyserEquationAstPtr &lhs,
+                                             const AnalyserEquationAstPtr &rhs,
+                                             AnalyserEquationAst::Type rootType) {
+            if ((lhs == nullptr) || (rhs == nullptr)
+                || ((rhs->type() != AnalyserEquationAst::Type::PLUS)
+                    && (rhs->type() != AnalyserEquationAst::Type::MINUS))) {
+                return false;
+            }
+
+            auto rhsLeftChild = rhs->leftChild();
+            auto rhsRightChild = rhs->rightChild();
+
+            if ((rhsLeftChild == nullptr) || (rhsRightChild == nullptr)
+                || (rhsLeftChild->type() != AnalyserEquationAst::Type::MINUS)
+                || (rhsLeftChild->leftChild() == nullptr) || (rhsLeftChild->rightChild() != nullptr)) {
+                return false;
+            }
+
+            auto b = rhsLeftChild->leftChild();
+            auto c = rhsRightChild;
+            auto firstTerm = AnalyserEquationAst::create();
+
+            firstTerm->setType(rootType == AnalyserEquationAst::Type::PLUS ?
+                                   AnalyserEquationAst::Type::MINUS :
+                                   AnalyserEquationAst::Type::PLUS);
+            firstTerm->setParent(ast);
+            firstTerm->setLeftChild(lhs);
+            firstTerm->setRightChild(b);
+
+            lhs->setParent(firstTerm);
+            b->setParent(firstTerm);
+            c->setParent(ast);
+
+            if (rootType == AnalyserEquationAst::Type::PLUS) {
+                ast->setType(rhs->type());
+            } else {
+                ast->setType(rhs->type() == AnalyserEquationAst::Type::PLUS ?
+                                 AnalyserEquationAst::Type::MINUS :
+                                 AnalyserEquationAst::Type::PLUS);
+            }
+
+            ast->setLeftChild(firstTerm);
+            ast->setRightChild(c);
+
+            return true;
+        };
+
+        auto makePositiveTimes = [&](const AnalyserEquationAstPtr &term, double negativeValue) {
+            auto positiveConstant = AnalyserEquationAst::create();
+
+            positiveConstant->setType(AnalyserEquationAst::Type::CN);
+            positiveConstant->setValue(convertToString(std::abs(negativeValue)));
+
+            auto positiveTimes = AnalyserEquationAst::create();
+
+            positiveTimes->setType(AnalyserEquationAst::Type::TIMES);
+            positiveTimes->setParent(nullptr);
+            positiveTimes->setLeftChild(positiveConstant);
+            positiveTimes->setRightChild(term);
+
+            positiveConstant->setParent(positiveTimes);
+            term->setParent(positiveTimes);
+
+            return positiveTimes;
+        };
+
+        auto positiveTermFromNegatedExpression = [&](const AnalyserEquationAstPtr &term) -> AnalyserEquationAstPtr {
+            if (term == nullptr) {
+                return nullptr;
+            }
+
+            auto lhs = term->leftChild();
+            auto rhs = term->rightChild();
+
+            if ((term->type() == AnalyserEquationAst::Type::MINUS)
+                && (lhs != nullptr) && (rhs == nullptr)) {
+                return lhs;
+            }
+
+            if (term->type() == AnalyserEquationAst::Type::TIMES) {
+                if ((lhs != nullptr) && (lhs->type() == AnalyserEquationAst::Type::CN)
+                    && (rhs != nullptr)) {
+                    auto lhsValue = std::stod(lhs->value());
+
+                    if (lhsValue < 0.0) {
+                        return makePositiveTimes(rhs, lhsValue);
+                    }
+                }
+
+                if ((lhs != nullptr)
+                    && (rhs != nullptr) && (rhs->type() == AnalyserEquationAst::Type::CN)) {
+                    auto rhsValue = std::stod(rhs->value());
+
+                    if (rhsValue < 0.0) {
+                        return makePositiveTimes(lhs, rhsValue);
+                    }
+                }
+            }
+
+            return nullptr;
+        };
+
+        switch (ast->type()) {
+        case AnalyserEquationAst::Type::PLUS: {
+            // 0.0 + a -> a
+
+            if (isCnValue(leftChild, 0.0) && (rightChild != nullptr)) {
+                rightChild->setParent(ast->parent());
+
+                return rightChild;
+            }
+
+            // a + 0.0 -> a
+
+            if ((leftChild != nullptr) && isCnValue(rightChild, 0.0)) {
+                leftChild->setParent(ast->parent());
+
+                return leftChild;
+            }
+
+            // a + (-b) -> a - b
+
+            if ((rightChild != nullptr)
+                && (rightChild->type() == AnalyserEquationAst::Type::MINUS)
+                && (rightChild->leftChild() != nullptr)
+                && (rightChild->rightChild() == nullptr)) {
+                auto minusArgument = rightChild->leftChild();
+
+                minusArgument->setParent(ast);
+
+                ast->setType(AnalyserEquationAst::Type::MINUS);
+                ast->setRightChild(minusArgument);
+
+                return self(self, ast);
+            }
+
+            if (auto positiveRight = positiveTermFromNegatedExpression(rightChild)) {
+                positiveRight->setParent(ast);
+
+                ast->setType(AnalyserEquationAst::Type::MINUS);
+                ast->setRightChild(positiveRight);
+
+                return self(self, ast);
+            }
+
+            if (rewriteLeadingNegatedTerm(leftChild, rightChild, AnalyserEquationAst::Type::PLUS)) {
+                return self(self, ast);
+            }
+
+            break;
+        }
+        case AnalyserEquationAst::Type::MINUS:
+            if (rightChild == nullptr) {
+                // Unary minus cases.
+
+                auto negateAdditiveSubtree = [&](const auto &selfNegate, const AnalyserEquationAstPtr &subtree,
+                                                 const AnalyserEquationAstPtr &parent) -> AnalyserEquationAstPtr {
+                    if (subtree == nullptr) {
+                        return subtree;
+                    }
+
+                    // -(a + b) -> -a - b
+
+                    if (subtree->type() == AnalyserEquationAst::Type::PLUS) {
+                        auto negated = AnalyserEquationAst::create();
+
+                        negated->setType(AnalyserEquationAst::Type::PLUS);
+                        negated->setParent(parent);
+
+                        auto negatedLeft = selfNegate(selfNegate, subtree->leftChild(), negated);
+                        auto negatedRight = selfNegate(selfNegate, subtree->rightChild(), negated);
+
+                        negated->setLeftChild(negatedLeft);
+                        negated->setRightChild(negatedRight);
+
+                        if (negatedLeft != nullptr) {
+                            negatedLeft->setParent(negated);
+                        }
+
+                        if (negatedRight != nullptr) {
+                            negatedRight->setParent(negated);
+                        }
+
+                        return negated;
+                    }
+
+                    // -(a - b) -> -a + b
+
+                    if ((subtree->type() == AnalyserEquationAst::Type::MINUS)
+                        && (subtree->rightChild() != nullptr)) {
+                        auto negated = AnalyserEquationAst::create();
+
+                        negated->setType(AnalyserEquationAst::Type::PLUS);
+                        negated->setParent(parent);
+
+                        auto negatedLeft = selfNegate(selfNegate, subtree->leftChild(), negated);
+                        auto right = subtree->rightChild();
+
+                        negated->setLeftChild(negatedLeft);
+                        negated->setRightChild(right);
+
+                        if (negatedLeft != nullptr) {
+                            negatedLeft->setParent(negated);
+                        }
+
+                        if (right != nullptr) {
+                            right->setParent(negated);
+                        }
+
+                        return negated;
+                    }
+
+                    // -(-a) -> a
+
+                    if ((subtree->type() == AnalyserEquationAst::Type::MINUS)
+                        && (subtree->rightChild() == nullptr)
+                        && (subtree->leftChild() != nullptr)) {
+                        auto inner = subtree->leftChild();
+
+                        inner->setParent(parent);
+
+                        return inner;
+                    }
+
+                    return makeUnaryMinus(subtree, parent);
+                };
+
+                // Push the negation down to the leaves of additive/subtractive trees (i.e. -(a + b - c) -> -a - b + c).
+
+                if ((leftChild != nullptr)
+                    && ((leftChild->type() == AnalyserEquationAst::Type::PLUS)
+                        || ((leftChild->type() == AnalyserEquationAst::Type::MINUS)
+                            && (leftChild->rightChild() != nullptr)))) {
+                    return self(self, negateAdditiveSubtree(negateAdditiveSubtree, leftChild, ast->parent()));
+                }
+            } else {
+                // Binary minus cases.
+
+                // 0.0 - a -> -a
+
+                if (isCnValue(leftChild, 0.0) && (rightChild != nullptr)) {
+                    return makeUnaryMinus(rightChild, ast->parent());
+                }
+
+                // a - 0.0 -> a
+
+                if ((leftChild != nullptr) && isCnValue(rightChild, 0.0)) {
+                    leftChild->setParent(ast->parent());
+
+                    return leftChild;
+                }
+
+                // a - (-b) -> a + b
+
+                if ((rightChild->type() == AnalyserEquationAst::Type::MINUS)
+                    && (rightChild->leftChild() != nullptr)
+                    && (rightChild->rightChild() == nullptr)) {
+                    auto minusArgument = rightChild->leftChild();
+
+                    minusArgument->setParent(ast);
+
+                    ast->setType(AnalyserEquationAst::Type::PLUS);
+                    ast->setRightChild(minusArgument);
+
+                    return self(self, ast);
+                }
+
+                if (auto positiveRight = positiveTermFromNegatedExpression(rightChild)) {
+                    positiveRight->setParent(ast);
+
+                    ast->setType(AnalyserEquationAst::Type::PLUS);
+                    ast->setRightChild(positiveRight);
+
+                    return self(self, ast);
+                }
+
+                if (rewriteLeadingNegatedTerm(leftChild, rightChild, AnalyserEquationAst::Type::MINUS)) {
+                    return self(self, ast);
+                }
+            }
+
+            break;
+        case AnalyserEquationAst::Type::TIMES:
+            // 1.0 * a -> a
+
+            if (isCnValue(leftChild, 1.0) && (rightChild != nullptr)) {
+                rightChild->setParent(ast->parent());
+
+                return rightChild;
+            }
+
+            // a * 1.0 -> a
+
+            if ((leftChild != nullptr) && isCnValue(rightChild, 1.0)) {
+                leftChild->setParent(ast->parent());
+
+                return leftChild;
+            }
+
+            // -1.0 * a -> -a
+
+            if (isCnValue(leftChild, -1.0) && (rightChild != nullptr)) {
+                return makeUnaryMinus(rightChild, ast->parent());
+            }
+
+            // a * -1.0 -> -a
+
+            if ((leftChild != nullptr) && isCnValue(rightChild, -1.0)) {
+                return makeUnaryMinus(leftChild, ast->parent());
+            }
+
+            // a * 1.0 / b -> a / b
+
+            if ((leftChild != nullptr)
+                && (rightChild != nullptr) && (rightChild->type() == AnalyserEquationAst::Type::DIVIDE)
+                && isCnValue(rightChild->leftChild(), 1.0)) {
+                auto newDivide = AnalyserEquationAst::create();
+
+                newDivide->setType(AnalyserEquationAst::Type::DIVIDE);
+                newDivide->setParent(ast->parent());
+                newDivide->setLeftChild(leftChild);
+                newDivide->setRightChild(rightChild->rightChild());
+
+                leftChild->setParent(newDivide);
+
+                if (rightChild->rightChild() != nullptr) {
+                    rightChild->rightChild()->setParent(newDivide);
+                }
+
+                return newDivide;
+            }
+
+            break;
+        case AnalyserEquationAst::Type::DIVIDE:
+            // a / 1.0 -> a
+
+            if (isCnValue(rightChild, 1.0) && (leftChild != nullptr)) {
+                leftChild->setParent(ast->parent());
+
+                return leftChild;
+            }
+
+            // a / -1.0 -> -a
+
+            if (isCnValue(rightChild, -1.0) && (leftChild != nullptr)) {
+                return makeUnaryMinus(leftChild, ast->parent());
+            }
+
+            break;
+        case AnalyserEquationAst::Type::POWER:
+            // a^-1.0 -> 1.0 / a
+
+            if (isCnValue(rightChild, -1.0) && (leftChild != nullptr)) {
+                auto one = AnalyserEquationAst::create();
+
+                one->setType(AnalyserEquationAst::Type::CN);
+                one->setValue("1.0");
+                one->setParent(ast);
+
+                auto inverse = AnalyserEquationAst::create();
+
+                inverse->setType(AnalyserEquationAst::Type::DIVIDE);
+                inverse->setParent(ast->parent());
+                inverse->setLeftChild(one);
+                inverse->setRightChild(leftChild);
+
+                if (leftChild != nullptr) {
+                    leftChild->setParent(inverse);
+                }
+
+                return inverse;
+            }
+
+            // e^a -> exp(a)
+
+            if ((leftChild != nullptr) && (leftChild->type() == AnalyserEquationAst::Type::E)
+                && (rightChild != nullptr)) {
+                auto exp = AnalyserEquationAst::create();
+
+                exp->setType(AnalyserEquationAst::Type::EXP);
+                exp->setParent(ast->parent());
+                exp->setLeftChild(rightChild);
+
+                if (rightChild != nullptr) {
+                    rightChild->setParent(exp);
+                }
+
+                return exp;
+            }
+
+            break;
+        default:
+            break;
+        }
+
+        return ast;
+    };
+
+    return simplify(simplify, ast);
+}
+
+AnalyserEquationAstPtr Analyser::AnalyserImpl::symEngineToAst(const SymEngineEquation &symEngineEquation,
+                                                              const AnalyserEquationAstPtr &parentAst)
+{
+    // Our top AST node.
+
+    auto res = AnalyserEquationAst::create();
+
+    res->setParent(parentAst);
+
+    // Check the type of the SymEngine equation and return its AST equivalent, recursively converting its arguments as
+    // needed.
+
+    auto currentAst = res;
+    auto symEngineEquationArgs = symEngineEquation->get_args();
+
+    switch (symEngineEquation->get_type_code()) {
+        // Relational and logical operators.
+
     case SymEngine::SYMENGINE_EQUALITY:
-        currentAst->setType(AnalyserEquationAst::Type::EQUALITY);
+        // Convert to either AnalyserEquationAst::Type::EQUALITY or AnalyserEquationAst::Type::EQ depending on whether
+        // we are at the top level or not.
+
+        currentAst->setType((parentAst == nullptr) ?
+                                AnalyserEquationAst::Type::EQUALITY :
+                                AnalyserEquationAst::Type::EQ);
 
         break;
+    case SymEngine::SYMENGINE_UNEQUALITY:
+        currentAst->setType(AnalyserEquationAst::Type::NEQ);
+
+        break;
+    case SymEngine::SYMENGINE_STRICTLESSTHAN:
+        currentAst->setType(AnalyserEquationAst::Type::LT);
+
+        break;
+    case SymEngine::SYMENGINE_LESSTHAN:
+        currentAst->setType(AnalyserEquationAst::Type::LEQ);
+
+        break;
+
+        // Note: AnalyserEquationAst::Type::GT and AnalyserEquationAst::Type::GEQ are not accounted for since SymEngine
+        //       doesn't have strict greater than and greater than or equal to operators.
+
+    case SymEngine::SYMENGINE_AND:
+        currentAst->setType(AnalyserEquationAst::Type::AND);
+
+        break;
+    case SymEngine::SYMENGINE_OR:
+        currentAst->setType(AnalyserEquationAst::Type::OR);
+
+        break;
+    case SymEngine::SYMENGINE_XOR:
+        currentAst->setType(AnalyserEquationAst::Type::XOR);
+
+        break;
+    case SymEngine::SYMENGINE_NOT:
+        currentAst->setType(AnalyserEquationAst::Type::NOT);
+
+        break;
+
+        // Arithmetic operators.
+
     case SymEngine::SYMENGINE_ADD:
         currentAst->setType(AnalyserEquationAst::Type::PLUS);
 
         break;
+
+        // Note: AnalyserEquationAst::Type::MINUS is not accounted for since SymEngine doesn't have a minus operator.
+
     case SymEngine::SYMENGINE_MUL: {
-        if (SymEngine::eq(*(children[0]), *SymEngine::integer(-1))) {
-            // Convert -1 * x to -x.
-
-            currentAst->setType(AnalyserEquationAst::Type::MINUS);
-            children.erase(children.begin());
-
-            if (children.size() > 1) {
-                // Multiple terms being multiplied, e.g. -1 * x * y.
-                // Retrieve the unary minus as a parent node and process the rest as a TIMES node.
-
-                auto newAst = AnalyserEquationAst::create();
-
-                newAst->setType(AnalyserEquationAst::Type::TIMES);
-                newAst->setParent(currentAst);
-                currentAst->setLeftChild(newAst);
-
-                currentAst = newAst;
-            }
-        } else {
-            currentAst->setType(AnalyserEquationAst::Type::TIMES);
-        }
+        currentAst->setType(AnalyserEquationAst::Type::TIMES);
 
         break;
     }
+
+        // Note: AnalyserEquationAst::Type::DIVIDE is not accounted for since SymEngine doesn't have a divide operator.
+
     case SymEngine::SYMENGINE_POW:
         currentAst->setType(AnalyserEquationAst::Type::POWER);
 
         break;
+
+        // Note: AnalyserEquationAst::Type::ROOT is not accounted for since SymEngine doesn't have a root operator.
+
     case SymEngine::SYMENGINE_ABS:
         currentAst->setType(AnalyserEquationAst::Type::ABS);
 
         break;
+
+        // Note: AnalyserEquationAst::Type::EXP is not accounted for since SymEngine doesn't have an exponential
+        //       operator.
+
     case SymEngine::SYMENGINE_LOG:
         currentAst->setType(AnalyserEquationAst::Type::LN);
 
         break;
+
+        // Note: SymEngine doesn't have a log function with a base argument, so although we can easily convert
+        //       AnalyserEquationAst::Type::LOG to SymEngine::SYMENGINE_LOG, to do the reverse is a bit more involved
+        //       and not worth the effort at the moment, so we just convert SymEngine::SYMENGINE_LOG to
+        //       AnalyserEquationAst::Type::LN.
+
     case SymEngine::SYMENGINE_CEILING:
         currentAst->setType(AnalyserEquationAst::Type::CEILING);
 
@@ -2515,26 +3384,31 @@ AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngi
         break;
     case SymEngine::SYMENGINE_MAX:
         currentAst->setType(AnalyserEquationAst::Type::MAX);
+
         break;
+
+        // Note: AnalyserEquationAst::Type::REM is accounted for in the default case since SymEngine doesn't have a
+        //       built-in remainder function, so we converted it to a function symbol with the name "mod".
+
+        // Calculus elements.
+
     case SymEngine::SYMENGINE_DERIVATIVE: {
         currentAst->setType(AnalyserEquationAst::Type::DIFF);
 
-        // This is a special case where we need to manually wrap the left child in a BVAR node.
-        // Note that the variable of differentiation will be the second child of a symengine
-        // derivative expression.
-
         auto bVarAst = AnalyserEquationAst::create();
+
         bVarAst->setType(AnalyserEquationAst::Type::BVAR);
         bVarAst->setParent(currentAst);
+        bVarAst->setLeftChild(symEngineToAst(symEngineEquationArgs[1], bVarAst));
+
         currentAst->setLeftChild(bVarAst);
-        bVarAst->setLeftChild(parseSymEngineToAst(children[1], bVarAst));
+        currentAst->setRightChild(symEngineToAst(symEngineEquationArgs[0], currentAst));
 
-        // We must also set the right child here, since the the loop below doesn't know we've ready
-        // set the left child.
-
-        currentAst->setRightChild(parseSymEngineToAst(children[0], currentAst));
-        return headAst;
+        return res;
     }
+
+        // Trigonometric operators.
+
     case SymEngine::SYMENGINE_SIN:
         currentAst->setType(AnalyserEquationAst::Type::SIN);
 
@@ -2631,25 +3505,55 @@ AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngi
         currentAst->setType(AnalyserEquationAst::Type::ACOTH);
 
         break;
+
+        // Token elements.
+
     case SymEngine::SYMENGINE_SYMBOL: {
-        auto symbol = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(seExpression);
+        auto symEngineVariable = SymEngine::rcp_dynamic_cast<const SymEngine::Symbol>(symEngineEquation);
+
         currentAst->setType(AnalyserEquationAst::Type::CI);
-        currentAst->setVariable(mVariableMap.at(symbol)->mVariable);
+        currentAst->setVariable(mSEVariableAIVariableMap.at(symEngineVariable)->mVariable);
 
         break;
     }
     case SymEngine::SYMENGINE_INTEGER:
-    case SymEngine::SYMENGINE_RATIONAL:
-    case SymEngine::SYMENGINE_REAL_MPFR:
-    case SymEngine::SYMENGINE_REAL_DOUBLE:
         currentAst->setType(AnalyserEquationAst::Type::CN);
-        currentAst->setValue(seExpression->__str__());
+        currentAst->setValue(symEngineEquation->__str__() + ".0");
 
         break;
+    case SymEngine::SYMENGINE_REAL_DOUBLE:
+        currentAst->setType(AnalyserEquationAst::Type::CN);
+        currentAst->setValue(symEngineEquation->__str__());
+
+        break;
+    case SymEngine::SYMENGINE_RATIONAL: {
+        auto value = convertToString(SymEngine::eval_double(*symEngineEquation));
+
+        if (value.find('.') == std::string::npos) {
+            value += ".0";
+        }
+
+        currentAst->setType(AnalyserEquationAst::Type::CN);
+        currentAst->setValue(value);
+
+        break;
+    }
+
+        // Qualifier elements.
+
+        // Note: we don't need to account for AnalyserEquationAst::Type::DEGREE, AnalyserEquationAst::Type::LOGBASE, and
+        //       AnalyserEquationAst::Type::BVAR since we already account for them elsewhere.
+
+        // Constants.
+
+        // Note: we don't need to account for AnalyserEquationAst::Type::TRUE and AnalyserEquationAst::Type::FALSE. We
+        //       use SymEngine::number(1.0) and SymEngine::number(0.0) to represent true and false, respectively, so
+        //       they are converted to CN nodes rather than TRUE and FALSE nodes.
+
     case SymEngine::SYMENGINE_CONSTANT:
         // It must be either e or π.
 
-        if (SymEngine::eq(*SymEngine::rcp_dynamic_cast<const SymEngine::Constant>(seExpression), *SymEngine::E)) {
+        if (SymEngine::eq(*SymEngine::rcp_dynamic_cast<const SymEngine::Constant>(symEngineEquation), *SymEngine::E)) {
             currentAst->setType(AnalyserEquationAst::Type::E);
         } else {
             currentAst->setType(AnalyserEquationAst::Type::PI);
@@ -2660,32 +3564,23 @@ AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngi
         currentAst->setType(AnalyserEquationAst::Type::INF);
 
         break;
-    default: {
-        // The only case left should be SymEngine::SYMENGINE_FUNCTIONSYMBOL.
-
-        auto functionName = SymEngine::rcp_dynamic_cast<const SymEngine::FunctionSymbol>(seExpression)->get_name();
+    default: { // SymEngine::SYMENGINE_FUNCTIONSYMBOL.
+        auto functionName = SymEngine::rcp_dynamic_cast<const SymEngine::FunctionSymbol>(symEngineEquation)->get_name();
 
         if (functionName == "diff") {
             currentAst->setType(AnalyserEquationAst::Type::DIFF);
-
-            // This is a special case where we need to manually wrap the left child in a BVAR node.
 
             auto bVarAst = AnalyserEquationAst::create();
 
             bVarAst->setType(AnalyserEquationAst::Type::BVAR);
             bVarAst->setParent(currentAst);
+            bVarAst->setLeftChild(symEngineToAst(symEngineEquationArgs[0], bVarAst));
+
             currentAst->setLeftChild(bVarAst);
-            bVarAst->setLeftChild(parseSymEngineToAst(children[0], bVarAst));
+            currentAst->setRightChild(symEngineToAst(symEngineEquationArgs[1], currentAst));
 
-            // We must also set the right child here, since the the loop below doesn't know we've ready
-            // set the left child.
-
-            currentAst->setRightChild(parseSymEngineToAst(children[1], currentAst));
-
-            return headAst;
-        } else {
-            // Must be a modulo function symbol.
-
+            return res;
+        } else { // "mod".
             currentAst->setType(AnalyserEquationAst::Type::REM);
         }
 
@@ -2693,85 +3588,117 @@ AnalyserEquationAstPtr Analyser::AnalyserImpl::parseSymEngineToAst(const SymEngi
     }
     }
 
-    // All children (except the last) are guaranteed to be left children in the AST tree.
+    if ((parentAst == nullptr)
+        && (currentAst->type() == AnalyserEquationAst::Type::EQUALITY)
+        && (symEngineEquationArgs.size() == 2)) {
+        auto isVariableLike = [](const SymEngineEquation &expression) {
+            return (expression->get_type_code() == SymEngine::SYMENGINE_SYMBOL)
+                   || ((expression->get_type_code() == SymEngine::SYMENGINE_FUNCTIONSYMBOL)
+                       && (SymEngine::rcp_static_cast<const SymEngine::FunctionSymbol>(expression)->get_name() == "diff"));
+        };
 
-    for (size_t i = 0; i + 1 < children.size(); ++i) {
-        auto childAst = parseSymEngineToAst(children[i], currentAst);
-
-        currentAst->setLeftChild(childAst);
-
-        if (i < children.size() - 2) {
-            // There are more than two children left, so we need to create a copy of our original AST node.
-
-            auto newAst = AnalyserEquationAst::create();
-
-            newAst->setParent(currentAst);
-            newAst->setType(currentAst->type());
-            newAst->setValue(currentAst->value());
-            newAst->setVariable(currentAst->variable());
-
-            currentAst->setRightChild(newAst);
-
-            currentAst = newAst;
+        if (!isVariableLike(symEngineEquationArgs[0]) && isVariableLike(symEngineEquationArgs[1])) {
+            std::swap(symEngineEquationArgs[0], symEngineEquationArgs[1]);
         }
     }
 
-    // The final child is created and placed where appropriate.
+    // All arguments (except the last one) are guaranteed to be left arguments in the AST tree.
 
-    if (children.size() != 0) {
-        auto childAst = parseSymEngineToAst(children.back(), currentAst);
+    for (size_t i = 0; i + 1 < symEngineEquationArgs.size(); ++i) {
+        currentAst->setLeftChild(symEngineToAst(symEngineEquationArgs[i], currentAst));
 
-        if (children.size() == 1) {
+        if (i < symEngineEquationArgs.size() - 2) {
+            // There are more than two arguments left, so we need to create a copy of our original AST node.
+
+            auto ast = AnalyserEquationAst::create();
+
+            ast->setType(currentAst->type());
+            ast->setParent(currentAst);
+            ast->setValue(currentAst->value());
+            ast->setVariable(currentAst->variable());
+
+            currentAst->setRightChild(ast);
+
+            currentAst = ast;
+        }
+    }
+
+    // The final argument is created and placed where appropriate.
+
+    if (!symEngineEquationArgs.empty()) {
+        AnalyserEquationAstPtr childAst;
+
+        if ((currentAst->type() == AnalyserEquationAst::Type::POWER)
+            && (symEngineEquationArgs.size() == 2)
+            && (symEngineEquationArgs.back()->get_type_code() == SymEngine::SYMENGINE_RATIONAL)) {
+            auto rationalString = symEngineEquationArgs.back()->__str__();
+            auto slashPosition = rationalString.find('/');
+
+            if (slashPosition != std::string::npos) {
+                auto numeratorAst = AnalyserEquationAst::create();
+                auto denominatorAst = AnalyserEquationAst::create();
+
+                numeratorAst->setType(AnalyserEquationAst::Type::CN);
+                numeratorAst->setParent(nullptr);
+                numeratorAst->setValue(rationalString.substr(0, slashPosition) + ".0");
+
+                denominatorAst->setType(AnalyserEquationAst::Type::CN);
+                denominatorAst->setParent(nullptr);
+                denominatorAst->setValue(rationalString.substr(slashPosition + 1) + ".0");
+
+                childAst = AnalyserEquationAst::create();
+                childAst->setType(AnalyserEquationAst::Type::DIVIDE);
+                childAst->setParent(currentAst);
+                childAst->setLeftChild(numeratorAst);
+                childAst->setRightChild(denominatorAst);
+
+                numeratorAst->setParent(childAst);
+                denominatorAst->setParent(childAst);
+            }
+        }
+
+        if (childAst == nullptr) {
+            childAst = symEngineToAst(symEngineEquationArgs.back(), currentAst);
+        }
+
+        if (symEngineEquationArgs.size() == 1) {
             currentAst->setLeftChild(childAst);
         } else {
             currentAst->setRightChild(childAst);
         }
-
-        // Check for the case where we want to simplify x + (-y) to x - y.
-
-        // TODO: Rayen to check whether we need to test for childAst->rightChild() == nullptr. Right now, none of our tests require this.
-        /*
-        if ((children.size() >= 2)
-            && (currentAst->type() == AnalyserEquationAst::Type::PLUS)
-            && (childAst->type() == AnalyserEquationAst::Type::MINUS)
-            && (childAst->rightChild() == nullptr)) {
-        */
-
-        if ((children.size() >= 2)
-            && (currentAst->type() == AnalyserEquationAst::Type::PLUS)
-            && (childAst->type() == AnalyserEquationAst::Type::MINUS)) {
-            currentAst->setType(AnalyserEquationAst::Type::MINUS);
-            currentAst->setRightChild(childAst->leftChild());
-
-            childAst->leftChild()->setParent(currentAst);
-        }
     }
 
-    return headAst;
+    return simplifyAst(res);
 }
 
-void Analyser::AnalyserImpl::replaceAstTree(const AnalyserInternalEquationPtr &equation, const AnalyserEquationAstPtr &newAst)
+void Analyser::AnalyserImpl::replaceAstTree(const AnalyserInternalEquationPtr &equation, const AnalyserEquationAstPtr &ast)
 {
-    equation->mAst = newAst;
+    equation->mAst = ast;
 
-    equation->mAllVariables.clear();
-    equation->mVariables.clear();
-    equation->mStateVariables.clear();
     equation->mDependencies.clear();
 
-    AnalyserEquationAstPtrs astStack;
-    astStack.push_back(newAst);
+    equation->mVariables.clear();
+    equation->mVariablesSet.clear();
+    equation->mStateVariables.clear();
+    equation->mStateVariablesSet.clear();
+    equation->mAllVariables.clear();
 
-    while (astStack.size() > 0) {
+    AnalyserEquationAstPtrs astStack;
+
+    astStack.push_back(ast);
+
+    do {
         auto ast = astStack.back();
+
         astStack.pop_back();
 
         if (ast->type() == AnalyserEquationAst::Type::CI) {
-            auto variable = ast->variable();
+            auto astVariable = ast->variable();
+
             if (ast->parent()->type() == AnalyserEquationAst::Type::DIFF) {
-                equation->addStateVariable(internalVariable(variable));
+                equation->addStateVariable(internalVariable(astVariable));
             } else if (ast->parent()->type() != AnalyserEquationAst::Type::BVAR) {
-                equation->addVariable(internalVariable(variable));
+                equation->addVariable(internalVariable(astVariable));
             }
         }
 
@@ -2782,42 +3709,19 @@ void Analyser::AnalyserImpl::replaceAstTree(const AnalyserInternalEquationPtr &e
         if (ast->rightChild() != nullptr) {
             astStack.push_back(ast->rightChild());
         }
-    }
-}
-
-void Analyser::AnalyserImpl::initialiseMatching(const AnalyserInternalEquationPtrs &equations, const AnalyserInternalVariablePtrs &variables)
-{
-    for (const auto &equation : equations) {
-        for (auto iter = equation->mVariables.begin(); iter != equation->mVariables.end();) {
-            auto variable = *iter;
-
-            // Ignore variables that do not require matching, instead add them as a dependencies
-            // since they are already defined or should be matched elsewhere.
-
-            if (std::find(variables.begin(), variables.end(), variable) == variables.end()
-                || variable->mType == AnalyserInternalVariable::Type::STATE
-                || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
-                equation->mDependencies.push_back(variable);
-                iter = equation->mVariables.erase(iter);
-            } else {
-                variable->mUnmatchedEquations.push_back(equation);
-                ++iter;
-            }
-        }
-
-        for (const auto &variable : equation->mStateVariables) {
-            variable->mUnmatchedEquations.push_back(equation);
-        }
-    }
+    } while (!astStack.empty());
 }
 
 void Analyser::AnalyserImpl::makeVariableKnown(const AnalyserInternalVariablePtr &variable,
-                                               const AnalyserInternalEquationPtr &matchedEquation)
+                                               const AnalyserInternalEquationPtr &equation)
 {
-    // Update all other equations to consider this variable known.
+    // Update all the other equations to consider this variable known.
 
     for (const auto &otherEquation : variable->mUnmatchedEquations) {
-        if (otherEquation == matchedEquation) {
+        // Add the variable as a dependency for the equation, but only if it isn't the equation we are matching the
+        // variable with.
+
+        if (otherEquation == equation) {
             continue;
         }
 
@@ -2825,49 +3729,67 @@ void Analyser::AnalyserImpl::makeVariableKnown(const AnalyserInternalVariablePtr
 
         // Stop tracking the variable since it is now known.
 
-        otherEquation->mStateVariables.erase(std::remove(otherEquation->mStateVariables.begin(), otherEquation->mStateVariables.end(), variable), otherEquation->mStateVariables.end());
-        otherEquation->mVariables.erase(std::remove(otherEquation->mVariables.begin(), otherEquation->mVariables.end(), variable), otherEquation->mVariables.end());
+        otherEquation->removeVariable(variable);
+        otherEquation->removeStateVariable(variable);
+        otherEquation->removeUnknownVariable(variable);
     }
 
-    variable->mUnmatchedEquations.clear();
+    // Stop tracking the variable since it is now known.
+
+    if (equation != nullptr) {
+        variable->mUnmatchedEquations.clear();
+    }
 }
 
-bool Analyser::AnalyserImpl::matchPair(const AnalyserInternalVariablePtr &variable,
-                                       const AnalyserInternalEquationPtr &equation)
+bool Analyser::AnalyserImpl::matchVariableAndEquation(const AnalyserInternalVariablePtr &variable,
+                                                      const AnalyserInternalEquationPtr &equation)
 {
-    // Check if we need to attempt to isolate our variable.
-    // Note that dx/dt = x should consider dx/dt as isolated since x is a state variable used outside of a differential,
-    // and is thus treated as known before we began the matching algorithm.
+    // If the variable is not isolated in the equation, then we need to rearrange the equation to isolate it before we
+    // can match it. If we can't rearrange the equation to isolate the variable, then we can't match them.
 
-    if (!equation->variableIsolated(variable)) {
-        if (equation->mSeEquation.is_null()) {
+    if (!equation->isVariableIsolated(variable)) {
+        // We can't rearrange the equation if it doesn't have a SymEngine equation.
+
+        if (equation->mSymEngineEquation.is_null()) {
             return false;
         }
 
-        auto symbol = mSymbolMap[variable];
+        // Try to rearrange the equation to isolate the variable.
 
-        auto seRearranged = equation->rearrangeFor(symbol);
-        if (seRearranged.is_null()) {
+        auto symEngineVariable = mAIVariableSEVariableMap[variable];
+        auto rearrangedEquation = equation->rearrangeForSymEngineSymbol(symEngineVariable);
+
+        if (rearrangedEquation.is_null()) {
             return false;
         }
 
-        auto seEquation = SymEngine::Eq(symbol, seRearranged);
-        equation->mSeEquation = seEquation;
-        equation->simplifySeEquation();
-        equation->mAst = parseSymEngineToAst(seEquation, nullptr);
+        // Update the equation with the rearranged SymEngine equation and its corresponding AST.
+
+        auto symEngineEquation = SymEngine::Eq(symEngineVariable, rearrangedEquation);
+
+        equation->mSymEngineEquation = symEngineEquation;
+
+        replaceAstTree(equation, symEngineToAst(symEngineEquation));
     }
 
-    equation->mUnknownVariables.push_back(variable);
+    // We can now match the variable and the equation.
+
+    equation->addUnknownVariable(variable);
+
     variable->mMatchedEquation = equation;
 
-    // Update so that equations depends on all other (state) variables.
-    for (const auto *otherVariables : {&equation->mStateVariables, &equation->mVariables}) {
-        for (const auto &otherVariable : *otherVariables) {
+    // Update all other variables in the equation to consider this variable known.
+
+    for (const auto &otherVariables : {equation->mStateVariables, equation->mVariables}) {
+        for (const auto &otherVariable : otherVariables) {
+            // Don't update the variable we are matching.
+
             if (otherVariable == variable) {
                 continue;
             }
 
-            // Remove the unknown link from our other variable to this equation.
+            // Stop tracking the variable since it is now known and add it as a dependency for the equation.
+
             otherVariable->mUnmatchedEquations.erase(std::remove(otherVariable->mUnmatchedEquations.begin(),
                                                                  otherVariable->mUnmatchedEquations.end(),
                                                                  equation),
@@ -2877,24 +3799,31 @@ bool Analyser::AnalyserImpl::matchPair(const AnalyserInternalVariablePtr &variab
         }
     }
 
-    // We can stop tracking all (state) variables since we know their relationship with this equation now.
+    // Stop tracking the variable and all other variables in the equation since they are now known.
+
     equation->mStateVariables.clear();
+    equation->mStateVariablesSet.clear();
     equation->mVariables.clear();
+    equation->mVariablesSet.clear();
 
     makeVariableKnown(variable, equation);
 
-    // Remove from dependencies since it is the unknown the equation now solves for.
-    // This is necessary for state variables that were initially assumed to be dependencies.
-    auto it = std::find(equation->mDependencies.begin(), equation->mDependencies.end(), variable);
+    // Stop tracking the variable as a dependency for the equation since it is now known.
 
-    if (it != equation->mDependencies.end()) {
-        equation->mDependencies.erase(it);
+    auto dependenccyIt = std::find(equation->mDependencies.begin(), equation->mDependencies.end(), variable);
+
+    if (dependenccyIt != equation->mDependencies.end()) {
+        equation->mDependencies.erase(dependenccyIt);
     }
+
+    // Update the variable to use the variable from the equation's component that it is equivalent to, if any.
 
     for (size_t i = 0; i < equation->mComponent->variableCount(); ++i) {
         auto localVariable = equation->mComponent->variable(i);
+
         if (mAnalyserModel->areEquivalentVariables(variable->mVariable, localVariable)) {
             variable->setVariable(localVariable, false);
+
             break;
         }
     }
@@ -2902,390 +3831,514 @@ bool Analyser::AnalyserImpl::matchPair(const AnalyserInternalVariablePtr &variab
     return true;
 }
 
-void Analyser::AnalyserImpl::matchSystem(AnalyserInternalVariablePtrs &unknownVariables,
-                                         AnalyserInternalEquationPtrs &unknownEquations,
-                                         bool externalsInitialised)
+void Analyser::AnalyserImpl::matchVariablesAndEquations(AnalyserInternalVariablePtrs &variables,
+                                                        AnalyserInternalEquationPtrs &equations,
+                                                        bool externalsInitialised)
 {
-    initialiseMatching(unknownEquations, unknownVariables);
+    // Initialise our matching by identifying which variables and equations are initially unknown, and the relationships
+    // between them.
 
-    // Implements a version of Täuber et al.'s practical realisation of the Cellier
-    // tearing algorithm in order to match equations and break algebraic loops.
+    for (const auto &equation : equations) {
+        auto iter = equation->mVariables.begin();
 
-    AnalyserInternalEquationPtrs allEquations = unknownEquations;
-    AnalyserInternalVariablePtrs tearingVariables;
+        while (iter != equation->mVariables.end()) {
+            auto variable = *iter;
 
-    bool progressMade = false;
+            // Ignore the variables that do not require matching and, instead, add them as dependencies.
 
-    // Stores variables that tearing variables can use as dependencies.
+            if (std::find(variables.begin(), variables.end(), variable) == variables.end()
+                || (variable->mType == AnalyserInternalVariable::Type::STATE)
+                || (variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE)
+                || (externalsInitialised && variable->mIsExternalVariable)) {
+                equation->mDependencies.push_back(variable);
+
+                iter = equation->removeVariable(*iter);
+            } else {
+                // The variable is unknown, so track it as a candidate for matching.
+
+                variable->mUnmatchedEquations.push_back(equation);
+
+                ++iter;
+            }
+        }
+
+        // State variables are initially unknown, so track them as candidates for matching too.
+
+        for (const auto &stateVariable : equation->mStateVariables) {
+            stateVariable->mUnmatchedEquations.push_back(equation);
+        }
+    }
+
+    // Begin our matching process (see https://doi.org/10.1145/2666202.2666204 for more details).
+
+    auto markEquationsAsNla = [&](const AnalyserInternalEquationPtrs &equations) {
+        for (const auto &equation : equations) {
+            equation->mType = AnalyserInternalEquation::Type::NLA;
+
+            for (const auto &variable : equation->mAllVariables) {
+                if ((variable->mMatchedEquation == nullptr)
+                    && (variable->mType != AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION)
+                    && (variable->mType != AnalyserInternalVariable::Type::INITIALISED)) {
+                    variable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
+
+                    equation->addUnknownVariable(variable);
+                }
+            }
+        }
+    };
 
     AnalyserInternalVariablePtrs preTearingVariables;
+    AnalyserInternalVariablePtrs tearingVariables;
+    AnalyserInternalEquationPtrs allEquations = equations;
+    auto progressMade = false;
 
-    // Match all unmatched equations with a single unmatched variable it can rearrange for.
-    // Match all unmatched variables with a single unmatched equation it can be rearranged for.
-    // Tearing variables are declared when no matches can be found.
+    while (variables.size() > 0) {
+        // Match all our unmatched equations with a single unmatched variable it can rearrange for.
 
-    while (unknownVariables.size() > 0) {
-        bool localEquationProgress = true;
+        bool localEquationProgress;
 
-        while (localEquationProgress) {
+        do {
             localEquationProgress = false;
 
-            // Identify equations that we can currently match.
+            // Identify the equations that we can currently match.
 
-            for (auto iter = unknownEquations.begin(); iter != unknownEquations.end();) {
+            auto iter = equations.begin();
+
+            while (iter != equations.end()) {
                 auto equation = *iter;
+
+                // We can't match equations that have don't have one unmatched variable.
 
                 if (equation->mVariables.size() + equation->mStateVariables.size() != 1) {
                     ++iter;
+
                     continue;
                 }
 
-                auto variable = equation->mVariables.size() == 1 ?
-                                    equation->mVariables.front() :
-                                    equation->mStateVariables.front();
+                // We can only match equations where the variable is not the variable of integration, not an external
+                // variable that we haven't already initialised, and can be rearranged for.
 
-                auto success = matchPair(variable, equation);
+                auto variable = (equation->mVariables.size() == 1) ? equation->mVariables[0] : equation->mStateVariables[0];
 
-                if (!success) {
+                if ((variable->mType == AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION)
+                    || (variable->mIsExternalVariable && !externalsInitialised && equation->mStateVariables.empty())
+                    || !matchVariableAndEquation(variable, equation)) {
                     ++iter;
+
                     continue;
                 }
 
-                // Place the variable in its correct position along our dependency chain.
-                // This is done by inserting it before the first variable that depends on this variable.
+                // Keep track of the variable as one of our first variables by placing it before any variables that
+                // depend on it.
 
-                auto insertIter = std::find_if(
-                    mFirstVariables.begin(),
-                    mFirstVariables.end(),
-                    [&](const auto &otherVariable) {
-                        const auto &dependencies = otherVariable->mMatchedEquation->mDependencies;
-                        return std::find(dependencies.begin(), dependencies.end(), variable) != dependencies.end();
-                    });
+                auto insertIter = std::find_if(mFirstVariables.begin(), mFirstVariables.end(), [&](const auto &otherVariable) {
+                    const auto &dependencies = otherVariable->mMatchedEquation->mDependencies;
+
+                    return std::find(dependencies.begin(), dependencies.end(), variable) != dependencies.end();
+                });
 
                 mFirstVariables.insert(insertIter, variable);
+
+                // Add the variable to our pre-tearing variables if we haven't identified any tearing variables yet.
 
                 if (tearingVariables.size() == 0) {
                     preTearingVariables.push_back(variable);
                 }
 
-                unknownVariables.erase(std::remove(unknownVariables.begin(), unknownVariables.end(), variable), unknownVariables.end());
-                iter = unknownEquations.erase(iter);
+                // Stop tracking the variable and equation since they are now matched.
+
+                variables.erase(std::remove(variables.begin(), variables.end(), variable), variables.end());
+
+                iter = equations.erase(iter);
 
                 localEquationProgress = true;
                 progressMade = true;
             }
-        }
+        } while (localEquationProgress);
 
-        bool localVariableProgress = true;
+        // Match all unmatched variables with a single unmatched equation it can be rearranged for.
 
-        while (localVariableProgress) {
+        bool localVariableProgress;
+
+        do {
             localVariableProgress = false;
-            // Identify variables that we can currently match.
 
-            for (auto iter = unknownVariables.begin(); iter != unknownVariables.end();) {
+            // Identify the variables that we can currently match.
+
+            auto iter = variables.begin();
+
+            while (iter != variables.end()) {
                 auto variable = *iter;
+
+                // We can only match variables that are not the variable of integration.
+
+                if (variable->mType == AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION) {
+                    iter = variables.erase(iter);
+
+                    continue;
+                }
+
+                // We can't match variables that have more than one unmatched equation.
 
                 if (variable->mUnmatchedEquations.size() > 1) {
                     ++iter;
-                    continue;
-                } else if (variable->mUnmatchedEquations.size() == 0 || variable->mIsExternalVariable) {
-                    // Either is true:
-                    // 1. No equations left that include this variable. This means we won't be able to match this.
-                    // 2. This is an external variable, and since we don't know whether they have a non-external
-                    // assignment or must always be defined externally, we can't match in this direction.
 
-                    iter = unknownVariables.erase(iter);
                     continue;
                 }
 
-                auto equation = variable->mUnmatchedEquations.front();
+                // We can only match variables that are not a variable with no equations left that include it and not an
+                // external variable.
 
-                auto success = matchPair(variable, equation);
+                if ((variable->mUnmatchedEquations.size() == 0) || variable->mIsExternalVariable) {
+                    iter = variables.erase(iter);
 
-                if (!success) {
-                    // If we can't match the variable to the only equation it has an association with, then it's an
-                    // 'impossible assignment' and should immediately be considered as one of our tearing variables.
+                    continue;
+                }
 
-                    tearingVariables.push_back(variable);
-                    makeVariableKnown(variable, nullptr);
-                } else {
-                    unknownEquations.erase(std::remove(unknownEquations.begin(), unknownEquations.end(), equation), unknownEquations.end());
-                    progressMade = true;
+                // Check whether we can match the variable and the equation.
 
-                    // Since this variable must be defined by this equation, it should exist at the end of our dependency
-                    // chain (but before other variables that have been previously been identified the same way).
+                auto equation = variable->mUnmatchedEquations[0];
+
+                if (matchVariableAndEquation(variable, equation)) {
+                    // The variable and the equation can be matched, so keep track of the variable as one of our last
+                    // variables and stop tracking the equation.
 
                     mLastVariables.insert(mLastVariables.begin(), variable);
+                    equations.erase(std::remove(equations.begin(), equations.end(), equation), equations.end());
+
+                    progressMade = true;
+
+                } else {
+                    // The variable and the equation can't be matched, so it's an "impossible assignment" which means
+                    // that the variable should be considered as one of our tearing variables.
+
+                    tearingVariables.push_back(variable);
+
+                    makeVariableKnown(variable, nullptr);
                 }
 
-                iter = unknownVariables.erase(iter);
+                // Stop tracking the variable since it is now matched or a tearing variable.
+
+                iter = variables.erase(iter);
+
                 localVariableProgress = true;
             }
-        }
+        } while (localVariableProgress);
 
-        // Pick a tearing variable using modified Cellier-Heuristic 3.
-
-        // For every variable, identify the following two statistics
-        // 1. The number of equations that would be made matched if this variable were known.
-        // 2. The number of unmatched relationships involving the variable
-        // The chosen tearing variable must have the greatest sum of these two factors, and
-        // should have the greatest quantity of the first statistic among the variables
-        // which meet the first criteria.
+        // Pick a tearing variable by choosing the variable that would make the greatest progress towards matching if it
+        // were known. We measure this by considering the following statistics:
+        //  - the number of equations that would be made matched if this variable was known; and
+        //  - the number of unmatched relationships involving the variable.
+        // The chosen tearing variable has the greatest sum of these two statistics and has the greatest quantity of the
+        // first statistic among the variables with the same sum. If several variables are still tied, we can pick any
+        // of them, so we just pick the first one.
 
         size_t maxSum = 0;
         size_t maxMatchMaking = 0;
         AnalyserInternalVariablePtr tearingVariable;
 
-        for (const auto &variable : unknownVariables) {
+        for (const auto &variable : variables) {
+            // We can't pick an external variable as a tearing variable.
+
+            if (variable->mIsExternalVariable) {
+                continue;
+            }
+
+            // Calculate the statistics for this variable.
+
             size_t matchMaking = 0;
+
             for (const auto &equation : variable->mUnmatchedEquations) {
                 if (equation->mStateVariables.size() + equation->mVariables.size() == 2) {
                     ++matchMaking;
                 }
             }
+
             size_t sum = matchMaking + variable->mUnmatchedEquations.size();
-            if (sum > maxSum || (sum == maxSum && matchMaking > maxMatchMaking)) {
+
+            // Check if this variable is a better tearing variable than our current best.
+
+            if (sum > maxSum || ((sum == maxSum) && (matchMaking > maxMatchMaking))) {
                 maxSum = sum;
                 maxMatchMaking = matchMaking;
+
                 tearingVariable = variable;
             }
         }
 
+        // If we have identified a tearing variable but we have more equations than variables, then we can't actually
+        // pick a tearing variable since we won't be able to make progress towards matching by making any variable
+        // known.
+
+        if ((tearingVariable != nullptr) && (variables.size() > equations.size())) {
+            tearingVariable = nullptr;
+        }
+
+        // If we have identified a tearing variable, then track it and consider it as known for the rest of the matching
+        // process.
+
         if (tearingVariable != nullptr) {
             tearingVariables.push_back(tearingVariable);
-            unknownVariables.erase(std::remove(unknownVariables.begin(), unknownVariables.end(), tearingVariable), unknownVariables.end());
+
+            variables.erase(std::remove(variables.begin(), variables.end(), tearingVariable), variables.end());
+
             makeVariableKnown(tearingVariable, nullptr);
+        } else {
+            // No tearing variable has been identified, so we have stalled and must mark all remaining equations as NLA.
+            // But, before doing that, we need to add the tearing variables back to the equations they are still
+            // unmatched with since they will be considered unknown for those equations.
+
+            for (const auto &tearingVariable : tearingVariables) {
+                for (const auto &equation : tearingVariable->mUnmatchedEquations) {
+                    equation->addVariable(tearingVariable);
+                    equation->addUnknownVariable(tearingVariable);
+                }
+            }
+
+            markEquationsAsNla(equations);
+
+            variables.clear();
+            equations.clear();
         }
     }
 
-    // No more tearing variables means we've successfully matched everything.
+    // No more tearing variables means that we are done with matching.
 
     if (tearingVariables.size() == 0) {
         return;
     }
 
-    // Reset the unmatched equations of tearing variablesas they will be repopulated after equation substitution.
+    // Reset the unmatched equations of tearing variables as they will be repopulated after equation substitution.
 
     for (const auto &tearingVariable : tearingVariables) {
         tearingVariable->mUnmatchedEquations.clear();
     }
 
-    // Substitute to isolate tearing variables. We operate on a copy of our equations to ensure that
-    // the original linked SymEngine equation will still in a simple form.
+    // Create a substitution map for SymEngine equations based on the equations we have matched so far.
 
-    SymEngine::map_basic_basic seSubstitutionMap;
+    SymEngine::map_basic_basic substitutionMap;
+
     for (const auto &equation : allEquations) {
-        // Ignore equations we haven't managed to match, don't have a SymEngine equivalent for, or our tearing
-        // variables can depend on.
+        // Ignore the equations that we haven't managed to match or that we don't have a SymEngine equivalent for.
 
-        if (std::find(unknownEquations.begin(), unknownEquations.end(), equation) != unknownEquations.end()
-            || equation->mSeEquation.is_null()
-            || std::find(preTearingVariables.begin(), preTearingVariables.end(), equation->mUnknownVariables.front()) != preTearingVariables.end()) {
+        if (std::find(equations.begin(), equations.end(), equation) != equations.end()
+            || equation->mSymEngineEquation.is_null()) {
             continue;
         }
 
-        auto seChildren = equation->mSeEquation->get_args();
+        // SymEngine may have swapped the LHS and RHS of our equation, so we need to check both sides of the equation to
+        // identify on which side our unknown variable is and thus determine the correct substitution.
 
-        // SymEngine's equality canonical ordering of equations means that our LHS and RHS
-        // may have been swapped by SymEngine's representation. So we need to inspect the
-        // SymEngine equation directly to determine where our isolated expression is.
+        auto symEngineVariableFromSymEngineEquation = [](const SymEngineEquation &symEngineEquation) {
+            SymEngineVariable res;
 
-        auto lhs = seChildren.front();
-        SymEngine::RCP<const SymEngine::Symbol> symbol;
+            if (symEngineEquation->get_type_code() == SymEngine::SYMENGINE_SYMBOL) {
+                res = SymEngine::rcp_static_cast<const SymEngine::Symbol>(symEngineEquation);
+            } else if ((symEngineEquation->get_type_code() == SymEngine::SYMENGINE_FUNCTIONSYMBOL)
+                       && (SymEngine::rcp_static_cast<const SymEngine::FunctionSymbol>(symEngineEquation)->get_name() == "diff")) {
+                res = SymEngine::rcp_static_cast<const SymEngine::Symbol>(symEngineEquation->get_args()[1]);
+            }
 
-        if (lhs->get_type_code() == SymEngine::SYMENGINE_SYMBOL) {
-            symbol = SymEngine::rcp_static_cast<const SymEngine::Symbol>(lhs);
-        } else if (lhs->get_type_code() == SymEngine::SYMENGINE_FUNCTIONSYMBOL
-                   && SymEngine::rcp_static_cast<const SymEngine::FunctionSymbol>(lhs)->get_name() == "diff") {
-            symbol = SymEngine::rcp_static_cast<const SymEngine::Symbol>(lhs->get_args().back());
+            return res;
+        };
+
+        auto symEngineEquationArgs = equation->mSymEngineEquation->get_args();
+        auto symEngineLhsVariable = symEngineVariableFromSymEngineEquation(symEngineEquationArgs[0]);
+        auto symEngineRhsVariable = symEngineVariableFromSymEngineEquation(symEngineEquationArgs[1]);
+
+        auto analyserInternalVariableFromSymEngineVariable = [&](const SymEngineVariable &seVariable) {
+            if (seVariable.is_null()) {
+                return AnalyserInternalVariablePtr {};
+            }
+
+            auto it = mSEVariableAIVariableMap.find(seVariable);
+
+            return (it == mSEVariableAIVariableMap.end()) ? AnalyserInternalVariablePtr {} : it->second;
+        };
+
+        // The unknown variable of the equation must be on either the LHS or RHS. We also need to check that the unknown
+        // variable is not a pre-tearing variable since those are still considered unknown at this stage.
+
+        auto unknownVariable = equation->mUnknownVariables.empty() ?
+                                   analyserInternalVariableFromSymEngineVariable(symEngineLhsVariable) :
+                                   equation->mUnknownVariables[0];
+
+        if (unknownVariable == nullptr) {
+            unknownVariable = analyserInternalVariableFromSymEngineVariable(symEngineRhsVariable);
         }
 
-        if (!symbol.is_null() && mVariableMap[symbol] == equation->mUnknownVariables.front()) {
-            seSubstitutionMap[seChildren.front()] = seChildren.back();
+        if ((unknownVariable == nullptr)
+            || (std::find(preTearingVariables.begin(), preTearingVariables.end(), unknownVariable) != preTearingVariables.end())) {
+            continue;
+        }
+
+        // We have identified the unknown variable and the correct substitution, so add it to our substitution map.
+
+        if (!symEngineLhsVariable.is_null()
+            && (analyserInternalVariableFromSymEngineVariable(symEngineLhsVariable) == unknownVariable)) {
+            substitutionMap[symEngineEquationArgs[0]] = symEngineEquationArgs[1];
         } else {
-            seSubstitutionMap[seChildren.back()] = seChildren.front();
+            substitutionMap[symEngineEquationArgs[1]] = symEngineEquationArgs[0];
         }
     }
 
-    // Substitute into equations and restructure for new AST.
+    // Substitute the SymEngine equations of all our equations and regenerate the AST tree for all our equations.
 
-    for (const auto &unknownEquation : unknownEquations) {
-        if (unknownEquation->mSeEquation.is_null()) {
-            // Need to regenerate AST tree regardless to refresh variable lists.
+    for (const auto &equation : equations) {
+        // If the equation doesn't have a SymEngine equivalent, we still need to "replace" its AST tree so that its
+        // internals get updated.
 
-            replaceAstTree(unknownEquation, unknownEquation->mAst);
+        if (equation->mSymEngineEquation.is_null()) {
+            replaceAstTree(equation, equation->mAst);
+
             continue;
         }
 
-        for (size_t i = 0; i < seSubstitutionMap.size(); ++i) {
-            unknownEquation->mSeEquation = SymEngine::msubs(unknownEquation->mSeEquation, seSubstitutionMap);
+        // Do the substitution for this equation and then replace its AST tree with the new one generated from the
+        // substituted SymEngine equation.
+
+        if (!substitutionMap.empty()) {
+            equation->mSymEngineEquation = SymEngine::msubs(equation->mSymEngineEquation, substitutionMap);
         }
 
-        unknownEquation->simplifySeEquation();
-
-        auto newAst = parseSymEngineToAst(unknownEquation->mSeEquation, nullptr);
-        replaceAstTree(unknownEquation, newAst);
+        replaceAstTree(equation, symEngineToAst(equation->mSymEngineEquation));
     }
+
+    // We have made some progress towards matching variables and equations, so try again using our tearing variables as
+    // unknown variables.
 
     if (progressMade) {
-        // Progress has been made, so we can continue matching.
+        auto unknownVariables = tearingVariables;
 
-        auto newUnknownVariables = tearingVariables;
-        matchSystem(newUnknownVariables, unknownEquations, externalsInitialised);
+        matchVariablesAndEquations(unknownVariables, equations, externalsInitialised);
+
         return;
     }
 
-    if (!externalsInitialised && mExternalVariables.size() > 0) {
-        // Try again assuming external variables are known.
+    // We haven't made any progress towards matching variables and equations, so try again by initialising our external
+    // variables if we haven't already.
 
-        AnalyserInternalVariablePtrs newUnknownVariables;
+    if (!externalsInitialised && mExternalVariables.size() > 0) {
+        AnalyserInternalVariablePtrs unknownVariables;
 
         for (const auto &variable : tearingVariables) {
             if (!variable->mIsExternalVariable) {
-                newUnknownVariables.push_back(variable);
+                unknownVariables.push_back(variable);
             }
         }
 
-        matchSystem(newUnknownVariables, unknownEquations, true);
+        matchVariablesAndEquations(unknownVariables, equations, true);
+
         return;
     }
 
-    // Our matching algorithm has stalled, meaning the rest of the system must be classified as an NLA.
+    // Our matching algorithm has stalled which means that the rest of the system must be classified as an NLA system.
 
-    for (const auto &unknownEquation : unknownEquations) {
-        unknownEquation->mType = AnalyserInternalEquation::Type::NLA;
-
-        for (const auto &variable : unknownEquation->mAllVariables) {
-            if (variable->mMatchedEquation == nullptr
-                && variable->mType != AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION
-                && variable->mType != AnalyserInternalVariable::Type::INITIALISED) {
-                variable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
-                unknownEquation->mUnknownVariables.push_back(variable);
-            }
-        }
-    }
+    markEquationsAsNla(equations);
 }
 
-void Analyser::AnalyserImpl::classifyInternalSystem()
+void Analyser::AnalyserImpl::classifyVariablesAndEquations()
 {
     // Classify our analyser internal equations and analyser internal variables.
 
     for (const auto *orderedVariables : {&mFirstVariables, &mLastVariables}) {
-        for (const auto &variable : *orderedVariables) {
-            auto equation = variable->mMatchedEquation;
+        for (const auto &orderedVariable : *orderedVariables) {
+            auto matchedEquation = orderedVariable->mMatchedEquation;
 
-            // Ignore variables without a matching equation since they will have been classified as part
-            // of an NLA system.
-            if (equation == nullptr) {
+            // Ignore variables without a matching equation since they will have been classified as part of an NLA system.
+
+            if (matchedEquation == nullptr) {
                 continue;
             }
 
-            if (variable->mType == AnalyserInternalVariable::Type::STATE
-                || variable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE) {
-                equation->mType = AnalyserInternalEquation::Type::ODE;
+            // The matched equation of state variables and variables that should be state variables are always
+            // classified as ODEs.
+
+            if ((orderedVariable->mType == AnalyserInternalVariable::Type::STATE)
+                || (orderedVariable->mType == AnalyserInternalVariable::Type::SHOULD_BE_STATE)) {
+                matchedEquation->mType = AnalyserInternalEquation::Type::ODE;
+
                 continue;
             }
 
-            // onlyConstants is True when equations don't contain any variables.
-            // onlyComputedConstants is True when all variables of an equation or constant (i.e. true constant or computed constant).
+            // For other variables, we need to inspect the variables that their matched equation depends on in order to
+            // classify them.
 
-            bool noUnknowns = true;
-            bool onlyConstants = true;
-            bool onlyComputedConstants = true;
+            std::unordered_set<AnalyserInternalVariable *> dependentVariables;
+            auto onlyConstants = true;
+            auto onlyComputedConstants = true;
 
-            for (const auto &dependentVariable : equation->mAllVariables) {
-                if (dependentVariable == variable) {
-                    continue;
+            auto classifyDependentVariable = [&](const AnalyserInternalVariablePtr &dependentVariable) {
+                if (dependentVariable == orderedVariable) {
+                    return;
+                }
+
+                if (!dependentVariables.insert(dependentVariable.get()).second) {
+                    return;
                 }
 
                 if (dependentVariable->mIsExternalVariable) {
-                    onlyComputedConstants = false;
                     onlyConstants = false;
-                    continue;
+                    onlyComputedConstants = false;
+
+                    return;
                 }
 
                 switch (dependentVariable->mType) {
-                case (AnalyserInternalVariable::Type::UNKNOWN):
-                    noUnknowns = false;
-
-                    break;
-                case (AnalyserInternalVariable::Type::STATE):
-                case (AnalyserInternalVariable::Type::SHOULD_BE_STATE):
-                case (AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE):
-                case (AnalyserInternalVariable::Type::INITIALISED_ALGEBRAIC_VARIABLE):
-                case (AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION):
+                case AnalyserInternalVariable::Type::CONSTANT:
                     onlyComputedConstants = false;
-                    onlyConstants = false;
 
                     break;
-                case (AnalyserInternalVariable::Type::INITIALISED):
-                case (AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT):
-                case (AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT):
+                case AnalyserInternalVariable::Type::INITIALISED:
+                case AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT:
+                case AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT:
                     onlyConstants = false;
 
                     break;
                 default:
+                    onlyConstants = false;
+                    onlyComputedConstants = false;
 
                     break;
                 }
+            };
+
+            for (const auto &dependentVariable : matchedEquation->mDependencies) {
+                classifyDependentVariable(dependentVariable);
             }
 
-            if (!noUnknowns) {
-                // We're still unable to classify the equation.
+            for (const auto &dependentVariable : matchedEquation->mAllVariables) {
+                classifyDependentVariable(dependentVariable);
+            }
 
-                continue;
-            } else if (onlyConstants) {
-                variable->mType = AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT;
-                equation->mType = AnalyserInternalEquation::Type::CONSTANT;
+            // Classify equations and variables.
+
+            if (onlyConstants) {
+                orderedVariable->mType = AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT;
+                matchedEquation->mType = AnalyserInternalEquation::Type::CONSTANT;
             } else if (onlyComputedConstants) {
-                variable->mType = AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT;
-                equation->mType = AnalyserInternalEquation::Type::COMPUTED_CONSTANT;
+                orderedVariable->mType = AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT;
+                matchedEquation->mType = AnalyserInternalEquation::Type::COMPUTED_CONSTANT;
             } else {
-                variable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
-                equation->mType = AnalyserInternalEquation::Type::ALGEBRAIC;
+                orderedVariable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
+                matchedEquation->mType = AnalyserInternalEquation::Type::ALGEBRAIC;
             }
         }
     }
 
+    // Mark any remaining unknown variables as initialised variables, should they be external variables.
+
     for (const auto &variable : mInternalVariables) {
-        if (variable->mIsExternalVariable && variable->mType == AnalyserInternalVariable::Type::UNKNOWN) {
+        if (variable->mIsExternalVariable && (variable->mType == AnalyserInternalVariable::Type::UNKNOWN)) {
             variable->mType = AnalyserInternalVariable::Type::INITIALISED;
         }
     }
 
+    // Mark any remaining equations with no unknown variables as NLAs.
+
     for (const auto &equation : mInternalEquations) {
-        if (equation->mUnknownVariables.size() != 0) {
-            continue;
-        }
-
-        // TODO Test cases need to be updated to stop NLAs from forming due to initial values. Afterwards,
-        // the code below should be removed. The implementation below is NOT correct as variables depending
-        // on the initialised variables below may be used in the NLA equations to solve for the variables.
-        // I.e. we may accidentally introduce an algebraic loop.
-
-        AnalyserInternalVariablePtrs initialisedVariables;
-
-        for (const auto &variable : equation->mAllVariables) {
-            if (variable->mType == AnalyserInternalVariable::Type::INITIALISED
-                || variable->mType == AnalyserInternalVariable::Type::INITIALISED_ALGEBRAIC_VARIABLE) {
-                initialisedVariables.push_back(variable);
-            }
-        }
-
-        if (initialisedVariables.empty()) {
-            for (const auto &variable : equation->mAllVariables) {
-                if (variable->mIsExternalVariable) {
-                    continue;
-                }
-                variable->mType = AnalyserInternalVariable::Type::OVERCONSTRAINED;
-            }
-            continue;
-        }
-
-        equation->mType = AnalyserInternalEquation::Type::NLA;
-        for (const auto &variable : initialisedVariables) {
-            variable->mType = AnalyserInternalVariable::Type::INITIALISED_ALGEBRAIC_VARIABLE;
-            equation->mUnknownVariables.push_back(variable);
+        if (equation->mUnknownVariables.empty() && (equation->mType == AnalyserInternalEquation::Type::UNKNOWN)) {
+            equation->mType = AnalyserInternalEquation::Type::NLA;
         }
     }
 }
@@ -3298,6 +4351,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
     mAnalyserModel = AnalyserModel::AnalyserModelImpl::create(model);
 
     mInternalVariables.clear();
+    mInternalVariableCache.clear();
     mInternalEquations.clear();
 
     mCiCnUnits.clear();
@@ -3331,7 +4385,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
     // Mark some variables as external variables, should there be some and
     // should they belong to the model being analysed.
 
-    std::map<VariablePtr, VariablePtrs> primaryExternalVariables;
+    std::unordered_map<VariablePtr, VariablePtrs> primaryExternalVariables;
 
     if (!mExternalVariables.empty()) {
         for (const auto &externalVariable : mExternalVariables) {
@@ -3350,10 +4404,12 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
                 addIssue(issue);
             } else {
                 auto internalVariable = Analyser::AnalyserImpl::internalVariable(variable);
+                auto isVoi = (mAnalyserModel->mPimpl->mVoi != nullptr)
+                             && (internalVariable->mVariable == mAnalyserModel->mPimpl->mVoi->variable());
 
                 primaryExternalVariables[internalVariable->mVariable].push_back(variable);
 
-                if (!internalVariable->mIsExternalVariable) {
+                if (!isVoi && !internalVariable->mIsExternalVariable) {
                     internalVariable->mIsExternalVariable = true;
 
                     for (const auto &dependency : externalVariable->dependencies()) {
@@ -3379,6 +4435,8 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
 
     // Check that the variables that were marked as external were rightly so.
 
+    bool hasInvalidVoiExternalVariable = false;
+
     for (const auto &primaryExternalVariable : primaryExternalVariables) {
         std::string description;
         auto isVoi = (mAnalyserModel->mPimpl->mVoi != nullptr)
@@ -3390,6 +4448,8 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
                                   != primaryExternalVariable.second.end();
 
         if (isVoi || (equivalentVariableCount > 1) || !hasPrimaryVariable) {
+            description.reserve(256 + 250 * equivalentVariableCount);
+
             description += (equivalentVariableCount == 2) ? "Both " : "";
 
             for (size_t i = 0; i < equivalentVariableCount; ++i) {
@@ -3424,6 +4484,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
                 description += " variable of integration which cannot be used as an external variable.";
 
                 referenceRule = Issue::ReferenceRule::ANALYSER_EXTERNAL_VARIABLE_VOI;
+                hasInvalidVoiExternalVariable = true;
             } else {
                 description += (equivalentVariableCount == 1) ?
                                    " is marked as an external variable, but it is not a primary variable." :
@@ -3454,6 +4515,12 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         }
     }
 
+    if (hasInvalidVoiExternalVariable) {
+        mAnalyserModel->mPimpl->mType = AnalyserModel::Type::INVALID;
+
+        return;
+    }
+
     // Analyse our different equations' units to make sure that everything is
     // consistent.
 
@@ -3478,60 +4545,428 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         }
     }
 
+    if (mAnalyser->issueCount() != 0) {
+        mAnalyserModel->mPimpl->mType = AnalyserModel::Type::INVALID;
+
+        return;
+    }
+
     // Determine whether some variables have been marked as external.
 
     auto hasExternalVariables = std::any_of(mInternalVariables.begin(), mInternalVariables.end(), [](const auto &iv) {
         return iv->mIsExternalVariable;
     });
 
-    // Prepare to recursively match equations and variables together.
-    // First initialise the variables and equations we've yet to match.
+    // Remove any equations that define an external state variable. Indeed, they are not used to compute internal
+    // variables since the state variable is supplied externally.
+
+    mInternalEquations.erase(
+        std::remove_if(mInternalEquations.begin(), mInternalEquations.end(), [](const auto &equation) {
+            return std::any_of(equation->mStateVariables.begin(), equation->mStateVariables.end(), [](const auto &stateVariable) {
+                return stateVariable->mIsExternalVariable;
+            });
+        }),
+        mInternalEquations.end());
+
+    // Initialise the variables and the equations that we have to match.
+    // Note: the VOI and initialised variables (i.e.  constants and state variables, normally) are not included since
+    //       they are expected to be known and therefore don't need to be matched.
 
     AnalyserInternalVariablePtrs unknownVariables;
     AnalyserInternalEquationPtrs unknownEquations = mInternalEquations;
 
     std::copy_if(mInternalVariables.begin(), mInternalVariables.end(),
                  std::back_inserter(unknownVariables),
-                 [](const auto &variable) { return variable->mType != AnalyserInternalVariable::Type::INITIALISED
-                                                   && variable->mType != AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION; });
+                 [](const auto &variable) {
+                     return (variable->mType != AnalyserInternalVariable::Type::VARIABLE_OF_INTEGRATION)
+                            && (variable->mType != AnalyserInternalVariable::Type::INITIALISED);
+                 });
 
-    // Generate SymEngine expressions for our equations.
-    // Also begin tracking equation matching from the perspective of variables.
+    // Generate the SymEngine equivalent of our unknown equations.
 
-    for (const auto &equation : unknownEquations) {
-        auto [result, seEquation] = parseAstToSymEngine(equation->mAst);
+    for (const auto &unknownEquation : unknownEquations) {
+        auto [result, symEngineEquation] = astToSymEngine(unknownEquation->mAst);
+
         if (result) {
-            equation->mSeEquation = seEquation;
+            unknownEquation->mSymEngineEquation = symEngineEquation;
         }
     }
 
-    matchSystem(unknownVariables, unknownEquations, false);
+    // Start matching our unknown variables and equations, and classify them.
 
-    classifyInternalSystem();
+    matchVariablesAndEquations(unknownVariables, unknownEquations, false);
+
+    classifyVariablesAndEquations();
+
+    // At this stage, there may be some unknown variables that part of a coupled system of equations that we couldn't
+    // resolve in isolation, so we need to try to resolve them using some global NLA systems.
+
+    resolveUnknownVariablesUsingGlobalNlaSystems();
+
+    // TODO: ---GRY--- If we still need to call resolveUnknownVariablesUsingGlobalNlaSystems() above then we should revisit any still-unknown equations now that the global NLA systems have made some algebraic variables known.
 
     // Make sure that our variables are valid.
 
     for (const auto &internalVariable : mInternalVariables) {
-        switch (internalVariable->mType) {
-        case AnalyserInternalVariable::Type::UNKNOWN:
-            addInvalidVariableIssue(internalVariable, Issue::ReferenceRule::ANALYSER_VARIABLE_UNUSED);
-
-            break;
-        case AnalyserInternalVariable::Type::SHOULD_BE_STATE:
-            addInvalidVariableIssue(internalVariable, Issue::ReferenceRule::ANALYSER_STATE_NOT_INITIALISED);
-
-            break;
-        case AnalyserInternalVariable::Type::INITIALISED:
+        if (internalVariable->mType == AnalyserInternalVariable::Type::INITIALISED) {
             // The variable is (still) initialised so it has to be a constant.
 
             internalVariable->makeConstant();
+        }
+    }
+
+    // Make sure that variables that are initialised using another variable are
+    // not initialised using an algebraic variable.
+
+    const auto origErrorCount = mAnalyser->errorCount();
+
+    for (const auto &internalVariable : mInternalVariables) {
+        if ((internalVariable->mInitialisingVariable != nullptr)
+            && !isCellMLReal(internalVariable->mInitialisingVariable->initialValue())) {
+            auto initialisingInternalVariable = Analyser::AnalyserImpl::internalVariable(owningComponent(internalVariable->mInitialisingVariable)->variable(internalVariable->mInitialisingVariable->initialValue()));
+
+            if (initialisingInternalVariable->mType == AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE) {
+                auto issue = Issue::IssueImpl::create();
+
+                issue->mPimpl->setDescription("Variable '" + internalVariable->mVariable->name()
+                                              + "' in component '" + owningComponent(internalVariable->mVariable)->name()
+                                              + "' is initialised using variable '" + initialisingInternalVariable->mVariable->name()
+                                              + "', which is an algebraic variable. Only a reference to a constant, a computed constant, a state variable, or a computable non-linear algebraic variable is allowed.");
+                issue->mPimpl->setReferenceRule(Issue::ReferenceRule::ANALYSER_VARIABLE_INITIALISED_USING_ALGEBRAIC_VARIABLE);
+                issue->mPimpl->mItem->mPimpl->setVariable(internalVariable->mVariable);
+
+                addIssue(issue);
+            }
+        }
+    }
+
+    if (mAnalyser->errorCount() != origErrorCount) {
+        mAnalyserModel->mPimpl->mType = AnalyserModel::Type::INVALID;
+
+        return;
+    }
+
+    // Make sure that our equations are valid.
+
+    AnalyserInternalVariablePtrs addedExternalVariables;
+    std::unordered_set<AnalyserInternalVariable *> addedExternalVariablesSet;
+    AnalyserInternalEquationPtrs addedInternalEquations;
+    AnalyserInternalEquationPtrs removedInternalEquations;
+    auto nlaSystemIndex = MAX_SIZE_T;
+
+    for (const auto &internalEquation : mInternalEquations) {
+        // Account for the unknown variables, in an NLA equation, that have been
+        // marked as an external variable. This means removing them from
+        // mUnknownVariables and adding a new equation for them so that the NLA
+        // equation can have a dependency on them.
+
+        if (internalEquation->mType == AnalyserInternalEquation::Type::NLA) {
+            AnalyserInternalVariablePtrs externalUnknownVariables;
+
+            for (const auto &unknownVariable : internalEquation->mUnknownVariables) {
+                if (unknownVariable->mIsExternalVariable
+                    && addedExternalVariablesSet.insert(unknownVariable.get()).second) {
+                    addedExternalVariables.push_back(unknownVariable);
+                    addedInternalEquations.push_back(AnalyserInternalEquation::create(unknownVariable));
+                }
+
+                if (unknownVariable->mIsExternalVariable) {
+                    externalUnknownVariables.push_back(unknownVariable);
+                }
+            }
+
+            for (const auto &unknownVariable : externalUnknownVariables) {
+                internalEquation->removeUnknownVariable(unknownVariable);
+            }
+        }
+
+        // Discard the equation if we have no unknown variables left and it does not contain any remaining dependencies.
+        // Otherwise, keep it as a constraint on known variables.
+
+        if (internalEquation->mUnknownVariables.empty()
+            && internalEquation->mDependencies.empty()) {
+            removedInternalEquations.push_back(internalEquation);
+        }
+    }
+
+    for (const auto &internalEquation : mInternalEquations) {
+        if (internalEquation->mType != AnalyserInternalEquation::Type::NLA) {
+            continue;
+        }
+
+        if (internalEquation->mNlaSystemIndex == MAX_SIZE_T) {
+            internalEquation->mNlaSystemIndex = ++nlaSystemIndex;
+        }
+
+        std::unordered_set<AnalyserInternalVariable *> internalEquationVariablesSet;
+
+        internalEquationVariablesSet.reserve(internalEquation->mUnknownVariables.size() + internalEquation->mDependencies.size());
+
+        for (const auto &unknownVariable : internalEquation->mUnknownVariables) {
+            if (!unknownVariable->mIsExternalVariable
+                && (unknownVariable->mType != AnalyserInternalVariable::Type::CONSTANT)
+                && (unknownVariable->mType != AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT)
+                && (unknownVariable->mType != AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT)) {
+                internalEquationVariablesSet.insert(unknownVariable.get());
+            }
+        }
+        for (const auto &dependency : internalEquation->mDependencies) {
+            if (!dependency->mIsExternalVariable
+                && (dependency->mType != AnalyserInternalVariable::Type::CONSTANT)
+                && (dependency->mType != AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT)
+                && (dependency->mType != AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT)) {
+                internalEquationVariablesSet.insert(dependency.get());
+            }
+        }
+
+        for (const auto &otherInternalEquation : mInternalEquations) {
+            if ((otherInternalEquation != internalEquation)
+                && (otherInternalEquation->mType == AnalyserInternalEquation::Type::NLA)) {
+                // Check what common variables there are between internalEquation and otherInternalEquation, if any.
+                // Note: we would normally use std::set_intersection() for this, but this would require both sets to be
+                //       sorted. Since they are not, we use a hash set instead.
+
+                bool hasCommonVariables = false;
+
+                for (const auto &unknownVariable : otherInternalEquation->mUnknownVariables) {
+                    if (!unknownVariable->mIsExternalVariable
+                        && (unknownVariable->mType != AnalyserInternalVariable::Type::CONSTANT)
+                        && (unknownVariable->mType != AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT)
+                        && (unknownVariable->mType != AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT)
+                        && (internalEquationVariablesSet.count(unknownVariable.get()) != 0)) {
+                        hasCommonVariables = true;
+
+                        break;
+                    }
+                }
+
+                if (!hasCommonVariables) {
+                    for (const auto &dependency : otherInternalEquation->mDependencies) {
+                        if (!dependency->mIsExternalVariable
+                            && (dependency->mType != AnalyserInternalVariable::Type::CONSTANT)
+                            && (dependency->mType != AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT)
+                            && (dependency->mType != AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT)
+                            && (internalEquationVariablesSet.count(dependency.get()) != 0)) {
+                            hasCommonVariables = true;
+
+                            break;
+                        }
+                    }
+                }
+
+                // Consider otherInternalEquation as an NLA sibling of internalEquation if there are some common
+                // variables, and make sure that it has the same NLA system index as internalEquation.
+
+                if (hasCommonVariables) {
+                    internalEquation->mNlaSiblings.push_back(otherInternalEquation);
+
+                    otherInternalEquation->mNlaSystemIndex = internalEquation->mNlaSystemIndex;
+                }
+            }
+        }
+    }
+
+    // Remove any internal equations that are no longer needed.
+
+    if (!removedInternalEquations.empty()) {
+        std::unordered_set<AnalyserInternalEquation *> removedInternalEquationsSet;
+
+        removedInternalEquationsSet.reserve(removedInternalEquations.size());
+
+        for (const auto &removedInternalEquation : removedInternalEquations) {
+            removedInternalEquationsSet.insert(removedInternalEquation.get());
+        }
+
+        mInternalEquations.erase(
+            std::remove_if(mInternalEquations.begin(), mInternalEquations.end(),
+                           [&removedInternalEquationsSet](const auto &removedInternalEquation) {
+                               return removedInternalEquationsSet.count(removedInternalEquation.get()) != 0;
+                           }),
+            mInternalEquations.end());
+    }
+
+    if (!addedInternalEquations.empty()) {
+        mInternalEquations.insert(mInternalEquations.end(), addedInternalEquations.begin(), addedInternalEquations.end());
+    }
+
+    // Build the companion sets of unknown variables for all the NLA equations before linking the equations together.
+
+    for (const auto &internalEquation : mInternalEquations) {
+        if (internalEquation->mType != AnalyserInternalEquation::Type::NLA) {
+            continue;
+        }
+
+        internalEquation->mUnknownVariablesSet.clear();
+
+        for (const auto &unknownVariable : internalEquation->mUnknownVariables) {
+            internalEquation->mUnknownVariablesSet.insert(unknownVariable.get());
+        }
+    }
+
+    // Confirm that the variables in an NLA system are not overconstrained.
+    // Note: this may happen if an NLA system contains too many NLA equations to compute its unknown variables and/or if
+    //       some internal equations were removed (as a result of some variables in an NLA equation having been marked
+    //       as external).
+
+    std::unordered_set<AnalyserInternalVariable *> underconstrainedVariablesSet;
+    std::unordered_set<AnalyserInternalVariable *> overconstrainedVariablesSet;
+
+    for (const auto &internalEquation : mInternalEquations) {
+        switch (internalEquation->mType) {
+        case AnalyserInternalEquation::Type::COMPUTED_CONSTANT: {
+            auto unknownVariable = internalEquation->mUnknownVariables[0];
+
+            for (const auto &variable : internalEquation->mAllVariables) {
+                if ((variable != unknownVariable)
+                    && (variable->mType != AnalyserInternalVariable::Type::CONSTANT)
+                    && (variable->mType != AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT)
+                    && (variable->mType != AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT)) {
+                    // We are supposed to compute a variable-based constant, yet we have come across a variable which is
+                    // not some kind of a constant. In fact, it was an algebraic variable (with an initial guess) that
+                    // needs to be computed using an NLA system. So, requalify the unknown variable and equation.
+
+                    unknownVariable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
+                    internalEquation->mType = AnalyserInternalEquation::Type::ALGEBRAIC;
+
+                    break;
+                }
+            }
+        } break;
+        case AnalyserInternalEquation::Type::NLA: {
+            auto markVariableAsUnderconstrained = [&](const AnalyserInternalVariablePtr &variable) {
+                if ((variable->mType == AnalyserInternalVariable::Type::INITIALISED)
+                    || (variable->mType == AnalyserInternalVariable::Type::STATE)
+                    || (variable->mType == AnalyserInternalVariable::Type::CONSTANT)
+                    || variable->mIsExternalVariable) {
+                    return;
+                }
+
+                if (underconstrainedVariablesSet.insert(variable.get()).second) {
+                    variable->mType = AnalyserInternalVariable::Type::UNDERCONSTRAINED;
+                }
+            };
+
+            auto nlaSiblingCount = internalEquation->mNlaSiblings.size() + 1; // +1 to account for internalEquation itself.
+
+            if (nlaSiblingCount < internalEquation->mUnknownVariables.size()) {
+                // There are fewer NLA equations than unknown variables, so all the variables involved in the NLA system
+                // should be considered as underconstrained.
+
+                for (const auto &variable : internalEquation->mAllVariables) {
+                    markVariableAsUnderconstrained(variable);
+                }
+            } else if (nlaSiblingCount > internalEquation->mUnknownVariables.size()) {
+                // There are more NLA equations than unknown variables, so the NLA system should be considered as
+                // overconstrained.
+                // Note: this can still happen for equations that have no unknown variables left because the variables
+                //       they depend on are already known.
+
+                auto markVariableAsOverconstrained = [&](const AnalyserInternalVariablePtr &variable) {
+                    if ((variable->mType == AnalyserInternalVariable::Type::INITIALISED)
+                        || (variable->mType == AnalyserInternalVariable::Type::STATE)
+                        || (variable->mType == AnalyserInternalVariable::Type::CONSTANT)
+                        || variable->mIsExternalVariable) {
+                        return;
+                    }
+
+                    if (overconstrainedVariablesSet.insert(variable.get()).second) {
+                        variable->mType = AnalyserInternalVariable::Type::OVERCONSTRAINED;
+                    }
+                };
+
+                if (internalEquation->mUnknownVariables.empty()) {
+                    size_t variableCount = 0;
+
+                    for (const auto &dependency : internalEquation->mDependencies) {
+                        if (dependency->mIsExternalVariable
+                            || (dependency->mType == AnalyserInternalVariable::Type::CONSTANT)
+                            || (dependency->mType == AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT)
+                            || (dependency->mType == AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT)) {
+                            continue;
+                        }
+
+                        ++variableCount;
+                    }
+
+                    if (nlaSiblingCount < variableCount) {
+                        for (const auto &dependency : internalEquation->mDependencies) {
+                            markVariableAsUnderconstrained(dependency);
+                        }
+                    } else if (nlaSiblingCount > variableCount) {
+                        for (const auto &dependency : internalEquation->mDependencies) {
+                            markVariableAsOverconstrained(dependency);
+                        }
+                    }
+                } else {
+                    for (const auto &unknownVariable : internalEquation->mUnknownVariables) {
+                        markVariableAsOverconstrained(unknownVariable);
+                    }
+
+                    for (const auto &dependency : internalEquation->mDependencies) {
+                        if (dependency->mIsExternalVariable
+                            || (dependency->mType == AnalyserInternalVariable::Type::CONSTANT)
+                            || (dependency->mType == AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT)
+                            || (dependency->mType == AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT)) {
+                            continue;
+                        }
+
+                        markVariableAsOverconstrained(dependency);
+                    }
+                }
+            }
+        }
+
+        break;
+        default:
+            // Other types we don't care about.
+
+            break;
+        }
+    }
+
+    AnalyserInternalVariablePtrs pendingInvalidVariables;
+
+    for (const auto &internalVariable : mInternalVariables) {
+        switch (internalVariable->mType) {
+        case AnalyserInternalVariable::Type::UNKNOWN:
+        case AnalyserInternalVariable::Type::SHOULD_BE_STATE:
+        case AnalyserInternalVariable::Type::UNDERCONSTRAINED:
+        case AnalyserInternalVariable::Type::OVERCONSTRAINED:
+            pendingInvalidVariables.push_back(internalVariable);
+
+            break;
+        default:
+            // Other types we don't care about.
+
+            break;
+        }
+    }
+
+    for (const auto &pendingInvalidVariable : pendingInvalidVariables) {
+        switch (pendingInvalidVariable->mType) {
+        case AnalyserInternalVariable::Type::UNKNOWN:
+            addInvalidVariableIssue(pendingInvalidVariable,
+                                    Issue::ReferenceRule::ANALYSER_VARIABLE_UNUSED);
+
+            break;
+        case AnalyserInternalVariable::Type::SHOULD_BE_STATE:
+            addInvalidVariableIssue(pendingInvalidVariable,
+                                    Issue::ReferenceRule::ANALYSER_STATE_NOT_INITIALISED);
+
+            break;
+        case AnalyserInternalVariable::Type::UNDERCONSTRAINED:
+            addInvalidVariableIssue(pendingInvalidVariable,
+                                    Issue::ReferenceRule::ANALYSER_VARIABLE_UNDERCONSTRAINED);
 
             break;
         case AnalyserInternalVariable::Type::OVERCONSTRAINED:
-            addInvalidVariableIssue(internalVariable, Issue::ReferenceRule::ANALYSER_VARIABLE_OVERCONSTRAINED);
+            addInvalidVariableIssue(pendingInvalidVariable,
+                                    Issue::ReferenceRule::ANALYSER_VARIABLE_OVERCONSTRAINED);
 
             break;
-        default: // Other types we don't care about.
+        default:
+            // Any other type has already been handled elsewhere.
+
             break;
         }
     }
@@ -3541,6 +4976,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
             switch (iv->mType) {
             case AnalyserInternalVariable::Type::UNKNOWN:
             case AnalyserInternalVariable::Type::SHOULD_BE_STATE:
+            case AnalyserInternalVariable::Type::UNDERCONSTRAINED:
                 return true;
             default:
                 return false;
@@ -3563,217 +4999,11 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         return;
     }
 
-    // Make sure that variables that are initialised using another variable are
-    // not initialised using an algebraic variable.
-
-    for (const auto &internalVariable : mInternalVariables) {
-        if ((internalVariable->mInitialisingVariable != nullptr)
-            && !isCellMLReal(internalVariable->mInitialisingVariable->initialValue())) {
-            auto initialisingInternalVariable = Analyser::AnalyserImpl::internalVariable(owningComponent(internalVariable->mInitialisingVariable)->variable(internalVariable->mInitialisingVariable->initialValue()));
-
-            if (initialisingInternalVariable->mType == AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE) {
-                auto issue = Issue::IssueImpl::create();
-
-                issue->mPimpl->setDescription("Variable '" + internalVariable->mVariable->name()
-                                              + "' in component '" + owningComponent(internalVariable->mVariable)->name()
-                                              + "' is initialised using variable '" + initialisingInternalVariable->mVariable->name()
-                                              + "', which is an algebraic variable. Only a reference to a constant, a computed constant, a state variable, or a computable non-linear algebraic variable is allowed.");
-                issue->mPimpl->setReferenceRule(Issue::ReferenceRule::ANALYSER_VARIABLE_INITIALISED_USING_ALGEBRAIC_VARIABLE);
-                issue->mPimpl->mItem->mPimpl->setVariable(internalVariable->mVariable);
-
-                addIssue(issue);
-            }
-        }
-    }
-
-    if (mAnalyser->errorCount() != 0) {
-        mAnalyserModel->mPimpl->mType = AnalyserModel::Type::INVALID;
-
-        return;
-    }
-
-    // Make sure that our equations are valid.
-
-    AnalyserInternalVariablePtrs addedExternalVariables;
-    AnalyserInternalEquationPtrs addedInternalEquations;
-    AnalyserInternalEquationPtrs removedInternalEquations;
-    auto nlaSystemIndex = MAX_SIZE_T;
-
-    for (const auto &internalEquation : mInternalEquations) {
-        // Account for the unknown variables, in an NLA equation, that have been
-        // marked as an external variable. This means removing them from
-        // mUnknownVariables and adding a new equation for them so that the NLA
-        // equation can have a dependency on them.
-
-        if (internalEquation->mType == AnalyserInternalEquation::Type::NLA) {
-            for (const auto &unknownVariable : internalEquation->mUnknownVariables) {
-                if (unknownVariable->mIsExternalVariable
-                    && (std::find(addedExternalVariables.begin(), addedExternalVariables.end(), unknownVariable) == addedExternalVariables.end())) {
-                    addedExternalVariables.push_back(unknownVariable);
-                    addedInternalEquations.push_back(AnalyserInternalEquation::create(unknownVariable));
-                }
-            }
-
-            internalEquation->mUnknownVariables.erase(std::remove_if(internalEquation->mUnknownVariables.begin(), internalEquation->mUnknownVariables.end(), isExternalVariable), internalEquation->mUnknownVariables.end());
-        }
-
-        // Discard the equation if we have no unknown variables left.
-
-        if (internalEquation->mUnknownVariables.empty()) {
-            removedInternalEquations.push_back(internalEquation);
-        }
-
-        // Make the NLA equations that compute the same variables aware of one
-        // another and assign them an index for the NLA system in which they are
-        // used.
-
-        if (internalEquation->mType == AnalyserInternalEquation::Type::NLA) {
-            if (internalEquation->mNlaSystemIndex == MAX_SIZE_T) {
-                internalEquation->mNlaSystemIndex = ++nlaSystemIndex;
-            }
-
-            for (const auto &otherInternalEquation : mInternalEquations) {
-                if ((otherInternalEquation != internalEquation)
-                    && (otherInternalEquation->mType == AnalyserInternalEquation::Type::NLA)) {
-                    // Check what common unknown variables there are between
-                    // internalEquation and otherInternalEquation, if any.
-                    // Note: we would normally use std::set_intersection() for
-                    //       this, but this would require
-                    //       internalEquation->mUnknownVariables and
-                    //       otherInternalEquation->mUnknownVariables to be
-                    //       sorted which neither of them is and it's not worth
-                    //       sorting them for such a trivial case, hence we do
-                    //       the intersection ourselves.
-
-                    AnalyserInternalVariablePtrs commonUnknownVariables;
-
-                    for (const auto &unknownVariable : internalEquation->mUnknownVariables) {
-                        if (std::find(otherInternalEquation->mUnknownVariables.begin(), otherInternalEquation->mUnknownVariables.end(), unknownVariable) != otherInternalEquation->mUnknownVariables.end()) {
-                            commonUnknownVariables.push_back(unknownVariable);
-                        }
-                    }
-
-                    // Consider otherInternalEquation as an NLA sibling of
-                    // internalEquation, if there are some common unknown
-                    // variables, and make sure that it has the same NLA system
-                    // index as internalEquation.
-
-                    if (!commonUnknownVariables.empty()) {
-                        internalEquation->mNlaSiblings.push_back(otherInternalEquation);
-
-                        otherInternalEquation->mNlaSystemIndex = internalEquation->mNlaSystemIndex;
-                    }
-                }
-            }
-        }
-    }
-
-    // Add/remove some internal equations.
-
-    for (const auto &addedInternalEquation : addedInternalEquations) {
-        mInternalEquations.push_back(addedInternalEquation);
-    }
-
-    for (const auto &removedInternalEquation : removedInternalEquations) {
-        mInternalEquations.erase(std::find(mInternalEquations.begin(), mInternalEquations.end(), removedInternalEquation));
-    }
-
-    // Confirm that equations that compute a variable-based constant are still
-    // of that type.
-    // Note: indeed, when originally qualifying such an equation, all we know
-    //       about the variables on which the equation depends is that they have
-    //       an initial value. However, those variables may then have been
-    //       proven to be computed using an NLA system, in which case the
-    //       equation should now be considered as an algebraic equation and the
-    //       variable it computes an algebraic variable.
-
-    // Confirm that the variables in an NLA system are not overconstrained.
-    // Note: this may happen if an NLA system contains too many NLA equations
-    //       to compute its unknown variables and/or if some internal equations
-    //       were removed (as a result of some variables in an NLA equation
-    //       having been marked as external).
-
-    AnalyserInternalVariablePtrs underconstrainedVariables;
-    AnalyserInternalVariablePtrs overconstrainedVariables;
-
-    for (const auto &internalEquation : mInternalEquations) {
-        switch (internalEquation->mType) {
-        case AnalyserInternalEquation::Type::COMPUTED_CONSTANT: {
-            auto unknownVariable = internalEquation->mUnknownVariables.front();
-
-            for (const auto &variable : internalEquation->mAllVariables) {
-                if ((variable != unknownVariable)
-                    && (variable->mType != AnalyserInternalVariable::Type::CONSTANT)
-                    && (variable->mType != AnalyserInternalVariable::Type::COMPUTED_TRUE_CONSTANT)
-                    && (variable->mType != AnalyserInternalVariable::Type::COMPUTED_VARIABLE_BASED_CONSTANT)) {
-                    // We are supposed to compute a variable-based constant, yet
-                    // we have come across a variable which is not some kind of
-                    // a constant. In fact, it was an algebraic variable (with
-                    // an initial guess) that needs to be computed using an NLA
-                    // system. So, requalify the unknown variable and equation.
-
-                    unknownVariable->mType = AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE;
-                    internalEquation->mType = AnalyserInternalEquation::Type::ALGEBRAIC;
-
-                    break;
-                }
-            }
-        } break;
-        case AnalyserInternalEquation::Type::NLA:
-            if (internalEquation->mNlaSiblings.size() + 1 < internalEquation->mUnknownVariables.size()) {
-                // There are fewer NLA equations than unknown variables, so all the unknown variables involved in the
-                // NLA system should be considered as underconstrained.
-
-                for (const auto &unknownVariable : internalEquation->mUnknownVariables) {
-                    if (std::find(underconstrainedVariables.begin(), underconstrainedVariables.end(), unknownVariable) == underconstrainedVariables.end()) {
-                        unknownVariable->mType = AnalyserInternalVariable::Type::UNDERCONSTRAINED;
-
-                        addInvalidVariableIssue(unknownVariable, Issue::ReferenceRule::ANALYSER_VARIABLE_UNDERCONSTRAINED);
-
-                        underconstrainedVariables.push_back(unknownVariable);
-                    }
-                }
-            } else if (internalEquation->mNlaSiblings.size() + 1 > internalEquation->mUnknownVariables.size()) {
-                // There are more NLA equations than unknown variables, so all the unknown variables involved in the NLA
-                // system should be considered as overconstrained.
-
-                for (const auto &unknownVariable : internalEquation->mUnknownVariables) {
-                    if (std::find(overconstrainedVariables.begin(), overconstrainedVariables.end(), unknownVariable) == overconstrainedVariables.end()) {
-                        unknownVariable->mType = AnalyserInternalVariable::Type::OVERCONSTRAINED;
-
-                        addInvalidVariableIssue(unknownVariable, Issue::ReferenceRule::ANALYSER_VARIABLE_OVERCONSTRAINED);
-
-                        overconstrainedVariables.push_back(unknownVariable);
-                    }
-                }
-            }
-
-            break;
-        default: // Other types we don't care about.
-            break;
-        }
-    }
-
-    if (mAnalyser->errorCount() != 0) {
-        if (!underconstrainedVariables.empty()) {
-            if (!overconstrainedVariables.empty()) {
-                mAnalyserModel->mPimpl->mType = AnalyserModel::Type::UNSUITABLY_CONSTRAINED;
-            } else {
-                mAnalyserModel->mPimpl->mType = AnalyserModel::Type::UNDERCONSTRAINED;
-            }
-        } else {
-            mAnalyserModel->mPimpl->mType = AnalyserModel::Type::OVERCONSTRAINED;
-        }
-
-        return;
-    }
-
     // Determine the type of our model.
 
-    auto hasNlaEquations = std::any_of(mInternalEquations.begin(), mInternalEquations.end(), [=](const auto &ie) {
+    auto hasNlaEquations = std::any_of(mInternalEquations.begin(), mInternalEquations.end(), [&](const auto &ie) {
         if (ie->mType == AnalyserInternalEquation::Type::NLA) {
-            // Make sure that not all the variables involved in the NLA system
-            // have been marked as external
+            // Make sure that not all the variables involved in the NLA system have been marked as external.
 
             return std::any_of(ie->mUnknownVariables.begin(), ie->mUnknownVariables.end(), [](const auto &uv) {
                 return !uv->mIsExternalVariable;
@@ -3806,15 +5036,13 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         }
     }
 
-    // Make it known through our API whether the model has some external
-    // variables.
+    // Make it known through our API whether the model has some external variables.
 
     mAnalyserModel->mPimpl->mHasExternalVariables = hasExternalVariables;
 
-    // Create a mapping between our internal equations and our future equations
-    // in the API.
+    // Create a mapping between our internal equations and our future equations in the API.
 
-    std::map<AnalyserInternalEquationPtr, AnalyserEquationPtr> aie2aeMappings;
+    std::unordered_map<AnalyserInternalEquationPtr, AnalyserEquationPtr> aie2aeMappings;
 
     for (const auto &internalEquation : mInternalEquations) {
         aie2aeMappings.emplace(internalEquation, AnalyserEquation::AnalyserEquationImpl::create());
@@ -3824,7 +5052,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
     // Note: start because we need to determine the type of our equations before we can make our internal variables
     //       available through our API.
 
-    std::map<AnalyserInternalEquationPtr, AnalyserEquation::Type> aie2aetMappings;
+    std::unordered_map<AnalyserInternalEquationPtr, AnalyserEquation::Type> aie2aetMappings;
 
     for (const auto &internalEquation : mInternalEquations) {
         // Determine whether the equation is an external one.
@@ -3877,8 +5105,8 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
 
     // Make our internal variables available through our API.
 
-    std::map<AnalyserInternalVariablePtr, AnalyserVariablePtr> aiv2avMappings;
-    std::map<VariablePtr, AnalyserVariablePtr> v2avMappings;
+    std::unordered_map<AnalyserInternalVariablePtr, AnalyserVariablePtr> aiv2avMappings;
+    std::unordered_map<VariablePtr, AnalyserVariablePtr> v2avMappings;
     auto stateIndex = MAX_SIZE_T;
     auto constantIndex = MAX_SIZE_T;
     auto computedConstantIndex = MAX_SIZE_T;
@@ -3908,7 +5136,6 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
 
                 break;
             case AnalyserInternalVariable::Type::ALGEBRAIC_VARIABLE:
-            case AnalyserInternalVariable::Type::INITIALISED_ALGEBRAIC_VARIABLE:
                 variableType = AnalyserVariable::Type::ALGEBRAIC_VARIABLE;
 
                 break;
@@ -3922,19 +5149,20 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         // Retrieve the equations used to compute the variable.
 
         AnalyserEquationPtrs equations;
-        // TODO: to be uncommented if we need to correct the type of a computed constant that is computed using an NLA equation.
+        // TODO: ---GRY--- To be uncommented if we need to correct the type of a computed constant that is computed using an NLA equation.
         /*
         auto isNlaEquation = false;
         */
 
         for (const auto &internalEquation : mInternalEquations) {
-            if (std::find(internalEquation->mUnknownVariables.begin(), internalEquation->mUnknownVariables.end(), internalVariable) != internalEquation->mUnknownVariables.end()) {
+            if (internalEquation->mUnknownVariablesSet.count(internalVariable.get()) != 0) {
                 equations.push_back(aie2aeMappings[internalEquation]);
 
-                // TODO: to be uncommented if we need to correct the type of a computed constant that is computed using an NLA equation.
+                // TODO: ---GRY--- To be uncommented if we need to correct the type of a computed constant that is computed using an NLA equation.
                 /*
-                if ((aie2aetMappings.find(internalEquation) != aie2aetMappings.end())
-                    && (aie2aetMappings[internalEquation] == AnalyserEquation::Type::NLA)) {
+                auto aetIt = aie2aetMappings.find(internalEquation);
+
+                if ((aetIt != aie2aetMappings.end()) && (aetIt->second == AnalyserEquation::Type::NLA)) {
                     isNlaEquation = true;
                 }
                 */
@@ -3943,7 +5171,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
 
         // Correct the type of the variable if it is a computed constant that is computed using an NLA equation.
 
-        // TODO: Rayen to confirm whether this is still needed (it's not covered by any test case... anymore?).
+        // TODO: ---GRY--- Confirm whether this is still needed (it's not covered by any test case... anymore?).
         /*
         if ((variableType == AnalyserVariable::Type::COMPUTED_CONSTANT) && isNlaEquation) {
             variableType = AnalyserVariable::Type::ALGEBRAIC_VARIABLE;
@@ -3990,7 +5218,9 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
     for (const auto &internalEquation : mInternalEquations) {
         // Make sure that the type of the equation is known.
 
-        if (aie2aetMappings.find(internalEquation) == aie2aetMappings.end()) {
+        auto aetIt = aie2aetMappings.find(internalEquation);
+
+        if (aetIt == aie2aetMappings.end()) {
             continue;
         }
 
@@ -4002,55 +5232,57 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
 
         // Manipulate the equation, if needed.
 
-        auto equationType = aie2aetMappings[internalEquation];
+        auto equationType = aetIt->second;
 
-        switch (equationType) {
-        case AnalyserEquation::Type::NLA:
-            // The equation is currently of the form LHS = RHS, but we want it
-            // in the form LHS-RHS, so replace the equality element with a minus
-            // one.
+        if (equationType == AnalyserEquation::Type::NLA) {
+            // The equation is currently of the form LHS = RHS, but we want it in the form LHS-RHS, so replace the
+            // equality element with a minus one.
 
             internalEquation->mAst->setType(AnalyserEquationAst::Type::MINUS);
-
-            break;
-        case AnalyserEquation::Type::EXTERNAL:
-            // Do nothing.
-
-            break;
-        default:
-            // Swap the LHS and RHS of the equation if its unknown variable is
-            // on its RHS.
-
-            if (internalEquation->isVariable(internalEquation->mUnknownVariables.front(), internalEquation->mAst->rightChild())) {
-                internalEquation->mAst->swapLeftAndRightChildren();
-            }
-
-            break;
         }
 
         // Determine the equation's dependencies, i.e. the equations for the
         // variables on which this equation depends.
 
-        AnalyserInternalVariablePtrs variableDependencies;
+        VariablePtrs variableDependencies;
 
         if (equationType == AnalyserEquation::Type::EXTERNAL) {
             for (const auto &unknownVariable : internalEquation->mUnknownVariables) {
                 for (const auto &dependency : unknownVariable->mDependencies) {
-                    variableDependencies.push_back(dependency);
+                    variableDependencies.push_back(dependency->mVariable);
                 }
             }
         } else {
-            variableDependencies = internalEquation->mDependencies;
+            variableDependencies.reserve(internalEquation->mDependencies.size());
+
+            for (const auto &dependency : internalEquation->mDependencies) {
+                variableDependencies.push_back(dependency->mVariable);
+            }
+
+            if (equationType == AnalyserEquation::Type::NLA) {
+                for (const auto &nlaSibling : internalEquation->mNlaSiblings) {
+                    for (const auto &dependency : nlaSibling.lock()->mDependencies) {
+                        variableDependencies.push_back(dependency->mVariable);
+                    }
+                }
+            }
         }
 
         AnalyserEquationPtrs equationDependencies;
+        std::unordered_set<AnalyserEquation *> seenAnalyserEquations;
+        std::unordered_set<size_t> seenNlaSystemIndices;
 
         for (const auto &variableDependency : variableDependencies) {
-            auto analyserVariable = v2avMappings[variableDependency->mVariable];
+            auto analyserVariable = v2avMappings[variableDependency];
 
             if (analyserVariable != nullptr) {
                 for (const auto &analyserEquation : analyserVariable->analyserEquations()) {
-                    if (std::find(equationDependencies.begin(), equationDependencies.end(), analyserEquation) == equationDependencies.end()) {
+                    if ((analyserEquation->type() == AnalyserEquation::Type::NLA)
+                        && !seenNlaSystemIndices.insert(analyserEquation->nlaSystemIndex()).second) {
+                        continue;
+                    }
+
+                    if (seenAnalyserEquations.insert(analyserEquation.get()).second) {
                         if (analyserVariable->type() == AnalyserVariable::Type::CONSTANT) {
                             // This is a constant, so keep track of it in case it is untracked and in case we need to
                             // generate some code for it.
@@ -4122,7 +5354,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
     // Note: obviously, this can only be done once all our equations are ready.
 
     for (const auto &analyserEquation : mAnalyserModel->mPimpl->mAnalyserEquations) {
-        AnalyserEquationPtrs checkedEquations;
+        std::unordered_set<AnalyserEquation *> checkedEquations;
 
         analyserEquation->mPimpl->mIsStateRateBased = isStateRateBased(analyserEquation, checkedEquations);
     }
@@ -4130,14 +5362,14 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
 
 AnalyserExternalVariablePtrs::const_iterator Analyser::AnalyserImpl::findExternalVariable(const VariablePtr &variable) const
 {
-    return std::find_if(mExternalVariables.begin(), mExternalVariables.end(), [=](const auto &ev) {
+    return std::find_if(mExternalVariables.begin(), mExternalVariables.end(), [&](const auto &ev) {
         return ev->variable() == variable;
     });
 }
 
 AnalyserExternalVariablePtrs::const_iterator Analyser::AnalyserImpl::findExternalVariable(const AnalyserExternalVariablePtr &externalVariable) const
 {
-    return std::find_if(mExternalVariables.begin(), mExternalVariables.end(), [=](const auto &ev) {
+    return std::find_if(mExternalVariables.begin(), mExternalVariables.end(), [&](const auto &ev) {
         return ev == externalVariable;
     });
 }

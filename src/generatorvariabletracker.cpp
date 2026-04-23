@@ -381,7 +381,8 @@ GeneratorVariableTracker::GeneratorVariableTrackerImpl *GeneratorVariableTracker
     return reinterpret_cast<GeneratorVariableTracker::GeneratorVariableTrackerImpl *>(Logger::pFunc());
 }
 
-/*TODO
+// TODO: ---GRY--- Needed or not?
+/*
 const GeneratorVariableTracker::GeneratorVariableTrackerImpl *GeneratorVariableTracker::pFunc() const
 {
     return reinterpret_cast<GeneratorVariableTracker::GeneratorVariableTrackerImpl const *>(Logger::pFunc());

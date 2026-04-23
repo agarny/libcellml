@@ -3,8 +3,8 @@
     <!-- Algebraic system with various dependencies (not ordered)
     Variables:
      • a: / -> 14
-     • b: 1 -> 4
-     • c: 1 -> 7
+     • b: -> 4
+     • c: -> 7
      • d: / -> 11
      • x: 3
      • y: 5
@@ -16,8 +16,8 @@
     -->
     <component name="my_algebraic_system">
         <variable name="a" units="dimensionless"/>
-        <variable initial_value="1" name="b" units="dimensionless"/>
-        <variable initial_value="1" name="c" units="dimensionless"/>
+        <variable name="b" units="dimensionless"/>
+        <variable name="c" units="dimensionless"/>
         <variable name="d" units="dimensionless"/>
         <variable initial_value="3" name="x" units="dimensionless"/>
         <variable initial_value="5" name="y" units="dimensionless"/>

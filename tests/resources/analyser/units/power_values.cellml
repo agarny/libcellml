@@ -91,9 +91,6 @@
         <variable name="eqnPi" units="second"/>
         <variable name="eqnInfinity" units="second"/>
         <variable name="eqnNotanumber" units="second"/>
-        <variable name="eqnCoverage" units="second"/>
-        <variable name="eqnCoverage2" units="second"/>
-        <variable name="eqnCoverage3" units="second"/>
         <math xmlns="http://www.w3.org/1998/Math/MathML">
             <apply>
                 <eq/>
@@ -1079,89 +1076,6 @@
                     <power/>
                     <ci>x</ci>
                     <notanumber/>
-                </apply>
-            </apply>
-            <apply>
-                <eq/>
-                <ci>eqnCoverage</ci>
-                <apply>
-                    <times/>
-                    <apply>
-                        <minus/>
-                        <apply>
-                            <divide/>
-                            <apply>
-                                <power/>
-                                <ci>x</ci>
-                                <apply>
-                                    <minus/>
-                                    <ci>y</ci>
-                                    <ci>u</ci>
-                                </apply>
-                            </apply>
-                            <apply>
-                                <power/>
-                                <ci>x</ci>
-                                <ci>u</ci>
-                            </apply>
-                        </apply>
-                    </apply>
-                    <apply>
-                        <minus/>
-                        <ci>x</ci>
-                        <ci>x</ci>
-                    </apply>
-                </apply>
-            </apply>
-            <apply>
-                <eq/>
-                <ci>eqnCoverage2</ci>
-                <apply>
-                    <times/>
-                    <apply>
-                        <apply>
-                            <divide/>
-                            <apply>
-                                <power/>
-                                <ci>x</ci>
-                                <apply>
-                                    <minus/>
-                                    <ci>y</ci>
-                                    <ci>u</ci>
-                                </apply>
-                            </apply>
-                            <apply>
-                                <power/>
-                                <ci>x</ci>
-                                <ci>u</ci>
-                            </apply>
-                        </apply>
-                    </apply>
-                    <apply>
-                        <minus/>
-                        <ci>x</ci>
-                        <ci>x</ci>
-                    </apply>
-                </apply>
-            </apply>
-            <apply>
-                <eq/>
-                <ci>eqnCoverage3</ci>
-                <apply>
-                    <times/>
-                    <apply>
-                        <minus/>
-                        <apply>
-                            <power/>
-                            <ci>x</ci>
-                            <ci>u</ci>
-                        </apply>
-                    </apply>
-                    <apply>
-                        <minus/>
-                        <ci>x</ci>
-                        <ci>x</ci>
-                    </apply>
                 </apply>
             </apply>
         </math>

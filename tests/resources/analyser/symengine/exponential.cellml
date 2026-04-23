@@ -30,7 +30,7 @@
 
       <!-- Initialise constants -->
       <apply><eq/><ci>w</ci><cn cellml:units="dimensionless">2</cn></apply>
-      
+
     </math>
   </component>
 </model>
