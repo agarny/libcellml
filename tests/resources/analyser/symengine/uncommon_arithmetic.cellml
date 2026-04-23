@@ -92,7 +92,7 @@
         <apply><plus/><ci>h</ci><apply><rem/><ci>z</ci><ci>w</ci></apply></apply>
         <cn cellml:units="dimensionless">0</cn>
       </apply>
-      
+
       <!-- Initialise constants -->
       <apply><eq/><ci>w</ci><cn cellml:units="dimensionless">2</cn></apply>
       <apply><eq/><ci>x</ci><cn cellml:units="dimensionless">3</cn></apply>

@@ -589,6 +589,42 @@ TEST(Coverage, analyserTypes)
     EXPECT_EQ("algebraic_variable", libcellml::AnalyserVariable::typeAsString(analyserModel->algebraicVariable(0)->type()));
 }
 
+TEST(Coverage, analyserEquationAstClone)
+{
+    auto ast = libcellml::AnalyserEquationAst::create();
+
+    ast->setType(libcellml::AnalyserEquationAst::Type::PLUS);
+
+    auto leftChild = libcellml::AnalyserEquationAst::create();
+
+    leftChild->setType(libcellml::AnalyserEquationAst::Type::CN);
+    leftChild->setValue("1.0");
+
+    auto rightChild = libcellml::AnalyserEquationAst::create();
+
+    rightChild->setType(libcellml::AnalyserEquationAst::Type::CN);
+    rightChild->setValue("2.0");
+
+    ast->setLeftChild(leftChild);
+    ast->setRightChild(rightChild);
+
+    auto cloned = ast->clone();
+
+    EXPECT_EQ(libcellml::AnalyserEquationAst::Type::PLUS, cloned->type());
+
+    auto clonedLeftChild = cloned->leftChild();
+
+    EXPECT_NE(nullptr, clonedLeftChild);
+    EXPECT_EQ(libcellml::AnalyserEquationAst::Type::CN, clonedLeftChild->type());
+    EXPECT_EQ("1.0", clonedLeftChild->value());
+
+    auto clonedRightChild = cloned->rightChild();
+
+    EXPECT_NE(nullptr, clonedRightChild);
+    EXPECT_EQ(libcellml::AnalyserEquationAst::Type::CN, clonedRightChild->type());
+    EXPECT_EQ("2.0", clonedRightChild->value());
+}
+
 void checkAstTypeAsString(const libcellml::AnalyserEquationAstPtr &ast)
 {
     if (ast != nullptr) {
@@ -623,10 +659,10 @@ TEST(Coverage, generator)
 
     EXPECT_EQ(size_t(1), analyserModel->stateCount());
     EXPECT_EQ(size_t(7), analyserModel->constantCount());
-    EXPECT_EQ(size_t(199), analyserModel->computedConstantCount());
+    EXPECT_EQ(size_t(200), analyserModel->computedConstantCount());
     EXPECT_EQ(size_t(2), analyserModel->algebraicVariableCount());
     EXPECT_EQ(size_t(1), analyserModel->externalVariableCount());
-    EXPECT_EQ(size_t(203), analyserModel->analyserEquationCount());
+    EXPECT_EQ(size_t(204), analyserModel->analyserEquationCount());
 
     EXPECT_NE(nullptr, analyserModel->voi());
     EXPECT_EQ(size_t(0), analyserModel->voi()->analyserEquationCount());
@@ -651,7 +687,7 @@ TEST(Coverage, generator)
     EXPECT_EQ(nullptr, analyserModel->algebraicVariable(analyserModel->algebraicVariableCount()));
     EXPECT_NE(nullptr, analyserModel->externalVariable(0));
     EXPECT_NE(nullptr, analyserModel->externalVariable(0)->analyserEquation(0)->externalVariable(0));
-    EXPECT_EQ(nullptr, analyserModel->externalVariable(analyserModel->algebraicVariableCount()));
+    EXPECT_EQ(nullptr, analyserModel->externalVariable(analyserModel->externalVariableCount()));
     EXPECT_EQ(size_t(1), analyserModel->analyserEquation(0)->stateCount());
     EXPECT_EQ(size_t(1), analyserModel->analyserEquation(0)->states().size());
     EXPECT_NE(nullptr, analyserModel->analyserEquation(0)->state(0));
@@ -701,7 +737,7 @@ TEST(Coverage, generator)
     }
 
     for (size_t i = 0; i < analyserModel->algebraicVariableCount(); ++i) {
-        EXPECT_NE(nullptr, analyserModel->algebraicVariable(i)->initialisingVariable());
+        EXPECT_EQ(nullptr, analyserModel->algebraicVariable(i)->initialisingVariable());
     }
 
     EXPECT_EQ(EMPTY_STRING, generator->interfaceCode(nullptr));

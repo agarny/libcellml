@@ -5,7 +5,7 @@
   <component name="Component">
     <!-- Precomputed constants -->
     <variable name="w" units="dimensionless"/>
-    
+
     <!-- Unknowns to solve -->
     <variable name="a" units="dimensionless"/>
     <variable name="b" units="dimensionless"/>
@@ -15,7 +15,7 @@
     <math xmlns="http://www.w3.org/1998/Math/MathML"
           xmlns:cellml="http://www.cellml.org/cellml/2.0#">
 
-      <!-- Equation 1: (a + 2)^3 = 125  --> 
+      <!-- Equation 1: (a + 2)^3 = 125  -->
       <!-- Unique solution: a = 3 -->
       <!-- Test equation for cubed number -->
       <apply>
@@ -60,9 +60,7 @@
       <!-- Test equation for cubic with non-constant answer -->
       <apply>
         <eq/>
-        <apply>
-          <apply><power/><ci>d</ci><cn cellml:units="dimensionless">3</cn></apply>
-        </apply>
+        <apply><power/><ci>d</ci><cn cellml:units="dimensionless">3</cn></apply>
         <ci>w</ci>
       </apply>
 

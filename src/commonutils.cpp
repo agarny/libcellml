@@ -42,6 +42,16 @@ libcellml::ComponentPtr owningComponent(const libcellml::ParentedEntityConstPtr 
     return std::dynamic_pointer_cast<libcellml::Component>(entity->parent());
 }
 
+double epsilon()
+{
+    static const double epsilonValue = 100.0 * std::numeric_limits<double>::epsilon();
+
+    return epsilonValue;
+    // Note: ideally, we would be returning std::numeric_limits<double>::epsilon() which is approximately 2.220446e-16,
+    //       but we need to use a slightly larger value to account for the fact that we want to be able to compare
+    //       numbers from SymEngine.
+}
+
 #ifndef TEST_UTILS
 } // namespace libcellml
 #endif
