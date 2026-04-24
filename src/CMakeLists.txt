@@ -201,7 +201,7 @@ else()
   target_include_directories(cellml PUBLIC ${ZLIB_INCLUDE_DIRS})
 endif()
 
-apply_libxml2_settings(cellml)
+apply_dependency_settings(cellml)
 
 # Use target compile features to propagate features to consuming projects.
 target_compile_features(cellml PUBLIC cxx_std_17)
@@ -237,7 +237,7 @@ target_include_directories(cellml_debug_utilities
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/api>
 )
 
-apply_libxml2_settings(cellml_debug_utilities)
+apply_dependency_settings(cellml_debug_utilities)
 
 set_target_properties(cellml_debug_utilities PROPERTIES
   CXX_VISIBILITY_PRESET hidden
