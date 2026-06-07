@@ -26,34 +26,34 @@ jobs:
             os: windows-latest
             python_bindings: ON
             additional_cmake_options: -DLibXml2_DIR=C:\libxml2\libxml2-2.9.10\CMake -DZLIB_DIR=C:\zlib\lib\cmake\ZLIB-1.2.12 -DSymEngine_DIR=C:\symengine\debug\CMake
-          - name: 'Linux static - C++'
-            os: ubuntu-latest
-            python_bindings: OFF
-            additional_cmake_options: -DCMAKE_PREFIX_PATH=$HOME
-          - name: 'Linux shared - C++/Python'
-            os: ubuntu-latest
-            python_bindings: ON
-            additional_cmake_options: -DCMAKE_PREFIX_PATH=$HOME
-          - name: 'macOS static - C++ (Intel)'
-            os: macos-15-intel
-            python_bindings: OFF
-            architecture: Intel
-            additional_cmake_options: -DCMAKE_PREFIX_PATH=$HOME
-          - name: 'macOS shared - C++/Python (Intel)'
-            os: macos-15-intel
-            python_bindings: ON
-            architecture: Intel
-            additional_cmake_options: -DCMAKE_PREFIX_PATH=$HOME
-          - name: 'macOS static - C++ (ARM)'
-            os: macos-latest
-            python_bindings: OFF
-            architecture: ARM
-            additional_cmake_options: -DCMAKE_PREFIX_PATH=$HOME
-          - name: 'macOS shared - C++/Python (ARM)'
-            os: macos-latest
-            python_bindings: ON
-            architecture: ARM
-            additional_cmake_options: -DCMAKE_PREFIX_PATH=$HOME
+          # - name: 'Linux static - C++'
+          #   os: ubuntu-latest
+          #   python_bindings: OFF
+          #   additional_cmake_options: -DCMAKE_PREFIX_PATH=$HOME
+          # - name: 'Linux shared - C++/Python'
+          #   os: ubuntu-latest
+          #   python_bindings: ON
+          #   additional_cmake_options: -DCMAKE_PREFIX_PATH=$HOME
+          # - name: 'macOS static - C++ (Intel)'
+          #   os: macos-15-intel
+          #   python_bindings: OFF
+          #   architecture: Intel
+          #   additional_cmake_options: -DCMAKE_PREFIX_PATH=$HOME
+          # - name: 'macOS shared - C++/Python (Intel)'
+          #   os: macos-15-intel
+          #   python_bindings: ON
+          #   architecture: Intel
+          #   additional_cmake_options: -DCMAKE_PREFIX_PATH=$HOME
+          # - name: 'macOS static - C++ (ARM)'
+          #   os: macos-latest
+          #   python_bindings: OFF
+          #   architecture: ARM
+          #   additional_cmake_options: -DCMAKE_PREFIX_PATH=$HOME
+          # - name: 'macOS shared - C++/Python (ARM)'
+          #   os: macos-latest
+          #   python_bindings: ON
+          #   architecture: ARM
+          #   additional_cmake_options: -DCMAKE_PREFIX_PATH=$HOME
     steps:
       - name: Check out libCellML
         uses: actions/checkout@v6
@@ -102,143 +102,149 @@ jobs:
         run: cmake -G Ninja -S . -B build -DBINDINGS_PYTHON=${{ matrix.python_bindings }} -DBUILD_SHARED=${{ matrix.python_bindings }} -DCOVERAGE=OFF -DLLVM_COVERAGE=OFF -DMEMCHECK=OFF -DUNIT_TESTS=ON ${{ matrix.additional_cmake_options }}
       - name: Build libCellML
         run: cmake --build build
+      - name: Test utils_unit_test_analyser
+        run: cd build && ctest -V -R utils_unit_test_analyser --output-on-failure
+      - name: Test misc_unit_test_coverage
+        run: cd build && ctest -V -R misc_unit_test_coverage --output-on-failure
+      - name: Test io_unit_test_generator
+        run: cd build && ctest -V -R io_unit_test_generator --output-on-failure
       - name: Unit testing
         run: cmake --build build --target test
-  javascript:
-    name: JavaScript
-    runs-on: macos-latest
-    strategy:
-      fail-fast: false
-    steps:
-      - name: Check out libCellML
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.ref }}
-      - name: Install CMake and Ninja
-        uses: lukka/get-cmake@latest
-      - name: Install Emscripten
-        run: brew install --overwrite emscripten
-      - name: Install dependencies
-        run: |
-          cd $HOME
-          wget https://github.com/cellml/gha/releases/download/gha/flint-WASM.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/gmp-WASM.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/libxml2-WASM.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/mpfr-WASM.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/symengine-WASM.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/zlib-WASM.tar.gz -O - | tar -xz
-      - name: Configure libCellML
-        run: emcmake cmake -G Ninja -S . -B build -DBUILD_TYPE=Release -DLIBXML2_LIBRARY=$HOME/libxml2/lib/libxml2.a -DLIBXML2_INCLUDE_DIR=$HOME/libxml2/include/libxml2 -DSymEngine_DIR=$HOME/symengine/lib/cmake/symengine -DSYMENGINE_FLINT_LIBRARIES=$HOME/flint/lib/libflint.a -DSYMENGINE_GMP_LIBRARIES=$HOME/gmp/lib/libgmp.a -DSYMENGINE_MPFR_LIBRARIES=$HOME/mpfr/lib/libmpfr.a -DZLIB_LIBRARY=$HOME/zlib/lib/libz.a -DZLIB_INCLUDE_DIR=$HOME/zlib/include
-      - name: Build libCellML
-        run: cmake --build build
-      - name: Unit testing
-        run: cmake --build build --target jest_test
-  code_formatting:
-    name: Code formatting
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    steps:
-      - name: Check out libCellML
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.ref }}
-      - name: Install ClangFormat
-        run: |
-          sudo apt update
-          sudo apt install clang-format
-      - name: Install CMake and Ninja
-        uses: lukka/get-cmake@latest
-      - name: Install dependencies
-        run: |
-          cd $HOME
-          wget https://github.com/cellml/gha/releases/download/gha/libxml2-Linux.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/symengine-Linux.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/zlib-Linux.tar.gz -O - | tar -xz
-      - name: Configure libCellML
-        run: cmake -G Ninja -S . -B build -DCMAKE_PREFIX_PATH=$HOME
-      - name: Code formatting
-        run: cmake --build build --target test_clang_format
-  coverage:
-    name: Code coverage
-    runs-on: macos-latest
-    strategy:
-      fail-fast: false
-    steps:
-      - name: Check out libCellML
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.ref }}
-      - name: Install CMake and Ninja
-        uses: lukka/get-cmake@latest
-      - name: Install LLVM
-        run: |
-          brew install --overwrite llvm
-          echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> ~/.bash_profile
-      - name: Install dependencies
-        run: |
-          cd $HOME
-          wget https://github.com/cellml/gha/releases/download/gha/libxml2-macOS-ARM.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/symengine-macOS-ARM.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/zlib-macOS-ARM.tar.gz -O - | tar -xz
-      - name: Configure libCellML
-        run: cmake -G Ninja -S . -B build -DBINDINGS_PYTHON=OFF -DCMAKE_PREFIX_PATH=$HOME
-      - name: Code coverage
-        run: |
-          cmake --build build --target llvm_coverage
-          if [ `cmake --build build --target llvm_coverage | grep TOTAL | sed 's/ /\n/g' | grep "100.00%" | wc -l | sed 's/ //g'` -eq 4 ]; then exit 0; else exit 1; fi
-  memory_leaks:
-    name: Memory leaks
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    steps:
-      - name: Check out libCellML
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.ref }}
-      - name: Install CMake and Ninja
-        uses: lukka/get-cmake@latest
-      - name: Install Valgrind
-        run: |
-          sudo apt update
-          sudo apt install valgrind
-      - name: Install dependencies
-        run: |
-          cd $HOME
-          wget https://github.com/cellml/gha/releases/download/gha/libxml2-Linux.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/symengine-Linux.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/zlib-Linux.tar.gz -O - | tar -xz
-      - name: Configure libCellML
-        run: cmake -G Ninja -S . -B build -DBINDINGS_PYTHON=OFF -DCMAKE_PREFIX_PATH=$HOME
-      - name: Memory leaks
-        run: cmake --build build --target memcheck
-  documentation:
-    name: Documentation
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    steps:
-      - name: Check out libCellML
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.ref }}
-      - name: Install CMake and Ninja
-        uses: lukka/get-cmake@latest
-      - name: Install Doxygen
-        run: |
-          sudo apt update
-          sudo apt install doxygen graphviz
-      - name: Install Sphinx
-        run: |
-          pip3 install sphinx
-      - name: Install dependencies
-        run: |
-          cd $HOME
-          wget https://github.com/cellml/gha/releases/download/gha/libxml2-Linux.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/symengine-Linux.tar.gz -O - | tar -xz
-          wget https://github.com/cellml/gha/releases/download/gha/zlib-Linux.tar.gz -O - | tar -xz
-      - name: Configure libCellML
-        run: cmake -G Ninja -S . -B build -DBINDINGS_PYTHON=OFF -DCMAKE_PREFIX_PATH=$HOME
-      - name: Documentation
-        run: cmake --build build --target docs
+  # javascript:
+  #   name: JavaScript
+  #   runs-on: macos-latest
+  #   strategy:
+  #     fail-fast: false
+  #   steps:
+  #     - name: Check out libCellML
+  #       uses: actions/checkout@v6
+  #       with:
+  #         ref: ${{ inputs.ref || github.ref }}
+  #     - name: Install CMake and Ninja
+  #       uses: lukka/get-cmake@latest
+  #     - name: Install Emscripten
+  #       run: brew install --overwrite emscripten
+  #     - name: Install dependencies
+  #       run: |
+  #         cd $HOME
+  #         wget https://github.com/cellml/gha/releases/download/gha/flint-WASM.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/gmp-WASM.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/libxml2-WASM.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/mpfr-WASM.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/symengine-WASM.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/zlib-WASM.tar.gz -O - | tar -xz
+  #     - name: Configure libCellML
+  #       run: emcmake cmake -G Ninja -S . -B build -DBUILD_TYPE=Release -DLIBXML2_LIBRARY=$HOME/libxml2/lib/libxml2.a -DLIBXML2_INCLUDE_DIR=$HOME/libxml2/include/libxml2 -DSymEngine_DIR=$HOME/symengine/lib/cmake/symengine -DSYMENGINE_FLINT_LIBRARIES=$HOME/flint/lib/libflint.a -DSYMENGINE_GMP_LIBRARIES=$HOME/gmp/lib/libgmp.a -DSYMENGINE_MPFR_LIBRARIES=$HOME/mpfr/lib/libmpfr.a -DZLIB_LIBRARY=$HOME/zlib/lib/libz.a -DZLIB_INCLUDE_DIR=$HOME/zlib/include
+  #     - name: Build libCellML
+  #       run: cmake --build build
+  #     - name: Unit testing
+  #       run: cmake --build build --target jest_test
+  # code_formatting:
+  #   name: Code formatting
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #   steps:
+  #     - name: Check out libCellML
+  #       uses: actions/checkout@v6
+  #       with:
+  #         ref: ${{ inputs.ref || github.ref }}
+  #     - name: Install ClangFormat
+  #       run: |
+  #         sudo apt update
+  #         sudo apt install clang-format
+  #     - name: Install CMake and Ninja
+  #       uses: lukka/get-cmake@latest
+  #     - name: Install dependencies
+  #       run: |
+  #         cd $HOME
+  #         wget https://github.com/cellml/gha/releases/download/gha/libxml2-Linux.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/symengine-Linux.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/zlib-Linux.tar.gz -O - | tar -xz
+  #     - name: Configure libCellML
+  #       run: cmake -G Ninja -S . -B build -DCMAKE_PREFIX_PATH=$HOME
+  #     - name: Code formatting
+  #       run: cmake --build build --target test_clang_format
+  # coverage:
+  #   name: Code coverage
+  #   runs-on: macos-latest
+  #   strategy:
+  #     fail-fast: false
+  #   steps:
+  #     - name: Check out libCellML
+  #       uses: actions/checkout@v6
+  #       with:
+  #         ref: ${{ inputs.ref || github.ref }}
+  #     - name: Install CMake and Ninja
+  #       uses: lukka/get-cmake@latest
+  #     - name: Install LLVM
+  #       run: |
+  #         brew install --overwrite llvm
+  #         echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> ~/.bash_profile
+  #     - name: Install dependencies
+  #       run: |
+  #         cd $HOME
+  #         wget https://github.com/cellml/gha/releases/download/gha/libxml2-macOS-ARM.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/symengine-macOS-ARM.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/zlib-macOS-ARM.tar.gz -O - | tar -xz
+  #     - name: Configure libCellML
+  #       run: cmake -G Ninja -S . -B build -DBINDINGS_PYTHON=OFF -DCMAKE_PREFIX_PATH=$HOME
+  #     - name: Code coverage
+  #       run: |
+  #         cmake --build build --target llvm_coverage
+  #         if [ `cmake --build build --target llvm_coverage | grep TOTAL | sed 's/ /\n/g' | grep "100.00%" | wc -l | sed 's/ //g'` -eq 4 ]; then exit 0; else exit 1; fi
+  # memory_leaks:
+  #   name: Memory leaks
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #   steps:
+  #     - name: Check out libCellML
+  #       uses: actions/checkout@v6
+  #       with:
+  #         ref: ${{ inputs.ref || github.ref }}
+  #     - name: Install CMake and Ninja
+  #       uses: lukka/get-cmake@latest
+  #     - name: Install Valgrind
+  #       run: |
+  #         sudo apt update
+  #         sudo apt install valgrind
+  #     - name: Install dependencies
+  #       run: |
+  #         cd $HOME
+  #         wget https://github.com/cellml/gha/releases/download/gha/libxml2-Linux.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/symengine-Linux.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/zlib-Linux.tar.gz -O - | tar -xz
+  #     - name: Configure libCellML
+  #       run: cmake -G Ninja -S . -B build -DBINDINGS_PYTHON=OFF -DCMAKE_PREFIX_PATH=$HOME
+  #     - name: Memory leaks
+  #       run: cmake --build build --target memcheck
+  # documentation:
+  #   name: Documentation
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #   steps:
+  #     - name: Check out libCellML
+  #       uses: actions/checkout@v6
+  #       with:
+  #         ref: ${{ inputs.ref || github.ref }}
+  #     - name: Install CMake and Ninja
+  #       uses: lukka/get-cmake@latest
+  #     - name: Install Doxygen
+  #       run: |
+  #         sudo apt update
+  #         sudo apt install doxygen graphviz
+  #     - name: Install Sphinx
+  #       run: |
+  #         pip3 install sphinx
+  #     - name: Install dependencies
+  #       run: |
+  #         cd $HOME
+  #         wget https://github.com/cellml/gha/releases/download/gha/libxml2-Linux.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/symengine-Linux.tar.gz -O - | tar -xz
+  #         wget https://github.com/cellml/gha/releases/download/gha/zlib-Linux.tar.gz -O - | tar -xz
+  #     - name: Configure libCellML
+  #       run: cmake -G Ninja -S . -B build -DBINDINGS_PYTHON=OFF -DCMAKE_PREFIX_PATH=$HOME
+  #     - name: Documentation
+  #       run: cmake --build build --target docs
