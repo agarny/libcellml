@@ -17,6 +17,9 @@ limitations under the License.
 #include "analyser_p.h"
 #include "analyserequationast_p.h"
 
+#include <csetjmp>
+#include <csignal>
+
 namespace libcellml {
 
 bool containsSymEngineByPredicate(const SEExpression &seExpression, const auto &predicate)
@@ -73,6 +76,18 @@ SEExpression simplifySEExpression(const SEExpression &seExpression)
     }
 
     return SymEngine::simplify(seExpression);
+}
+
+namespace {
+    thread_local jmp_buf abortJmpBuf;
+    thread_local bool abortJmpBufSet = false;
+
+    extern "C" void symengineAbortHandler(int)
+    {
+        if (abortJmpBufSet) {
+            longjmp(abortJmpBuf, 1);
+        }
+    }
 }
 
 SEExpression AnalyserInternalEquation::rearrangeForSESymbol(const SESymbol &seSymbol)
@@ -174,9 +189,43 @@ SEExpression AnalyserInternalEquation::rearrangeForSESymbol(const SESymbol &seSy
 
     SymEngine::RCP<const SymEngine::Set> solutionSet;
 
-    try {
-        solutionSet = SymEngine::solve(mSEExpression, seSymbol);
-    } catch (const std::exception &) {
+    // SymEngine (particularly its debug build) may trigger SYMENGINE_ASSERT and call abort() if the internal solve
+    // logic creates a non-canonical expression. We intercept SIGABRT via a signal handler + setjmp()/longjmp() to
+    // recover gracefully.
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4611)
+#endif
+    auto oldHandler = std::signal(SIGABRT, symengineAbortHandler);
+    bool solveFailed = false;
+
+    if (setjmp(abortJmpBuf) == 0) {
+        abortJmpBufSet = true;
+
+        try {
+            solutionSet = SymEngine::solve(mSEExpression, seSymbol);
+        } catch (const std::exception &) {
+            // Regular C++ exception from solve().
+
+            solveFailed = true;
+        }
+
+        abortJmpBufSet = false;
+    } else {
+        abortJmpBufSet = false;
+
+        // SymEngine assertion (abort) intercepted and converted to a graceful failure.
+
+        solveFailed = true;
+    }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
+    std::signal(SIGABRT, oldHandler);
+
+    if (solveFailed) {
         // SymEngine failed to solve the equation. This is likely because the variable we are trying to rearrange for is
         // nested within a function that SymEngine cannot invert (e.g., sin(), log()), or because the equation is not a
         // polynomial that SymEngine can handle.
