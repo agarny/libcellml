@@ -1,6 +1,6 @@
 /* The content of this file was generated using the C profile of libCellML 0.7.0. */
 
-#include "model.variant.h"
+#include "model.variant.external.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -8,15 +8,15 @@
 const char VERSION[] = "0.8.0";
 const char LIBCELLML_VERSION[] = "0.7.0";
 
-const size_t STATE_COUNT = 4;
+const size_t STATE_COUNT = 3;
 const size_t CONSTANT_COUNT = 5;
 const size_t COMPUTED_CONSTANT_COUNT = 3;
-const size_t ALGEBRAIC_VARIABLE_COUNT = 10;
+const size_t ALGEBRAIC_VARIABLE_COUNT = 8;
+const size_t EXTERNAL_VARIABLE_COUNT = 3;
 
 const VariableInfo VOI_INFO = {"time", "millisecond", "environment"};
 
 const VariableInfo STATE_INFO[] = {
-    {"V", "millivolt", "membrane"},
     {"h", "dimensionless", "sodium_channel_h_gate"},
     {"m", "dimensionless", "sodium_channel_m_gate"},
     {"n", "dimensionless", "potassium_channel_n_gate"}
@@ -40,13 +40,17 @@ const VariableInfo ALGEBRAIC_VARIABLE_INFO[] = {
     {"i_Stim", "microA_per_cm2", "membrane"},
     {"i_L", "microA_per_cm2", "leakage_current"},
     {"i_K", "microA_per_cm2", "potassium_channel"},
-    {"i_Na", "microA_per_cm2", "sodium_channel"},
     {"alpha_m", "per_millisecond", "sodium_channel_m_gate"},
     {"beta_m", "per_millisecond", "sodium_channel_m_gate"},
     {"alpha_h", "per_millisecond", "sodium_channel_h_gate"},
     {"beta_h", "per_millisecond", "sodium_channel_h_gate"},
-    {"alpha_n", "per_millisecond", "potassium_channel_n_gate"},
     {"beta_n", "per_millisecond", "potassium_channel_n_gate"}
+};
+
+const VariableInfo EXTERNAL_VARIABLE_INFO[] = {
+    {"i_Na", "microA_per_cm2", "sodium_channel"},
+    {"V", "millivolt", "membrane"},
+    {"alpha_n", "per_millisecond", "potassium_channel_n_gate"}
 };
 
 double * createStatesArray()
@@ -93,6 +97,17 @@ double * createAlgebraicVariablesArray()
     return res;
 }
 
+double * createExternalVariablesArray()
+{
+    double *res = (double *) malloc(EXTERNAL_VARIABLE_COUNT*sizeof(double));
+
+    for (size_t i = 0; i < EXTERNAL_VARIABLE_COUNT; ++i) {
+        res[i] = NAN;
+    }
+
+    return res;
+}
+
 void deleteArray(double *array)
 {
     free(array);
@@ -100,10 +115,9 @@ void deleteArray(double *array)
 
 void initialiseArrays(double *states, double *rates, double *constants, double *computedConstants, double *algebraicVariables)
 {
-    states[0] = 0.0;
-    states[1] = 0.6;
-    states[2] = 0.05;
-    states[3] = 0.325;
+    states[0] = 0.6;
+    states[1] = 0.05;
+    states[2] = 0.325;
     constants[0] = 1.0;
     constants[1] = 0.0;
     constants[2] = 0.3;
@@ -118,33 +132,26 @@ void computeComputedConstants(double voi, double *states, double *rates, double 
     computedConstants[2] = 12.0+constants[1];
 }
 
-void computeRates(double voi, double *states, double *rates, double *constants, double *computedConstants, double *algebraicVariables)
+void computeRates(double voi, double *states, double *rates, double *constants, double *computedConstants, double *algebraicVariables, double *externalVariables, ExternalVariable externalVariable)
 {
-    algebraicVariables[0] = ((voi >= 10.0) && (voi <= 10.5))?-20.0:0.0;
-    algebraicVariables[1] = states[0]*constants[2]-computedConstants[0]*constants[2];
-    algebraicVariables[2] = -pow(states[3], 4.0)*computedConstants[2]*constants[4]+states[0]*pow(states[3], 4.0)*constants[4];
-    algebraicVariables[3] = -states[1]*pow(states[2], 3.0)*constants[3]*computedConstants[1]+states[0]*states[1]*pow(states[2], 3.0)*constants[3];
-    rates[0] = (-algebraicVariables[3]-algebraicVariables[2]-algebraicVariables[1]+algebraicVariables[0])/constants[0];
-    algebraicVariables[5] = 4.0*exp(0.0555555555555556*states[0]);
-    algebraicVariables[4] = 0.1*states[0]/(-1.0+exp(2.5+0.1*states[0]))+2.5/(-1.0+exp(2.5+0.1*states[0]));
-    rates[2] = (1.0-states[2])*algebraicVariables[4]-states[2]*algebraicVariables[5];
-    algebraicVariables[7] = 1.0/(1.0+exp(3.0+0.1*states[0]));
-    algebraicVariables[6] = 0.07*exp(0.05*states[0]);
-    rates[1] = (1.0-states[1])*algebraicVariables[6]-states[1]*algebraicVariables[7];
-    algebraicVariables[9] = 0.125*exp(0.0125*states[0]);
-    algebraicVariables[8] = 0.01*states[0]/(-1.0+exp(1.0+0.1*states[0]))+0.1/(-1.0+exp(1.0+0.1*states[0]));
-    rates[3] = (1.0-states[3])*algebraicVariables[8]-states[3]*algebraicVariables[9];
+    externalVariables[1] = externalVariable(voi, states, rates, constants, computedConstants, algebraicVariables, externalVariables, 1);
+    algebraicVariables[4] = 4.0*exp(0.0555555555555556*externalVariables[1]);
+    algebraicVariables[3] = 0.1*externalVariables[1]/(-1.0+exp(2.5+0.1*externalVariables[1]))+2.5/(-1.0+exp(2.5+0.1*externalVariables[1]));
+    rates[1] = (1.0-states[1])*algebraicVariables[3]-states[1]*algebraicVariables[4];
+    algebraicVariables[6] = 1.0/(1.0+exp(3.0+0.1*externalVariables[1]));
+    algebraicVariables[5] = 0.07*exp(0.05*externalVariables[1]);
+    rates[0] = (1.0-states[0])*algebraicVariables[5]-states[0]*algebraicVariables[6];
+    algebraicVariables[7] = 0.125*exp(0.0125*externalVariables[1]);
+    externalVariables[2] = externalVariable(voi, states, rates, constants, computedConstants, algebraicVariables, externalVariables, 2);
+    rates[2] = (1.0-states[2])*externalVariables[2]-states[2]*algebraicVariables[7];
 }
 
-void computeVariables(double voi, double *states, double *rates, double *constants, double *computedConstants, double *algebraicVariables)
+void computeVariables(double voi, double *states, double *rates, double *constants, double *computedConstants, double *algebraicVariables, double *externalVariables, ExternalVariable externalVariable)
 {
-    algebraicVariables[1] = states[0]*constants[2]-computedConstants[0]*constants[2];
-    algebraicVariables[3] = -states[1]*pow(states[2], 3.0)*constants[3]*computedConstants[1]+states[0]*states[1]*pow(states[2], 3.0)*constants[3];
-    algebraicVariables[4] = 0.1*states[0]/(-1.0+exp(2.5+0.1*states[0]))+2.5/(-1.0+exp(2.5+0.1*states[0]));
-    algebraicVariables[5] = 4.0*exp(0.0555555555555556*states[0]);
-    algebraicVariables[6] = 0.07*exp(0.05*states[0]);
-    algebraicVariables[7] = 1.0/(1.0+exp(3.0+0.1*states[0]));
-    algebraicVariables[2] = -pow(states[3], 4.0)*computedConstants[2]*constants[4]+states[0]*pow(states[3], 4.0)*constants[4];
-    algebraicVariables[8] = 0.01*states[0]/(-1.0+exp(1.0+0.1*states[0]))+0.1/(-1.0+exp(1.0+0.1*states[0]));
-    algebraicVariables[9] = 0.125*exp(0.0125*states[0]);
+    algebraicVariables[0] = ((voi >= 10.0) && (voi <= 10.5))?-20.0:0.0;
+    externalVariables[1] = externalVariable(voi, states, rates, constants, computedConstants, algebraicVariables, externalVariables, 1);
+    algebraicVariables[1] = externalVariables[1]*constants[2]-computedConstants[0]*constants[2];
+    externalVariables[2] = externalVariable(voi, states, rates, constants, computedConstants, algebraicVariables, externalVariables, 2);
+    externalVariables[0] = externalVariable(voi, states, rates, constants, computedConstants, algebraicVariables, externalVariables, 0);
+    algebraicVariables[2] = -pow(states[2], 4.0)*computedConstants[2]*constants[4]+externalVariables[1]*pow(states[2], 4.0)*constants[4];
 }

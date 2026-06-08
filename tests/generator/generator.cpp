@@ -1461,11 +1461,11 @@ TEST(Generator, hodgkinHuxleySquidAxonModel1952DaeWithVariousExternalVariables)
     profile->setInterfaceFileNameString("model.variant.external.h");
 
     EXPECT_EQ_FILE_CONTENTS("generator/hodgkin_huxley_squid_axon_model_1952/model.variant.external.h", generator->interfaceCode(analyserModel, profile));
-    EXPECT_EQ_FILE_CONTENTS("generator/hodgkin_huxley_squid_axon_model_1952/model.variant.external.c", generator->implementationCode(analyserModel, profile));
+    EXPECT_EQ_FILE_CONTENTS("generator/hodgkin_huxley_squid_axon_model_1952/model.variant.external" OS_FILE_SUFFIX ".c", generator->implementationCode(analyserModel, profile));
 
     profile = libcellml::GeneratorProfile::create(libcellml::GeneratorProfile::Profile::PYTHON);
 
-    EXPECT_EQ_FILE_CONTENTS("generator/hodgkin_huxley_squid_axon_model_1952/model.variant.external.py", generator->implementationCode(analyserModel, profile));
+    EXPECT_EQ_FILE_CONTENTS("generator/hodgkin_huxley_squid_axon_model_1952/model.variant.external" OS_FILE_SUFFIX ".py", generator->implementationCode(analyserModel, profile));
 }
 
 TEST(Generator, nobleModel1962)
