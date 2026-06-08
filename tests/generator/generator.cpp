@@ -277,11 +277,11 @@ TEST(Generator, algebraicEqnWithOneNonIsolatedUnknown)
     auto generator = libcellml::Generator::create();
 
     EXPECT_EQ_FILE_CONTENTS("generator/algebraic_eqn_with_one_non_isolated_unknown/model.h", generator->interfaceCode(analyserModel));
-    EXPECT_EQ_FILE_CONTENTS("generator/algebraic_eqn_with_one_non_isolated_unknown/model.c", generator->implementationCode(analyserModel));
+    EXPECT_EQ_FILE_CONTENTS("generator/algebraic_eqn_with_one_non_isolated_unknown/model" OS_FILE_SUFFIX ".c", generator->implementationCode(analyserModel));
 
     auto profile = libcellml::GeneratorProfile::create(libcellml::GeneratorProfile::Profile::PYTHON);
 
-    EXPECT_EQ_FILE_CONTENTS("generator/algebraic_eqn_with_one_non_isolated_unknown/model.py", generator->implementationCode(analyserModel, profile));
+    EXPECT_EQ_FILE_CONTENTS("generator/algebraic_eqn_with_one_non_isolated_unknown/model" OS_FILE_SUFFIX ".py", generator->implementationCode(analyserModel, profile));
 }
 
 TEST(Generator, algebraicEqnWithOneNonIsolatedUnknownWithExternalVariable)
@@ -307,11 +307,11 @@ TEST(Generator, algebraicEqnWithOneNonIsolatedUnknownWithExternalVariable)
     profile->setInterfaceFileNameString("model.external.h");
 
     EXPECT_EQ_FILE_CONTENTS("generator/algebraic_eqn_with_one_non_isolated_unknown/model.external.h", generator->interfaceCode(analyserModel, profile));
-    EXPECT_EQ_FILE_CONTENTS("generator/algebraic_eqn_with_one_non_isolated_unknown/model.external.c", generator->implementationCode(analyserModel, profile));
+    EXPECT_EQ_FILE_CONTENTS("generator/algebraic_eqn_with_one_non_isolated_unknown/model.external" OS_FILE_SUFFIX ".c", generator->implementationCode(analyserModel, profile));
 
     profile = libcellml::GeneratorProfile::create(libcellml::GeneratorProfile::Profile::PYTHON);
 
-    EXPECT_EQ_FILE_CONTENTS("generator/algebraic_eqn_with_one_non_isolated_unknown/model.external.py", generator->implementationCode(analyserModel, profile));
+    EXPECT_EQ_FILE_CONTENTS("generator/algebraic_eqn_with_one_non_isolated_unknown/model.external" OS_FILE_SUFFIX ".py", generator->implementationCode(analyserModel, profile));
 }
 
 TEST(Generator, algebraicSystemWithThreeLinkedUnknowns)
