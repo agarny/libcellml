@@ -1773,7 +1773,7 @@ TEST(Generator, generateCodeForModelsWithGlobalNlaSystems)
     auto generator = libcellml::Generator::create();
 
     EXPECT_EQ_FILE_CONTENTS("generator/global_nla_systems/model.h", generator->interfaceCode(analyserModel, libcellml::GeneratorProfile::Profile::C));
-    EXPECT_EQ_FILE_CONTENTS("generator/global_nla_systems/model.c", generator->implementationCode(analyserModel, libcellml::GeneratorProfile::Profile::C));
+    EXPECT_EQ_FILE_CONTENTS("generator/global_nla_systems/model" OS_FILE_SUFFIX ".c", generator->implementationCode(analyserModel, libcellml::GeneratorProfile::Profile::C));
 
-    EXPECT_EQ_FILE_CONTENTS("generator/global_nla_systems/model.py", generator->implementationCode(analyserModel, libcellml::GeneratorProfile::Profile::PYTHON));
+    EXPECT_EQ_FILE_CONTENTS("generator/global_nla_systems/model" OS_FILE_SUFFIX ".py", generator->implementationCode(analyserModel, libcellml::GeneratorProfile::Profile::PYTHON));
 }
