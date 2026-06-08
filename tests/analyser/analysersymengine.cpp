@@ -520,11 +520,5 @@ TEST(AnalyserSymEngine, coverage)
     auto analyserModel = analyser->analyserModel();
     auto generator = libcellml::Generator::create();
 
-#if defined(_WIN32)
-    EXPECT_EQ_FILE_CONTENTS("analyser/symengine/coverage_windows.c", generator->implementationCode(analyserModel));
-#elif defined(__linux__)
-    EXPECT_EQ_FILE_CONTENTS("analyser/symengine/coverage_linux.c", generator->implementationCode(analyserModel));
-#else
-    EXPECT_EQ_FILE_CONTENTS("analyser/symengine/coverage_macos.c", generator->implementationCode(analyserModel));
-#endif
+    EXPECT_EQ_FILE_CONTENTS("analyser/symengine/coverage" OS_FILE_SUFFIX ".c", generator->implementationCode(analyserModel));
 }
