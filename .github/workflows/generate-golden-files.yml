@@ -1,6 +1,8 @@
 name: Generate Golden Files
 
 on:
+  push:
+    branches: [ issue1050 ]
   workflow_dispatch:
 
 jobs:
