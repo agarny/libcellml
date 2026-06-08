@@ -434,7 +434,9 @@ void compareReset(const libcellml::ResetPtr &r1, const libcellml::ResetPtr &r2)
 
 void expectEqualFileContents(const std::string &fileName, const std::string &fileContents)
 {
-    // Uncomment the below when you want to generate the expected file contents.
+    // Define NEW_GENERATOR to regenerate the expected file contents.
+    // Use either: -DGENERATE_GOLDEN_FILES=ON at CMake configure time,
+    // or uncomment the line below for a one-off regeneration.
     // #define NEW_GENERATOR
 
 #ifdef NEW_GENERATOR

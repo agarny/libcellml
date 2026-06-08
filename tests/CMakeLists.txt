@@ -74,6 +74,9 @@ set_target_properties(test_utils PROPERTIES
   CXX_VISIBILITY_PRESET hidden
   VISIBILITY_INLINES_HIDDEN 1
   FOLDER tests)
+if(LIBCELLML_GENERATE_GOLDEN_FILES)
+  target_compile_definitions(test_utils PRIVATE NEW_GENERATOR)
+endif()
 generate_export_header(test_utils EXPORT_FILE_NAME ${TEST_EXPORTDEFINITIONS_H} BASE_NAME TEST)
 
 set(TESTS_SOURCE_FILES ${TEST_UTILS_SRC})
