@@ -158,7 +158,7 @@ void computeRates(double voi, double *states, double *rates, double *constants, 
     algebraicVariables[11] = voi;
     algebraicVariables[1] = states[0]/constants[0];
     algebraicVariables[9] = algebraicVariables[1];
-    algebraicVariables[2] = -states[1]*computedConstants[0]*constants[1]/(-constants[2]-states[1]*constants[1])+states[1]*algebraicVariables[9]*constants[1]/(-constants[2]-states[1]*constants[1]);
+    algebraicVariables[2] = states[1]*algebraicVariables[9]*constants[1]/(-constants[2]-states[1]*constants[1])-states[1]*computedConstants[0]*constants[1]/(-constants[2]-states[1]*constants[1]);
     algebraicVariables[3] = algebraicVariables[2]/constants[1];
     algebraicVariables[10] = algebraicVariables[3]/states[1];
     algebraicVariables[13] = algebraicVariables[10];
@@ -172,9 +172,9 @@ void computeVariables(double voi, double *states, double *rates, double *constan
 {
     algebraicVariables[1] = states[0]/constants[0];
     algebraicVariables[9] = algebraicVariables[1];
-    algebraicVariables[2] = -states[1]*computedConstants[0]*constants[1]/(-constants[2]-states[1]*constants[1])+states[1]*algebraicVariables[9]*constants[1]/(-constants[2]-states[1]*constants[1]);
+    algebraicVariables[2] = states[1]*algebraicVariables[9]*constants[1]/(-constants[2]-states[1]*constants[1])-states[1]*computedConstants[0]*constants[1]/(-constants[2]-states[1]*constants[1]);
     algebraicVariables[3] = algebraicVariables[2]/constants[1];
-    algebraicVariables[8] = -algebraicVariables[2]+computedConstants[0];
+    algebraicVariables[8] = computedConstants[0]-algebraicVariables[2];
     algebraicVariables[4] = algebraicVariables[8]-algebraicVariables[9];
     algebraicVariables[5] = algebraicVariables[4]/constants[2];
     algebraicVariables[10] = algebraicVariables[3]/states[1];

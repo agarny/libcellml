@@ -110,7 +110,7 @@ def compute_rates(voi, states, rates, constants, computed_constants, algebraic_v
     algebraic_variables[11] = voi
     algebraic_variables[1] = states[0]/constants[0]
     algebraic_variables[9] = algebraic_variables[1]
-    algebraic_variables[2] = -states[1]*computed_constants[0]*constants[1]/(-constants[2]-states[1]*constants[1])+states[1]*algebraic_variables[9]*constants[1]/(-constants[2]-states[1]*constants[1])
+    algebraic_variables[2] = states[1]*algebraic_variables[9]*constants[1]/(-constants[2]-states[1]*constants[1])-states[1]*computed_constants[0]*constants[1]/(-constants[2]-states[1]*constants[1])
     algebraic_variables[3] = algebraic_variables[2]/constants[1]
     algebraic_variables[10] = algebraic_variables[3]/states[1]
     algebraic_variables[13] = algebraic_variables[10]
@@ -123,9 +123,9 @@ def compute_rates(voi, states, rates, constants, computed_constants, algebraic_v
 def compute_variables(voi, states, rates, constants, computed_constants, algebraic_variables):
     algebraic_variables[1] = states[0]/constants[0]
     algebraic_variables[9] = algebraic_variables[1]
-    algebraic_variables[2] = -states[1]*computed_constants[0]*constants[1]/(-constants[2]-states[1]*constants[1])+states[1]*algebraic_variables[9]*constants[1]/(-constants[2]-states[1]*constants[1])
+    algebraic_variables[2] = states[1]*algebraic_variables[9]*constants[1]/(-constants[2]-states[1]*constants[1])-states[1]*computed_constants[0]*constants[1]/(-constants[2]-states[1]*constants[1])
     algebraic_variables[3] = algebraic_variables[2]/constants[1]
-    algebraic_variables[8] = -algebraic_variables[2]+computed_constants[0]
+    algebraic_variables[8] = computed_constants[0]-algebraic_variables[2]
     algebraic_variables[4] = algebraic_variables[8]-algebraic_variables[9]
     algebraic_variables[5] = algebraic_variables[4]/constants[2]
     algebraic_variables[10] = algebraic_variables[3]/states[1]
