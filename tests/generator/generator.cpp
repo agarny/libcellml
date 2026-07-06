@@ -1766,9 +1766,7 @@ TEST(Generator, checkGeneratorReleasesAnalyserModel)
     auto analyserModel = analyser->analyserModel();
 
     EXPECT_EQ(2, analyserModel.use_count());
-
     EXPECT_EQ("x = a", libcellml::Generator::equationCode(analyserModel->analyserEquation(0)->ast()));
-
     EXPECT_EQ(2, analyserModel.use_count());
 
     auto generator = libcellml::Generator::create();
