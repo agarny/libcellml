@@ -1758,11 +1758,10 @@ TEST(Generator, generateCodeUsingProfileEnum)
 TEST(Generator, checkGeneratorReleasesAnalyserModel)
 {
     auto parser = libcellml::Parser::create();
-    auto algebraicModel = parser->parseModel(fileContents("generator/algebraic_eqn_computed_var_on_rhs/model.cellml"));
-
+    auto model = parser->parseModel(fileContents("generator/algebraic_eqn_computed_var_on_rhs/model.cellml"));
     auto analyser = libcellml::Analyser::create();
 
-    analyser->analyseModel(algebraicModel);
+    analyser->analyseModel(model);
 
     auto analyserModel = analyser->analyserModel();
 
