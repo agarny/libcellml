@@ -245,7 +245,7 @@ void Analyser::AnalyserImpl::reset()
     mLastVariables.clear();
 
     mInternalVariables.clear();
-    mInternalVariableCache.clear();
+    mInternalVariableMap.clear();
     mInternalEquations.clear();
 
     mCiCnUnits.clear();
@@ -253,21 +253,19 @@ void Analyser::AnalyserImpl::reset()
 
 AnalyserInternalVariablePtr Analyser::AnalyserImpl::internalVariable(const VariablePtr &variable)
 {
-    // Check the direct pointer cache first.
+    // Find and return, if there is one, the internal variable associated with
+    // the given variable.
 
-    auto cacheIt = mInternalVariableCache.find(variable.get());
+    auto rawPtr = reinterpret_cast<uintptr_t>(variable.get());
+    auto rawPtrIt = mInternalVariableMap.find(rawPtr);
 
-    if (cacheIt != mInternalVariableCache.end()) {
-        return cacheIt->second;
+    if (rawPtrIt != mInternalVariableMap.end()) {
+        return rawPtrIt->second;
     }
-
-    // Not in the cache, so do the equivalence-based search.
 
     for (const auto &internalVariable : mInternalVariables) {
         if (mAnalyserModel->areEquivalentVariables(variable, internalVariable->mVariable)) {
-            // Cache this internal variable pointer for future lookups.
-
-            mInternalVariableCache.emplace(variable.get(), internalVariable);
+            mInternalVariableMap[rawPtr] = internalVariable;
 
             return internalVariable;
         }
@@ -279,7 +277,8 @@ AnalyserInternalVariablePtr Analyser::AnalyserImpl::internalVariable(const Varia
     auto res = AnalyserInternalVariable::create(variable);
 
     mInternalVariables.push_back(res);
-    mInternalVariableCache.emplace(variable.get(), res);
+
+    mInternalVariableMap[rawPtr] = res;
 
     return res;
 }
@@ -2544,11 +2543,15 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
     }
 
     if (!removedInternalEquations.empty()) {
-        mInternalEquations.erase(std::remove_if(mInternalEquations.begin(), mInternalEquations.end(),
-                                                [&removedInternalEquations](const auto &ie) {
-                                                    return std::find(removedInternalEquations.begin(), removedInternalEquations.end(), ie) != removedInternalEquations.end();
-                                                }),
-                                 mInternalEquations.end());
+        const std::unordered_set<AnalyserInternalEquationPtr> removedEquationSet(
+            removedInternalEquations.begin(), removedInternalEquations.end());
+
+        mInternalEquations.erase(
+            std::remove_if(mInternalEquations.begin(), mInternalEquations.end(),
+                           [&removedEquationSet](const auto &equation) {
+                               return removedEquationSet.count(equation);
+                           }),
+            mInternalEquations.end());
     }
 
     // Confirm that the variables in an NLA system are not overconstrained.

@@ -23,6 +23,7 @@ limitations under the License.
 #include <iomanip>
 #include <limits>
 #include <numeric>
+#include <ranges>
 #include <sstream>
 #include <unordered_set>
 #include <vector>
@@ -182,7 +183,7 @@ std::string convertToString(int value)
 
 bool isEuropeanNumericCharacter(char c)
 {
-    return c >= '0' && c <= '9';
+    return (c >= '0') && (c <= '9');
 }
 
 bool isNonNegativeCellMLInteger(const std::string &candidate)
@@ -1031,10 +1032,10 @@ ConnectionMap createConnectionMap(const VariablePtr &variable1, const VariablePt
     return map;
 }
 
-void recursiveEquivalentVariables(const VariablePtr &variable, std::vector<VariablePtr> &equivalentVariables, std::unordered_set<Variable *> &seenVariables)
+void recursiveEquivalentVariables(const VariablePtr &variable, VariablePtrs &equivalentVariables, std::unordered_set<Variable *> &seenVariables)
 {
     for (size_t i = 0; i < variable->equivalentVariableCount(); ++i) {
-        VariablePtr equivalentVariable = variable->equivalentVariable(i);
+        auto equivalentVariable = variable->equivalentVariable(i);
 
         if (seenVariables.insert(equivalentVariable.get()).second) {
             equivalentVariables.push_back(equivalentVariable);
@@ -1044,7 +1045,7 @@ void recursiveEquivalentVariables(const VariablePtr &variable, std::vector<Varia
     }
 }
 
-std::vector<VariablePtr> equivalentVariables(const VariablePtr &variable)
+VariablePtrs equivalentVariables(const VariablePtr &variable)
 {
     VariablePtrs res = {variable};
     std::unordered_set<Variable *> seenVariables = {variable.get()};
@@ -1316,6 +1317,8 @@ XmlNodePtr mathmlChildNode(const XmlNodePtr &node, size_t index)
 
 const std::vector<AnalyserVariablePtr> &analyserVariables(const AnalyserVariablePtr &analyserVariable)
 {
+    static const std::vector<AnalyserVariablePtr> NO_ANALYSER_VARIABLE;
+
     switch (analyserVariable->type()) {
     case AnalyserVariable::Type::CONSTANT:
         return analyserVariable->analyserModel()->constants();
@@ -1328,9 +1331,7 @@ const std::vector<AnalyserVariablePtr> &analyserVariables(const AnalyserVariable
         break;
     }
 
-    static const std::vector<AnalyserVariablePtr> empty;
-
-    return empty;
+    return NO_ANALYSER_VARIABLE;
 }
 
 std::vector<AnalyserVariablePtr> analyserVariables(const AnalyserModelPtr &analyserModel)
@@ -1357,12 +1358,11 @@ std::vector<AnalyserVariablePtr> analyserVariables(const AnalyserModelPtr &analy
 
 std::vector<AnalyserVariablePtr> analyserVariables(const AnalyserEquationPtr &analyserEquation)
 {
+    std::vector<AnalyserVariablePtr> res;
     const auto &states = analyserEquation->states();
     const auto &computedConstants = analyserEquation->computedConstants();
     const auto &algebraicVariables = analyserEquation->algebraicVariables();
     const auto &externalVariables = analyserEquation->externalVariables();
-
-    std::vector<AnalyserVariablePtr> res;
 
     res.insert(res.end(), states.begin(), states.end());
     res.insert(res.end(), computedConstants.begin(), computedConstants.end());
