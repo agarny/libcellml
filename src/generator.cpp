@@ -17,7 +17,6 @@ limitations under the License.
 #include "libcellml/generator.h"
 
 #include <format>
-#include <set>
 #include <unordered_set>
 
 #include "libcellml/analyserequation.h"
