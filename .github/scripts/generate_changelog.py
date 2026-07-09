@@ -84,19 +84,23 @@ def get_merge_commits(start, end="HEAD"):
         f"{start}..{end}",
         "--merges",
         "--first-parent",
-        "--pretty=%s"
+        "--pretty=%h"
     ])
     print(f"Git log between {start} and {end}:\n{log}")
     return log.splitlines()
 
 
-def extract_pr_numbers(messages):
-    prs = []
-    for msg in messages:
-        m = re.search(r"#(\d+)", msg)
-        if m:
-            prs.append(int(m.group(1)))
-    return prs
+def fetch_associated_pr_number(commit):
+    url = f"{GITHUB_API}/repos/cellml/libcellml/commits/{commit}/pulls"
+    r = requests.get(url, headers=HEADERS)
+    r.raise_for_status()
+    prs = r.json()
+    if not prs:
+        print(f"No associated PR found for commit {commit}.")
+        return None
+    pr_number = prs[0]["number"]
+    print(f"Associated PR #{pr_number} found for commit {commit}.")
+    return pr_number
 
 
 def fetch_pr(org_repo, pr_number):
@@ -188,9 +192,14 @@ def process_arguments():
 if __name__ == "__main__":
     args = process_arguments()
     previous_source_tag = find_previous_source_tag(args.tag_end) if args.tag_start == "PREV" else args.tag_start
-    messages = get_merge_commits(previous_source_tag, 'source-' + args.tag_end if args.tag_end != "HEAD" else "HEAD")
-    print(f"Found {len(messages)} merge commits between {previous_source_tag} and {args.tag_end}.")
-    pr_numbers = extract_pr_numbers(messages)
+    commits = get_merge_commits(previous_source_tag, 'source-' + args.tag_end if args.tag_end != "HEAD" else "HEAD")
+    print(f"Found {len(commits)} merge commits between {previous_source_tag} and {args.tag_end}.")
+
+    pr_numbers = []
+    for commit in commits:
+        pr_number = fetch_associated_pr_number(commit)
+        if pr_number is not None:
+            pr_numbers.append(pr_number)
     print(f"Extracted {len(pr_numbers)} PR numbers from merge commits.")
 
     summaries = []
