@@ -315,9 +315,27 @@ std::string XmlNode::convertToString() const
 
 std::string XmlNode::convertToStrippedString() const
 {
+    // For text nodes, use xmlNodeGetContent() directly instead of going through xmlNodeDump(). xmlNodeDump() serialises
+    // the node as XML (creating a buffer, dumping, converting to string, and freeing) which is expensive.
+    // xmlNodeGetContent() returns just the text content with no serialisation overhead.
+
+    if (isText()) {
+        auto *content = xmlNodeGetContent(mPimpl->mXmlNodePtr);
+        std::string contentString(reinterpret_cast<const char *>(content));
+
+        xmlFree(content);
+
+        contentString.erase(contentString.begin(), find_if_not(contentString.begin(), contentString.end(), [](int c) { return isspace(c); }));
+        contentString.erase(find_if_not(contentString.rbegin(), contentString.rend(), [](int c) { return isspace(c); }).base(), contentString.end());
+
+        return contentString;
+    }
+
     std::string contentString = convertToString();
+
     contentString.erase(contentString.begin(), find_if_not(contentString.begin(), contentString.end(), [](int c) { return isspace(c); }));
     contentString.erase(find_if_not(contentString.rbegin(), contentString.rend(), [](int c) { return isspace(c); }).base(), contentString.end());
+
     return contentString;
 }
 
