@@ -420,6 +420,13 @@ AnalyserInternalVariablePtr Analyser::AnalyserImpl::internalVariable(const Varia
 
     // Not in the cache, so do the equivalence-based search.
 
+    auto rawPtr = reinterpret_cast<uintptr_t>(variable.get());
+    auto rawPtrIt = mInternalVariableMap.find(rawPtr);
+
+    if (rawPtrIt != mInternalVariableMap.end()) {
+        return rawPtrIt->second;
+    }
+
     for (const auto &internalVariable : mInternalVariables) {
         if (mAnalyserModel->areEquivalentVariables(variable, internalVariable->mVariable)) {
             // Cache this internal variable pointer for future lookups.
@@ -437,6 +444,8 @@ AnalyserInternalVariablePtr Analyser::AnalyserImpl::internalVariable(const Varia
 
     mInternalVariables.push_back(res);
     mInternalVariableCache.emplace(variable.get(), res);
+
+    mInternalVariableMap[rawPtr] = res;
 
     return res;
 }
