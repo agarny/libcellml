@@ -22,9 +22,6 @@ limitations under the License.
 
 namespace libcellml {
 
-static const std::vector<AnalyserEquationPtr> NO_ANALYSER_EQUATION;
-static const std::vector<AnalyserVariablePtr> NO_ANALYSER_VARIABLE;
-
 AnalyserModelPtr AnalyserModel::AnalyserModelImpl::create(const ModelPtr &model)
 {
     auto res = std::shared_ptr<AnalyserModel> {new AnalyserModel(model)};
@@ -162,6 +159,8 @@ size_t AnalyserModel::stateCount() const
 
 const std::vector<AnalyserVariablePtr> &AnalyserModel::states() const
 {
+    static const std::vector<AnalyserVariablePtr> NO_ANALYSER_VARIABLE;
+
     if (!isValid()) {
         return NO_ANALYSER_VARIABLE;
     }
@@ -190,6 +189,8 @@ size_t AnalyserModel::constantCount() const
 
 const std::vector<AnalyserVariablePtr> &AnalyserModel::constants() const
 {
+    static const std::vector<AnalyserVariablePtr> NO_ANALYSER_VARIABLE;
+
     if (!isValid()) {
         return NO_ANALYSER_VARIABLE;
     }
@@ -217,6 +218,8 @@ size_t AnalyserModel::computedConstantCount() const
 
 const std::vector<AnalyserVariablePtr> &AnalyserModel::computedConstants() const
 {
+    static const std::vector<AnalyserVariablePtr> NO_ANALYSER_VARIABLE;
+
     if (!isValid()) {
         return NO_ANALYSER_VARIABLE;
     }
@@ -244,6 +247,8 @@ size_t AnalyserModel::algebraicVariableCount() const
 
 const std::vector<AnalyserVariablePtr> &AnalyserModel::algebraicVariables() const
 {
+    static const std::vector<AnalyserVariablePtr> NO_ANALYSER_VARIABLE;
+
     if (!isValid()) {
         return NO_ANALYSER_VARIABLE;
     }
@@ -271,6 +276,8 @@ size_t AnalyserModel::externalVariableCount() const
 
 const std::vector<AnalyserVariablePtr> &AnalyserModel::externalVariables() const
 {
+    static const std::vector<AnalyserVariablePtr> NO_ANALYSER_VARIABLE;
+
     if (!isValid()) {
         return NO_ANALYSER_VARIABLE;
     }
@@ -293,56 +300,36 @@ AnalyserVariablePtr AnalyserModel::analyserVariable(const VariablePtr &variable)
         return {};
     }
 
-    // Check the cache first.
-
-    auto analyserVariableIt = mPimpl->mAnalyserVariables.find(variable.get());
-
-    if (analyserVariableIt != mPimpl->mAnalyserVariables.end()) {
-        return analyserVariableIt->second;
-    }
-
     if (mPimpl->mVoi && areEquivalentVariables(variable, mPimpl->mVoi->variable())) {
-        mPimpl->mAnalyserVariables.emplace(variable.get(), mPimpl->mVoi);
-
         return mPimpl->mVoi;
     }
 
     for (const auto &state : mPimpl->mStates) {
         if (areEquivalentVariables(variable, state->variable())) {
-            mPimpl->mAnalyserVariables.emplace(variable.get(), state);
-
             return state;
         }
     }
 
     for (const auto &constant : mPimpl->mConstants) {
         if (areEquivalentVariables(variable, constant->variable())) {
-            mPimpl->mAnalyserVariables.emplace(variable.get(), constant);
-
             return constant;
         }
     }
 
     for (const auto &computedConstant : mPimpl->mComputedConstants) {
         if (areEquivalentVariables(variable, computedConstant->variable())) {
-            mPimpl->mAnalyserVariables.emplace(variable.get(), computedConstant);
-
             return computedConstant;
         }
     }
 
     for (const auto &algebraicVariable : mPimpl->mAlgebraicVariables) {
         if (areEquivalentVariables(variable, algebraicVariable->variable())) {
-            mPimpl->mAnalyserVariables.emplace(variable.get(), algebraicVariable);
-
             return algebraicVariable;
         }
     }
 
     for (const auto &externalVariable : mPimpl->mExternalVariables) {
         if (areEquivalentVariables(variable, externalVariable->variable())) {
-            mPimpl->mAnalyserVariables.emplace(variable.get(), externalVariable);
-
             return externalVariable;
         }
     }
@@ -361,6 +348,8 @@ size_t AnalyserModel::analyserEquationCount() const
 
 const std::vector<AnalyserEquationPtr> &AnalyserModel::analyserEquations() const
 {
+    static const std::vector<AnalyserEquationPtr> NO_ANALYSER_EQUATION;
+
     if (!isValid()) {
         return NO_ANALYSER_EQUATION;
     }

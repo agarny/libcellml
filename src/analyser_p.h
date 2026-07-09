@@ -161,7 +161,7 @@ public:
     AnalyserExternalVariablePtrs mExternalVariables;
 
     AnalyserInternalVariablePtrs mInternalVariables;
-    std::unordered_map<Variable *, AnalyserInternalVariablePtr> mInternalVariableCache;
+    std::unordered_map<std::uintptr_t, AnalyserInternalVariablePtr> mInternalVariableMap;
     AnalyserInternalEquationPtrs mInternalEquations;
 
     GeneratorProfilePtr mGeneratorProfile = GeneratorProfile::create();

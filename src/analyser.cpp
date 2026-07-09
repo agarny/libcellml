@@ -410,15 +410,8 @@ Analyser::AnalyserImpl::AnalyserImpl()
 
 AnalyserInternalVariablePtr Analyser::AnalyserImpl::internalVariable(const VariablePtr &variable)
 {
-    // Check the direct pointer cache first.
-
-    auto cacheIt = mInternalVariableCache.find(variable.get());
-
-    if (cacheIt != mInternalVariableCache.end()) {
-        return cacheIt->second;
-    }
-
-    // Not in the cache, so do the equivalence-based search.
+    // Find and return, if there is one, the internal variable associated with
+    // the given variable.
 
     auto rawPtr = reinterpret_cast<uintptr_t>(variable.get());
     auto rawPtrIt = mInternalVariableMap.find(rawPtr);
@@ -429,9 +422,7 @@ AnalyserInternalVariablePtr Analyser::AnalyserImpl::internalVariable(const Varia
 
     for (const auto &internalVariable : mInternalVariables) {
         if (mAnalyserModel->areEquivalentVariables(variable, internalVariable->mVariable)) {
-            // Cache this internal variable pointer for future lookups.
-
-            mInternalVariableCache.emplace(variable.get(), internalVariable);
+            mInternalVariableMap[rawPtr] = internalVariable;
 
             return internalVariable;
         }
@@ -443,7 +434,6 @@ AnalyserInternalVariablePtr Analyser::AnalyserImpl::internalVariable(const Varia
     auto res = AnalyserInternalVariable::create(variable);
 
     mInternalVariables.push_back(res);
-    mInternalVariableCache.emplace(variable.get(), res);
 
     mInternalVariableMap[rawPtr] = res;
 
@@ -2328,7 +2318,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
     mAnalyserModel = AnalyserModel::AnalyserModelImpl::create(model);
 
     mInternalVariables.clear();
-    mInternalVariableCache.clear();
+    mInternalVariableMap.clear();
     mInternalEquations.clear();
 
     mCiCnUnits.clear();
@@ -2731,11 +2721,13 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
     }
 
     if (!removedInternalEquations.empty()) {
+        const std::unordered_set<AnalyserInternalEquationPtr> removedEquationSet(
+            removedInternalEquations.begin(), removedInternalEquations.end());
+
         mInternalEquations.erase(
             std::remove_if(mInternalEquations.begin(), mInternalEquations.end(),
-                           [&removedInternalEquations](const auto &removedInternalEquation) {
-                               return std::find(removedInternalEquations.begin(), removedInternalEquations.end(), removedInternalEquation)
-                                      != removedInternalEquations.end();
+                           [&removedEquationSet](const auto &equation) {
+                               return removedEquationSet.count(equation);
                            }),
             mInternalEquations.end());
     }

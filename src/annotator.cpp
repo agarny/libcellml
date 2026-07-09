@@ -237,17 +237,17 @@ void Annotator::AnnotatorImpl::listComponentIdsAndItems(const ComponentPtr &comp
                 if (idList.count(id) != 0) {
                     // Get the range of items with this identifier:
                     auto rangePair = idList.equal_range(id);
-                    auto compEquiv = owningComponent(equivalentVariable);
                     auto compVar = owningComponent(variable);
+                    auto compEquivVar = owningComponent(equivalentVariable);
                     for (auto it = rangePair.first; it != rangePair.second; ++it) {
                         // Make sure it's also a CONNECTION item.
                         if (it->second->type() == CellmlElementType::CONNECTION) {
                             auto testPair = it->second->variablePair();
-                            auto compTest1 = owningComponent(testPair->variable1());
-                            auto compTest2 = owningComponent(testPair->variable2());
+                            auto compVar1 = owningComponent(testPair->variable1());
+                            auto compVar2 = owningComponent(testPair->variable2());
 
-                            if (((compTest1 == compEquiv) && (compTest2 == compVar))
-                                || ((compTest2 == compEquiv) && (compTest1 == compVar))) {
+                            if (((compVar1 == compEquivVar) && (compVar2 == compVar))
+                                || ((compVar2 == compEquivVar) && (compVar1 == compVar))) {
                                 found = true;
                             }
                         }
@@ -1452,9 +1452,9 @@ size_t Annotator::AnnotatorImpl::generateHash()
     if (model != nullptr) {
         std::string idsString;
         size_t i;
+        idsString += "m=" + model->id() + "me=" + model->encapsulationId();
 
         auto importSources = getAllImportSources(model);
-        idsString += "m=" + model->id() + "me=" + model->encapsulationId();
         i = 0;
         for (auto &importSource : importSources) {
             idsString += "i=" + std::format("{}", ++i) + importSource->id();

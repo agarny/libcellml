@@ -47,36 +47,7 @@ struct AnalyserModel::AnalyserModelImpl
 
     std::vector<AnalyserEquationPtr> mAnalyserEquations;
 
-    mutable std::unordered_map<Variable *, AnalyserVariablePtr> mAnalyserVariables;
-
-    std::unordered_map<uintptr_t, uintptr_t> mEquivalentVariableCache;
-
-    uintptr_t findVariableAddress(uintptr_t x)
-    {
-        auto it = mEquivalentVariableCache.find(x);
-
-        if (it == mEquivalentVariableCache.end()) {
-            mEquivalentVariableCache[x] = x;
-
-            return x;
-        }
-
-        if (it->second != x) {
-            it->second = findVariableAddress(it->second);
-        }
-
-        return it->second;
-    }
-
-    void uniteEquivalentVariableAddresses(uintptr_t x, uintptr_t y)
-    {
-        const uintptr_t &rootX = findVariableAddress(x);
-        const uintptr_t &rootY = findVariableAddress(y);
-
-        if (rootX != rootY) {
-            mEquivalentVariableCache[rootY] = rootX;
-        }
-    }
+    std::unordered_map<uintptr_t, size_t> mEquivalentVariableCache;
 
     bool mNeedEqFunction = false;
     bool mNeedNeqFunction = false;
