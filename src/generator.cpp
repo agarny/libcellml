@@ -1025,22 +1025,19 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
         if (isRelationalOperator(astLeftChild)
             || isLogicalOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         }
 
         if (isRelationalOperator(astRightChild)
             || isLogicalOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         }
     } else if (isMinusOperator(ast)) {
         if (isRelationalOperator(astLeftChild)
             || isLogicalOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         }
 
         if (isNegativeNumber(astRightChild)
@@ -1049,51 +1046,43 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isMinusOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)
             || (astRightChildCode.rfind(mProfile->minusString(), 0) == 0)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         }
     } else if (isTimesOperator(ast)) {
         if (isRelationalOperator(astLeftChild)
             || isLogicalOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)
                    || isMinusOperator(astLeftChild)) {
             if (astLeftChild->rightChild() != nullptr) {
-                astLeftChildCode.insert(0, "(");
-                astLeftChildCode += ')';
+                astLeftChildCode = '(' + astLeftChildCode + ')';
             }
         }
 
         if (isRelationalOperator(astRightChild)
             || isLogicalOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)
                    || isMinusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         }
     } else if (isDivideOperator(ast)) {
         if (isRelationalOperator(astLeftChild)
             || isLogicalOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)
                    || isMinusOperator(astLeftChild)) {
             if (astLeftChild->rightChild() != nullptr) {
-                astLeftChildCode.insert(0, "(");
-                astLeftChildCode += ')';
+                astLeftChildCode = '(' + astLeftChildCode + ')';
             }
         }
 
@@ -1102,13 +1091,11 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isTimesOperator(astRightChild)
             || isDivideOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)
                    || isMinusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         }
     } else if (isAndOperator(ast)) {
@@ -1121,40 +1108,32 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isOrOperator(astLeftChild)
             || isXorOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)
                    || isMinusOperator(astLeftChild)) {
             if (astLeftChild->rightChild() != nullptr) {
-                astLeftChildCode.insert(0, "(");
-                astLeftChildCode += ')';
+                astLeftChildCode = '(' + astLeftChildCode + ')';
             }
         } else if (isPowerOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isRootOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         }
 
         if (isRelationalOperator(astRightChild)
             || isOrOperator(astRightChild)
             || isXorOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)
                    || isMinusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         } else if (isPowerOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isRootOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         }
     } else if (isOrOperator(ast)) {
         // Note: according to the precedence rules above, we only need to
@@ -1166,40 +1145,32 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isAndOperator(astLeftChild)
             || isXorOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)
                    || isMinusOperator(astLeftChild)) {
             if (astLeftChild->rightChild() != nullptr) {
-                astLeftChildCode.insert(0, "(");
-                astLeftChildCode += ')';
+                astLeftChildCode = '(' + astLeftChildCode + ')';
             }
         } else if (isPowerOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isRootOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         }
 
         if (isRelationalOperator(astRightChild)
             || isAndOperator(astRightChild)
             || isXorOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)
                    || isMinusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         } else if (isPowerOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isRootOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         }
     } else if (isXorOperator(ast)) {
         // Note: according to the precedence rules above, we only need to
@@ -1211,40 +1182,32 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isAndOperator(astLeftChild)
             || isOrOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)
                    || isMinusOperator(astLeftChild)) {
             if (astLeftChild->rightChild() != nullptr) {
-                astLeftChildCode.insert(0, "(");
-                astLeftChildCode += ')';
+                astLeftChildCode = '(' + astLeftChildCode + ')';
             }
         } else if (isPowerOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isRootOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         }
 
         if (isRelationalOperator(astRightChild)
             || isAndOperator(astRightChild)
             || isOrOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)
                    || isMinusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         } else if (isPowerOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isRootOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         }
     } else if (isPowerOperator(ast)) {
         if (isRelationalOperator(astLeftChild)
@@ -1253,12 +1216,10 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isTimesOperator(astLeftChild)
             || isDivideOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)) {
             if (astLeftChild->rightChild() != nullptr) {
-                astLeftChildCode.insert(0, "(");
-                astLeftChildCode += ')';
+                astLeftChildCode = '(' + astLeftChildCode + ')';
             }
         }
 
@@ -1270,12 +1231,10 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isPowerOperator(astRightChild)
             || isRootOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         }
     } else if (isRootOperator(ast)) {
@@ -1285,12 +1244,10 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isTimesOperator(astRightChild)
             || isDivideOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         }
 
@@ -1304,12 +1261,10 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isPowerOperator(astLeftChildLeftChild)
             || isRootOperator(astLeftChildLeftChild)
             || isPiecewiseStatement(astLeftChildLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChildLeftChild)) {
             if (astLeftChildLeftChild->rightChild() != nullptr) {
-                astLeftChildCode.insert(0, "(");
-                astLeftChildCode += ')';
+                astLeftChildCode = '(' + astLeftChildCode + ')';
             }
         }
 
@@ -1347,8 +1302,7 @@ std::string Generator::GeneratorImpl::generateMinusUnaryCode(const AnalyserEquat
         || isPlusOperator(astLeftChild)
         || isMinusOperator(astLeftChild)
         || isPiecewiseStatement(astLeftChild)) {
-        code.insert(0, "(");
-        code += ')';
+        code = '(' + code + ')';
     }
 
     const auto &minusStr = mProfile->minusString();
