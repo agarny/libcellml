@@ -18,7 +18,6 @@ limitations under the License.
 
 #include <algorithm>
 #include <format>
-#include <set>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -44,6 +43,103 @@ namespace libcellml {
 void Generator::GeneratorImpl::reset()
 {
     mCode = {};
+}
+
+void Generator::GeneratorImpl::initProfileCache()
+{
+    // Boolean operator flags.
+
+    mProfileCache.hasEqOperator = mProfile->hasEqOperator();
+    mProfileCache.hasNeqOperator = mProfile->hasNeqOperator();
+    mProfileCache.hasLtOperator = mProfile->hasLtOperator();
+    mProfileCache.hasLeqOperator = mProfile->hasLeqOperator();
+    mProfileCache.hasGtOperator = mProfile->hasGtOperator();
+    mProfileCache.hasGeqOperator = mProfile->hasGeqOperator();
+    mProfileCache.hasAndOperator = mProfile->hasAndOperator();
+    mProfileCache.hasOrOperator = mProfile->hasOrOperator();
+    mProfileCache.hasXorOperator = mProfile->hasXorOperator();
+    mProfileCache.hasNotOperator = mProfile->hasNotOperator();
+    mProfileCache.hasPowerOperator = mProfile->hasPowerOperator();
+    mProfileCache.hasConditionalOperator = mProfile->hasConditionalOperator();
+
+    // Hot-path strings.
+
+    mProfileCache.equalityString = mProfile->equalityString();
+    mProfileCache.eqString = mProfile->eqString();
+    mProfileCache.neqString = mProfile->neqString();
+    mProfileCache.ltString = mProfile->ltString();
+    mProfileCache.leqString = mProfile->leqString();
+    mProfileCache.gtString = mProfile->gtString();
+    mProfileCache.geqString = mProfile->geqString();
+    mProfileCache.andString = mProfile->andString();
+    mProfileCache.orString = mProfile->orString();
+    mProfileCache.xorString = mProfile->xorString();
+    mProfileCache.notString = mProfile->notString();
+    mProfileCache.plusString = mProfile->plusString();
+    mProfileCache.minusString = mProfile->minusString();
+    mProfileCache.timesString = mProfile->timesString();
+    mProfileCache.divideString = mProfile->divideString();
+    mProfileCache.powerString = mProfile->powerString();
+    mProfileCache.squareRootString = mProfile->squareRootString();
+    mProfileCache.squareString = mProfile->squareString();
+    mProfileCache.absoluteValueString = mProfile->absoluteValueString();
+    mProfileCache.exponentialString = mProfile->exponentialString();
+    mProfileCache.naturalLogarithmString = mProfile->naturalLogarithmString();
+    mProfileCache.commonLogarithmString = mProfile->commonLogarithmString();
+    mProfileCache.ceilingString = mProfile->ceilingString();
+    mProfileCache.floorString = mProfile->floorString();
+    mProfileCache.minString = mProfile->minString();
+    mProfileCache.maxString = mProfile->maxString();
+    mProfileCache.remString = mProfile->remString();
+    mProfileCache.sinString = mProfile->sinString();
+    mProfileCache.cosString = mProfile->cosString();
+    mProfileCache.tanString = mProfile->tanString();
+    mProfileCache.secString = mProfile->secString();
+    mProfileCache.cscString = mProfile->cscString();
+    mProfileCache.cotString = mProfile->cotString();
+    mProfileCache.sinhString = mProfile->sinhString();
+    mProfileCache.coshString = mProfile->coshString();
+    mProfileCache.tanhString = mProfile->tanhString();
+    mProfileCache.sechString = mProfile->sechString();
+    mProfileCache.cschString = mProfile->cschString();
+    mProfileCache.cothString = mProfile->cothString();
+    mProfileCache.asinString = mProfile->asinString();
+    mProfileCache.acosString = mProfile->acosString();
+    mProfileCache.atanString = mProfile->atanString();
+    mProfileCache.asecString = mProfile->asecString();
+    mProfileCache.acscString = mProfile->acscString();
+    mProfileCache.acotString = mProfile->acotString();
+    mProfileCache.asinhString = mProfile->asinhString();
+    mProfileCache.acoshString = mProfile->acoshString();
+    mProfileCache.atanhString = mProfile->atanhString();
+    mProfileCache.asechString = mProfile->asechString();
+    mProfileCache.acschString = mProfile->acschString();
+    mProfileCache.acothString = mProfile->acothString();
+    mProfileCache.trueString = mProfile->trueString();
+    mProfileCache.falseString = mProfile->falseString();
+    mProfileCache.eString = mProfile->eString();
+    mProfileCache.piString = mProfile->piString();
+    mProfileCache.infString = mProfile->infString();
+    mProfileCache.nanString = mProfile->nanString();
+    mProfileCache.indentString = mProfile->indentString();
+    mProfileCache.openArrayString = mProfile->openArrayString();
+    mProfileCache.closeArrayString = mProfile->closeArrayString();
+    mProfileCache.commandSeparatorString = mProfile->commandSeparatorString();
+    mProfileCache.arrayElementSeparatorString = mProfile->arrayElementSeparatorString();
+    mProfileCache.variableDeclarationString = mProfile->variableDeclarationString();
+    mProfileCache.statesArrayString = mProfile->statesArrayString();
+    mProfileCache.ratesArrayString = mProfile->ratesArrayString();
+    mProfileCache.constantsArrayString = mProfile->constantsArrayString();
+    mProfileCache.computedConstantsArrayString = mProfile->computedConstantsArrayString();
+    mProfileCache.algebraicVariablesArrayString = mProfile->algebraicVariablesArrayString();
+    mProfileCache.externalVariablesArrayString = mProfile->externalVariablesArrayString();
+    mProfileCache.voiString = mProfile->voiString();
+    mProfileCache.uArrayString = mProfile->uArrayString();
+    mProfileCache.fArrayString = mProfile->fArrayString();
+    mProfileCache.conditionalOperatorIfString = mProfile->conditionalOperatorIfString();
+    mProfileCache.conditionalOperatorElseString = mProfile->conditionalOperatorElseString();
+    mProfileCache.piecewiseIfString = mProfile->piecewiseIfString();
+    mProfileCache.piecewiseElseString = mProfile->piecewiseElseString();
 }
 
 std::string Generator::GeneratorImpl::analyserVariableIndexString(const AnalyserVariablePtr &analyserVariable)
@@ -129,17 +225,17 @@ bool Generator::GeneratorImpl::isRelationalOperator(const AnalyserEquationAstPtr
 {
     switch (ast->type()) {
     case AnalyserEquationAst::Type::EQ:
-        return mProfile->hasEqOperator();
+        return mProfileCache.hasEqOperator;
     case AnalyserEquationAst::Type::NEQ:
-        return mProfile->hasNeqOperator();
+        return mProfileCache.hasNeqOperator;
     case AnalyserEquationAst::Type::LT:
-        return mProfile->hasLtOperator();
+        return mProfileCache.hasLtOperator;
     case AnalyserEquationAst::Type::LEQ:
-        return mProfile->hasLeqOperator();
+        return mProfileCache.hasLeqOperator;
     case AnalyserEquationAst::Type::GT:
-        return mProfile->hasGtOperator();
+        return mProfileCache.hasGtOperator;
     case AnalyserEquationAst::Type::GEQ:
-        return mProfile->hasGeqOperator();
+        return mProfileCache.hasGeqOperator;
     default:
         return false;
     }
@@ -148,19 +244,19 @@ bool Generator::GeneratorImpl::isRelationalOperator(const AnalyserEquationAstPtr
 bool Generator::GeneratorImpl::isAndOperator(const AnalyserEquationAstPtr &ast) const
 {
     return (ast->type() == AnalyserEquationAst::Type::AND)
-           && mProfile->hasAndOperator();
+           && mProfileCache.hasAndOperator;
 }
 
 bool Generator::GeneratorImpl::isOrOperator(const AnalyserEquationAstPtr &ast) const
 {
     return (ast->type() == AnalyserEquationAst::Type::OR)
-           && mProfile->hasOrOperator();
+           && mProfileCache.hasOrOperator;
 }
 
 bool Generator::GeneratorImpl::isXorOperator(const AnalyserEquationAstPtr &ast) const
 {
     return (ast->type() == AnalyserEquationAst::Type::XOR)
-           && mProfile->hasXorOperator();
+           && mProfileCache.hasXorOperator;
 }
 
 bool Generator::GeneratorImpl::isLogicalOperator(const AnalyserEquationAstPtr &ast) const
@@ -195,19 +291,19 @@ bool Generator::GeneratorImpl::isDivideOperator(const AnalyserEquationAstPtr &as
 bool Generator::GeneratorImpl::isPowerOperator(const AnalyserEquationAstPtr &ast) const
 {
     return (ast->type() == AnalyserEquationAst::Type::POWER)
-           && mProfile->hasPowerOperator();
+           && mProfileCache.hasPowerOperator;
 }
 
 bool Generator::GeneratorImpl::isRootOperator(const AnalyserEquationAstPtr &ast) const
 {
     return (ast->type() == AnalyserEquationAst::Type::ROOT)
-           && mProfile->hasPowerOperator();
+           && mProfileCache.hasPowerOperator;
 }
 
 bool Generator::GeneratorImpl::isPiecewiseStatement(const AnalyserEquationAstPtr &ast) const
 {
     return (ast->type() == AnalyserEquationAst::Type::PIECEWISE)
-           && mProfile->hasConditionalOperator();
+           && mProfileCache.hasConditionalOperator;
 }
 
 void Generator::GeneratorImpl::updateVariableInfoSizes(size_t &componentSize,
@@ -939,20 +1035,20 @@ std::string Generator::GeneratorImpl::generateDoubleOrVariableNameCode(const Var
 
     switch (initialValueAnalyserVariable->type()) {
     case AnalyserVariable::Type::STATE:
-        arrayName = mProfile->statesArrayString();
+        arrayName = mProfileCache.statesArrayString;
 
         break;
     case AnalyserVariable::Type::CONSTANT:
-        arrayName = mProfile->constantsArrayString();
+        arrayName = mProfileCache.constantsArrayString;
 
         break;
     default: // If it is not one of the above types then it has to be a computed constant.
-        arrayName = mProfile->computedConstantsArrayString();
+        arrayName = mProfileCache.computedConstantsArrayString;
 
         break;
     }
 
-    return arrayName + mProfile->openArrayString() + analyserVariableIndexString(initialValueAnalyserVariable) + mProfile->closeArrayString();
+    return arrayName + mProfileCache.openArrayString + analyserVariableIndexString(initialValueAnalyserVariable) + mProfileCache.closeArrayString;
 }
 
 std::string Generator::GeneratorImpl::generateVariableNameCode(const VariablePtr &variable, bool state)
@@ -974,10 +1070,10 @@ std::string Generator::GeneratorImpl::generateVariableNameCode(const VariablePtr
         auto scalingFactor = Units::scalingFactor(variable->units(), analyserVariable->variable()->units());
 
         if (!areNearlyEqual(scalingFactor, 1.0)) {
-            return generateDoubleCode(convertToString(scalingFactor)) + mProfile->timesString() + mProfile->voiString();
+            return generateDoubleCode(convertToString(scalingFactor)) + mProfileCache.timesString + mProfileCache.voiString;
         }
 
-        return mProfile->voiString();
+        return mProfileCache.voiString;
     }
 
     if (isTrackedVariable(analyserVariable, false)) {
@@ -990,19 +1086,19 @@ std::string Generator::GeneratorImpl::generateVariableNameCode(const VariablePtr
 
     if (analyserVariable->type() == AnalyserVariable::Type::STATE) {
         arrayName = state ?
-                        mProfile->statesArrayString() :
-                        mProfile->ratesArrayString();
+                        mProfileCache.statesArrayString :
+                        mProfileCache.ratesArrayString;
     } else if (analyserVariable->type() == AnalyserVariable::Type::CONSTANT) {
-        arrayName = mProfile->constantsArrayString();
+        arrayName = mProfileCache.constantsArrayString;
     } else if (analyserVariable->type() == AnalyserVariable::Type::COMPUTED_CONSTANT) {
-        arrayName = mProfile->computedConstantsArrayString();
+        arrayName = mProfileCache.computedConstantsArrayString;
     } else if (analyserVariable->type() == AnalyserVariable::Type::ALGEBRAIC_VARIABLE) {
-        arrayName = mProfile->algebraicVariablesArrayString();
+        arrayName = mProfileCache.algebraicVariablesArrayString;
     } else {
-        arrayName = mProfile->externalVariablesArrayString();
+        arrayName = mProfileCache.externalVariablesArrayString;
     }
 
-    return arrayName + mProfile->openArrayString() + analyserVariableIndexString(analyserVariable) + mProfile->closeArrayString();
+    return arrayName + mProfileCache.openArrayString + analyserVariableIndexString(analyserVariable) + mProfileCache.closeArrayString;
 }
 
 std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op, const AnalyserEquationAstPtr &ast)
@@ -1036,15 +1132,13 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
         if (isRelationalOperator(astLeftChild)
             || isLogicalOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         }
 
         if (isRelationalOperator(astRightChild)
             || isLogicalOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         }
 
         // a + -b -> a - b.
@@ -1058,58 +1152,51 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
         if (isRelationalOperator(astLeftChild)
             || isLogicalOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         }
 
         if (isRelationalOperator(astRightChild)
             || isLogicalOperator(astRightChild)
             || isMinusOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)
-            || (astRightChildCode.rfind(mProfile->minusString(), 0) == 0)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            || (astRightChildCode.rfind(mProfileCache.minusString, 0) == 0)) {
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            if (astRightChild->rightChild() != nullptr) {
+                astRightChildCode = '(' + astRightChildCode + ')';
+            }
         }
     } else if (isTimesOperator(ast)) {
         if (isRelationalOperator(astLeftChild)
             || isLogicalOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)
                    || isMinusOperator(astLeftChild)) {
             if (astLeftChild->rightChild() != nullptr) {
-                astLeftChildCode.insert(0, "(");
-                astLeftChildCode += ')';
+                astLeftChildCode = '(' + astLeftChildCode + ')';
             }
         }
 
         if (isRelationalOperator(astRightChild)
             || isLogicalOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)
                    || isMinusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         }
     } else if (isDivideOperator(ast)) {
         if (isRelationalOperator(astLeftChild)
             || isLogicalOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)
                    || isMinusOperator(astLeftChild)) {
             if (astLeftChild->rightChild() != nullptr) {
-                astLeftChildCode.insert(0, "(");
-                astLeftChildCode += ')';
+                astLeftChildCode = '(' + astLeftChildCode + ')';
             }
         }
 
@@ -1118,13 +1205,11 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isTimesOperator(astRightChild)
             || isDivideOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)
                    || isMinusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         }
     } else if (isAndOperator(ast)) {
@@ -1137,40 +1222,32 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isOrOperator(astLeftChild)
             || isXorOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)
                    || isMinusOperator(astLeftChild)) {
             if (astLeftChild->rightChild() != nullptr) {
-                astLeftChildCode.insert(0, "(");
-                astLeftChildCode += ')';
+                astLeftChildCode = '(' + astLeftChildCode + ')';
             }
         } else if (isPowerOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isRootOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         }
 
         if (isRelationalOperator(astRightChild)
             || isOrOperator(astRightChild)
             || isXorOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)
                    || isMinusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         } else if (isPowerOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isRootOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         }
     } else if (isOrOperator(ast)) {
         // Note: according to the precedence rules above, we only need to
@@ -1182,40 +1259,32 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isAndOperator(astLeftChild)
             || isXorOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)
                    || isMinusOperator(astLeftChild)) {
             if (astLeftChild->rightChild() != nullptr) {
-                astLeftChildCode.insert(0, "(");
-                astLeftChildCode += ')';
+                astLeftChildCode = '(' + astLeftChildCode + ')';
             }
         } else if (isPowerOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isRootOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         }
 
         if (isRelationalOperator(astRightChild)
             || isAndOperator(astRightChild)
             || isXorOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)
                    || isMinusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         } else if (isPowerOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isRootOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         }
     } else if (isXorOperator(ast)) {
         // Note: according to the precedence rules above, we only need to
@@ -1227,40 +1296,32 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isAndOperator(astLeftChild)
             || isOrOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)
                    || isMinusOperator(astLeftChild)) {
             if (astLeftChild->rightChild() != nullptr) {
-                astLeftChildCode.insert(0, "(");
-                astLeftChildCode += ')';
+                astLeftChildCode = '(' + astLeftChildCode + ')';
             }
         } else if (isPowerOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isRootOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         }
 
         if (isRelationalOperator(astRightChild)
             || isAndOperator(astRightChild)
             || isOrOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)
                    || isMinusOperator(astRightChild)) {
             if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode.insert(0, "(");
-                astRightChildCode += ')';
+                astRightChildCode = '(' + astRightChildCode + ')';
             }
         } else if (isPowerOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isRootOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         }
     } else if (isPowerOperator(ast)) {
         if (isRelationalOperator(astLeftChild)
@@ -1269,11 +1330,11 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isTimesOperator(astLeftChild)
             || isDivideOperator(astLeftChild)
             || isPiecewiseStatement(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            if (astLeftChild->rightChild() != nullptr) {
+                astLeftChildCode = '(' + astLeftChildCode + ')';
+            }
         }
 
         if (isRelationalOperator(astRightChild)
@@ -1284,11 +1345,11 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isPowerOperator(astRightChild)
             || isRootOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            if (astRightChild->rightChild() != nullptr) {
+                astRightChildCode = '(' + astRightChildCode + ')';
+            }
         }
     } else if (isRootOperator(ast)) {
         if (isRelationalOperator(astRightChild)
@@ -1297,11 +1358,11 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isTimesOperator(astRightChild)
             || isDivideOperator(astRightChild)
             || isPiecewiseStatement(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)) {
-            astRightChildCode.insert(0, "(");
-            astRightChildCode += ')';
+            if (astRightChild->rightChild() != nullptr) {
+                astRightChildCode = '(' + astRightChildCode + ')';
+            }
         }
 
         auto astLeftChildLeftChild = astLeftChild->leftChild();
@@ -1314,11 +1375,11 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isPowerOperator(astLeftChildLeftChild)
             || isRootOperator(astLeftChildLeftChild)
             || isPiecewiseStatement(astLeftChildLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChildLeftChild)) {
-            astLeftChildCode.insert(0, "(");
-            astLeftChildCode += ')';
+            if (astLeftChildLeftChild->rightChild() != nullptr) {
+                astLeftChildCode = '(' + astLeftChildCode + ')';
+            }
         }
 
         std::string res;
@@ -1355,11 +1416,10 @@ std::string Generator::GeneratorImpl::generateMinusUnaryCode(const AnalyserEquat
         || isPlusOperator(astLeftChild)
         || isMinusOperator(astLeftChild)
         || isPiecewiseStatement(astLeftChild)) {
-        code.insert(0, "(");
-        code += ')';
+        code = '(' + code + ')';
     }
 
-    const auto &minusStr = mProfile->minusString();
+    const auto &minusStr = mProfileCache.minusString;
     std::string res;
 
     res += minusStr;
@@ -1402,18 +1462,18 @@ std::string Generator::GeneratorImpl::generateTwoParameterFunctionCode(const std
 std::string Generator::GeneratorImpl::generatePiecewiseIfCode(const std::string &condition,
                                                               const std::string &value) const
 {
-    return replace(replace(mProfile->hasConditionalOperator() ?
-                               mProfile->conditionalOperatorIfString() :
-                               mProfile->piecewiseIfString(),
+    return replace(replace(mProfileCache.hasConditionalOperator ?
+                               mProfileCache.conditionalOperatorIfString :
+                               mProfileCache.piecewiseIfString,
                            "[CONDITION]", condition),
                    "[IF_STATEMENT]", value);
 }
 
 std::string Generator::GeneratorImpl::generatePiecewiseElseCode(const std::string &value) const
 {
-    return replace(mProfile->hasConditionalOperator() ?
-                       mProfile->conditionalOperatorElseString() :
-                       mProfile->piecewiseElseString(),
+    return replace(mProfileCache.hasConditionalOperator ?
+                       mProfileCache.conditionalOperatorElseString :
+                       mProfileCache.piecewiseElseString,
                    "[ELSE_STATEMENT]", value);
 }
 
@@ -1429,96 +1489,96 @@ std::string Generator::GeneratorImpl::generateCode(const AnalyserEquationAstPtr 
 
     switch (ast->type()) {
     case AnalyserEquationAst::Type::EQUALITY:
-        code = generateOperatorCode(mProfile->equalityString(), ast);
+        code = generateOperatorCode(mProfileCache.equalityString, ast);
 
         break;
     case AnalyserEquationAst::Type::EQ:
-        if (mProfile->hasEqOperator()) {
-            code = generateOperatorCode(mProfile->eqString(), ast);
+        if (mProfileCache.hasEqOperator) {
+            code = generateOperatorCode(mProfileCache.eqString, ast);
         } else {
-            code = generateTwoParameterFunctionCode(mProfile->eqString(), ast);
+            code = generateTwoParameterFunctionCode(mProfileCache.eqString, ast);
         }
 
         break;
     case AnalyserEquationAst::Type::NEQ:
-        if (mProfile->hasNeqOperator()) {
-            code = generateOperatorCode(mProfile->neqString(), ast);
+        if (mProfileCache.hasNeqOperator) {
+            code = generateOperatorCode(mProfileCache.neqString, ast);
         } else {
-            code = generateTwoParameterFunctionCode(mProfile->neqString(), ast);
+            code = generateTwoParameterFunctionCode(mProfileCache.neqString, ast);
         }
 
         break;
     case AnalyserEquationAst::Type::LT:
-        if (mProfile->hasLtOperator()) {
-            code = generateOperatorCode(mProfile->ltString(), ast);
+        if (mProfileCache.hasLtOperator) {
+            code = generateOperatorCode(mProfileCache.ltString, ast);
         } else {
-            code = generateTwoParameterFunctionCode(mProfile->ltString(), ast);
+            code = generateTwoParameterFunctionCode(mProfileCache.ltString, ast);
         }
 
         break;
     case AnalyserEquationAst::Type::LEQ:
-        if (mProfile->hasLeqOperator()) {
-            code = generateOperatorCode(mProfile->leqString(), ast);
+        if (mProfileCache.hasLeqOperator) {
+            code = generateOperatorCode(mProfileCache.leqString, ast);
         } else {
-            code = generateTwoParameterFunctionCode(mProfile->leqString(), ast);
+            code = generateTwoParameterFunctionCode(mProfileCache.leqString, ast);
         }
 
         break;
     case AnalyserEquationAst::Type::GT:
-        if (mProfile->hasGtOperator()) {
-            code = generateOperatorCode(mProfile->gtString(), ast);
+        if (mProfileCache.hasGtOperator) {
+            code = generateOperatorCode(mProfileCache.gtString, ast);
         } else {
-            code = generateTwoParameterFunctionCode(mProfile->gtString(), ast);
+            code = generateTwoParameterFunctionCode(mProfileCache.gtString, ast);
         }
 
         break;
     case AnalyserEquationAst::Type::GEQ:
-        if (mProfile->hasGeqOperator()) {
-            code = generateOperatorCode(mProfile->geqString(), ast);
+        if (mProfileCache.hasGeqOperator) {
+            code = generateOperatorCode(mProfileCache.geqString, ast);
         } else {
-            code = generateTwoParameterFunctionCode(mProfile->geqString(), ast);
+            code = generateTwoParameterFunctionCode(mProfileCache.geqString, ast);
         }
 
         break;
     case AnalyserEquationAst::Type::AND:
-        if (mProfile->hasAndOperator()) {
-            code = generateOperatorCode(mProfile->andString(), ast);
+        if (mProfileCache.hasAndOperator) {
+            code = generateOperatorCode(mProfileCache.andString, ast);
         } else {
-            code = generateTwoParameterFunctionCode(mProfile->andString(), ast);
+            code = generateTwoParameterFunctionCode(mProfileCache.andString, ast);
         }
 
         break;
     case AnalyserEquationAst::Type::OR:
-        if (mProfile->hasOrOperator()) {
-            code = generateOperatorCode(mProfile->orString(), ast);
+        if (mProfileCache.hasOrOperator) {
+            code = generateOperatorCode(mProfileCache.orString, ast);
         } else {
-            code = generateTwoParameterFunctionCode(mProfile->orString(), ast);
+            code = generateTwoParameterFunctionCode(mProfileCache.orString, ast);
         }
 
         break;
     case AnalyserEquationAst::Type::XOR:
-        if (mProfile->hasXorOperator()) {
-            code = generateOperatorCode(mProfile->xorString(), ast);
+        if (mProfileCache.hasXorOperator) {
+            code = generateOperatorCode(mProfileCache.xorString, ast);
         } else {
-            code = generateTwoParameterFunctionCode(mProfile->xorString(), ast);
+            code = generateTwoParameterFunctionCode(mProfileCache.xorString, ast);
         }
 
         break;
     case AnalyserEquationAst::Type::NOT:
-        if (mProfile->hasNotOperator()) {
+        if (mProfileCache.hasNotOperator) {
             auto leftChildString = generateCode(ast->leftChild());
-            const auto &notString = mProfile->notString();
+            const auto &notString = mProfileCache.notString;
 
             code += notString;
             code += leftChildString;
         } else {
-            code = generateOneParameterFunctionCode(mProfile->notString(), ast);
+            code = generateOneParameterFunctionCode(mProfileCache.notString, ast);
         }
 
         break;
     case AnalyserEquationAst::Type::PLUS:
         if (ast->rightChild() != nullptr) {
-            code = generateOperatorCode(mProfile->plusString(), ast);
+            code = generateOperatorCode(mProfileCache.plusString, ast);
         } else {
             code = generateCode(ast->leftChild());
         }
@@ -1526,18 +1586,18 @@ std::string Generator::GeneratorImpl::generateCode(const AnalyserEquationAstPtr 
         break;
     case AnalyserEquationAst::Type::MINUS:
         if (ast->rightChild() != nullptr) {
-            code = generateOperatorCode(mProfile->minusString(), ast);
+            code = generateOperatorCode(mProfileCache.minusString, ast);
         } else {
             code = generateMinusUnaryCode(ast);
         }
 
         break;
     case AnalyserEquationAst::Type::TIMES:
-        code = generateOperatorCode(mProfile->timesString(), ast);
+        code = generateOperatorCode(mProfileCache.timesString, ast);
 
         break;
     case AnalyserEquationAst::Type::DIVIDE:
-        code = generateOperatorCode(mProfile->divideString(), ast);
+        code = generateOperatorCode(mProfileCache.divideString, ast);
 
         break;
     case AnalyserEquationAst::Type::POWER: {
@@ -1546,16 +1606,16 @@ std::string Generator::GeneratorImpl::generateCode(const AnalyserEquationAstPtr 
         auto validConversion = convertToDouble(stringValue, doubleValue);
 
         if (validConversion && areEqual(doubleValue, 0.5)) {
-            code = generateOneParameterFunctionCode(mProfile->squareRootString(), ast);
+            code = generateOneParameterFunctionCode(mProfileCache.squareRootString, ast);
         } else if (validConversion && areEqual(doubleValue, 2.0)
-                   && !mProfile->squareString().empty()) {
-            code = generateOneParameterFunctionCode(mProfile->squareString(), ast);
+                   && !mProfileCache.squareString.empty()) {
+            code = generateOneParameterFunctionCode(mProfileCache.squareString, ast);
         } else {
-            if (mProfile->hasPowerOperator()) {
-                code = generateOperatorCode(mProfile->powerString(), ast);
+            if (mProfileCache.hasPowerOperator) {
+                code = generateOperatorCode(mProfileCache.powerString, ast);
             } else {
                 auto leftChildString = generateCode(ast->leftChild());
-                const auto &powerString = mProfile->powerString();
+                const auto &powerString = mProfileCache.powerString;
 
                 code += powerString;
                 code += '(';
@@ -1576,15 +1636,15 @@ std::string Generator::GeneratorImpl::generateCode(const AnalyserEquationAstPtr 
             if (convertToDouble(generateCode(astLeftChild), doubleValue)
                 && areEqual(doubleValue, 2.0)) {
                 auto rightChildString = generateCode(astRightChild);
-                const auto &squareRootString = mProfile->squareRootString();
+                const auto &squareRootString = mProfileCache.squareRootString;
 
                 code += squareRootString;
                 code += '(';
                 code += rightChildString;
                 code += ')';
             } else {
-                if (mProfile->hasPowerOperator()) {
-                    code = generateOperatorCode(mProfile->powerString(), ast);
+                if (mProfileCache.hasPowerOperator) {
+                    code = generateOperatorCode(mProfileCache.powerString, ast);
                 } else {
                     auto rootValueAst = AnalyserEquationAst::create();
 
@@ -1602,8 +1662,8 @@ std::string Generator::GeneratorImpl::generateCode(const AnalyserEquationAstPtr 
 
                     {
                         auto rightChildString = generateCode(astRightChild);
-                        auto exponentString = generateOperatorCode(mProfile->divideString(), rootValueAst);
-                        const auto &powerString = mProfile->powerString();
+                        auto exponentString = generateOperatorCode(mProfileCache.divideString, rootValueAst);
+                        const auto &powerString = mProfileCache.powerString;
 
                         code += powerString;
                         code += '(';
@@ -1615,19 +1675,19 @@ std::string Generator::GeneratorImpl::generateCode(const AnalyserEquationAstPtr 
                 }
             }
         } else {
-            code = generateOneParameterFunctionCode(mProfile->squareRootString(), ast);
+            code = generateOneParameterFunctionCode(mProfileCache.squareRootString, ast);
         }
     } break;
     case AnalyserEquationAst::Type::ABS:
-        code = generateOneParameterFunctionCode(mProfile->absoluteValueString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.absoluteValueString, ast);
 
         break;
     case AnalyserEquationAst::Type::EXP:
-        code = generateOneParameterFunctionCode(mProfile->exponentialString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.exponentialString, ast);
 
         break;
     case AnalyserEquationAst::Type::LN:
-        code = generateOneParameterFunctionCode(mProfile->naturalLogarithmString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.naturalLogarithmString, ast);
 
         break;
     case AnalyserEquationAst::Type::LOG: {
@@ -1639,7 +1699,7 @@ std::string Generator::GeneratorImpl::generateCode(const AnalyserEquationAstPtr 
 
             if (convertToDouble(stringValue, doubleValue)
                 && areEqual(doubleValue, 10.0)) {
-                const auto &commonLogarithmString = mProfile->commonLogarithmString();
+                const auto &commonLogarithmString = mProfileCache.commonLogarithmString;
                 auto rightChildString = generateCode(astRightChild);
 
                 code += commonLogarithmString;
@@ -1647,7 +1707,7 @@ std::string Generator::GeneratorImpl::generateCode(const AnalyserEquationAstPtr 
                 code += rightChildString;
                 code += ')';
             } else {
-                const auto &naturalLogarithmString = mProfile->naturalLogarithmString();
+                const auto &naturalLogarithmString = mProfileCache.naturalLogarithmString;
                 auto rightChildString = generateCode(astRightChild);
 
                 code += naturalLogarithmString;
@@ -1660,27 +1720,27 @@ std::string Generator::GeneratorImpl::generateCode(const AnalyserEquationAstPtr 
                 code += ')';
             }
         } else {
-            code = generateOneParameterFunctionCode(mProfile->commonLogarithmString(), ast);
+            code = generateOneParameterFunctionCode(mProfileCache.commonLogarithmString, ast);
         }
     } break;
     case AnalyserEquationAst::Type::CEILING:
-        code = generateOneParameterFunctionCode(mProfile->ceilingString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.ceilingString, ast);
 
         break;
     case AnalyserEquationAst::Type::FLOOR:
-        code = generateOneParameterFunctionCode(mProfile->floorString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.floorString, ast);
 
         break;
     case AnalyserEquationAst::Type::MIN:
-        code = generateTwoParameterFunctionCode(mProfile->minString(), ast);
+        code = generateTwoParameterFunctionCode(mProfileCache.minString, ast);
 
         break;
     case AnalyserEquationAst::Type::MAX:
-        code = generateTwoParameterFunctionCode(mProfile->maxString(), ast);
+        code = generateTwoParameterFunctionCode(mProfileCache.maxString, ast);
 
         break;
     case AnalyserEquationAst::Type::REM:
-        code = generateTwoParameterFunctionCode(mProfile->remString(), ast);
+        code = generateTwoParameterFunctionCode(mProfileCache.remString, ast);
 
         break;
     case AnalyserEquationAst::Type::DIFF:
@@ -1698,99 +1758,99 @@ std::string Generator::GeneratorImpl::generateCode(const AnalyserEquationAstPtr 
 
         break;
     case AnalyserEquationAst::Type::SIN:
-        code = generateOneParameterFunctionCode(mProfile->sinString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.sinString, ast);
 
         break;
     case AnalyserEquationAst::Type::COS:
-        code = generateOneParameterFunctionCode(mProfile->cosString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.cosString, ast);
 
         break;
     case AnalyserEquationAst::Type::TAN:
-        code = generateOneParameterFunctionCode(mProfile->tanString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.tanString, ast);
 
         break;
     case AnalyserEquationAst::Type::SEC:
-        code = generateOneParameterFunctionCode(mProfile->secString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.secString, ast);
 
         break;
     case AnalyserEquationAst::Type::CSC:
-        code = generateOneParameterFunctionCode(mProfile->cscString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.cscString, ast);
 
         break;
     case AnalyserEquationAst::Type::COT:
-        code = generateOneParameterFunctionCode(mProfile->cotString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.cotString, ast);
 
         break;
     case AnalyserEquationAst::Type::SINH:
-        code = generateOneParameterFunctionCode(mProfile->sinhString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.sinhString, ast);
 
         break;
     case AnalyserEquationAst::Type::COSH:
-        code = generateOneParameterFunctionCode(mProfile->coshString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.coshString, ast);
 
         break;
     case AnalyserEquationAst::Type::TANH:
-        code = generateOneParameterFunctionCode(mProfile->tanhString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.tanhString, ast);
 
         break;
     case AnalyserEquationAst::Type::SECH:
-        code = generateOneParameterFunctionCode(mProfile->sechString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.sechString, ast);
 
         break;
     case AnalyserEquationAst::Type::CSCH:
-        code = generateOneParameterFunctionCode(mProfile->cschString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.cschString, ast);
 
         break;
     case AnalyserEquationAst::Type::COTH:
-        code = generateOneParameterFunctionCode(mProfile->cothString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.cothString, ast);
 
         break;
     case AnalyserEquationAst::Type::ASIN:
-        code = generateOneParameterFunctionCode(mProfile->asinString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.asinString, ast);
 
         break;
     case AnalyserEquationAst::Type::ACOS:
-        code = generateOneParameterFunctionCode(mProfile->acosString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.acosString, ast);
 
         break;
     case AnalyserEquationAst::Type::ATAN:
-        code = generateOneParameterFunctionCode(mProfile->atanString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.atanString, ast);
 
         break;
     case AnalyserEquationAst::Type::ASEC:
-        code = generateOneParameterFunctionCode(mProfile->asecString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.asecString, ast);
 
         break;
     case AnalyserEquationAst::Type::ACSC:
-        code = generateOneParameterFunctionCode(mProfile->acscString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.acscString, ast);
 
         break;
     case AnalyserEquationAst::Type::ACOT:
-        code = generateOneParameterFunctionCode(mProfile->acotString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.acotString, ast);
 
         break;
     case AnalyserEquationAst::Type::ASINH:
-        code = generateOneParameterFunctionCode(mProfile->asinhString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.asinhString, ast);
 
         break;
     case AnalyserEquationAst::Type::ACOSH:
-        code = generateOneParameterFunctionCode(mProfile->acoshString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.acoshString, ast);
 
         break;
     case AnalyserEquationAst::Type::ATANH:
-        code = generateOneParameterFunctionCode(mProfile->atanhString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.atanhString, ast);
 
         break;
     case AnalyserEquationAst::Type::ASECH:
-        code = generateOneParameterFunctionCode(mProfile->asechString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.asechString, ast);
 
         break;
     case AnalyserEquationAst::Type::ACSCH:
-        code = generateOneParameterFunctionCode(mProfile->acschString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.acschString, ast);
 
         break;
     case AnalyserEquationAst::Type::ACOTH:
-        code = generateOneParameterFunctionCode(mProfile->acothString(), ast);
+        code = generateOneParameterFunctionCode(mProfileCache.acothString, ast);
 
         break;
     case AnalyserEquationAst::Type::PIECEWISE: {
@@ -1798,12 +1858,12 @@ std::string Generator::GeneratorImpl::generateCode(const AnalyserEquationAstPtr 
 
         if (astRightChild != nullptr) {
             if (astRightChild->type() == AnalyserEquationAst::Type::PIECE) {
-                code = generateCode(ast->leftChild()) + generatePiecewiseElseCode(generateCode(astRightChild) + generatePiecewiseElseCode(mProfile->nanString()));
+                code = generateCode(ast->leftChild()) + generatePiecewiseElseCode(generateCode(astRightChild) + generatePiecewiseElseCode(mProfileCache.nanString));
             } else {
                 code = generateCode(ast->leftChild()) + generatePiecewiseElseCode(generateCode(astRightChild));
             }
         } else {
-            code = generateCode(ast->leftChild()) + generatePiecewiseElseCode(mProfile->nanString());
+            code = generateCode(ast->leftChild()) + generatePiecewiseElseCode(mProfileCache.nanString);
         }
     } break;
     case AnalyserEquationAst::Type::PIECE:
@@ -1845,27 +1905,27 @@ std::string Generator::GeneratorImpl::generateCode(const AnalyserEquationAstPtr 
 
         break;
     case AnalyserEquationAst::Type::TRUE:
-        code += mProfile->trueString();
+        code += mProfileCache.trueString;
 
         break;
     case AnalyserEquationAst::Type::FALSE:
-        code += mProfile->falseString();
+        code += mProfileCache.falseString;
 
         break;
     case AnalyserEquationAst::Type::E:
-        code += mProfile->eString();
+        code += mProfileCache.eString;
 
         break;
     case AnalyserEquationAst::Type::PI:
-        code += mProfile->piString();
+        code += mProfileCache.piString;
 
         break;
     case AnalyserEquationAst::Type::INF:
-        code += mProfile->infString();
+        code += mProfileCache.infString;
 
         break;
     default: // AnalyserEquationAst::Type::NAN.
-        code += mProfile->nanString();
+        code += mProfileCache.nanString;
 
         break;
     }
@@ -1908,11 +1968,11 @@ bool Generator::GeneratorImpl::isSomeConstant(const AnalyserEquationPtr &analyse
 
 std::string Generator::GeneratorImpl::generateZeroInitialisationCode(const AnalyserVariablePtr &analyserVariable)
 {
-    return mProfile->indentString()
+    return mProfileCache.indentString
            + generateVariableNameCode(analyserVariable->variable(), false)
-           + mProfile->equalityString()
+           + mProfileCache.equalityString
            + "0.0"
-           + mProfile->commandSeparatorString() + "\n";
+           + mProfileCache.commandSeparatorString + "\n";
 }
 
 std::string Generator::GeneratorImpl::generateInitialisationCode(const AnalyserVariablePtr &analyserVariable, bool force)
@@ -1926,19 +1986,19 @@ std::string Generator::GeneratorImpl::generateInitialisationCode(const AnalyserV
     std::string scalingFactorCode;
 
     if (!areNearlyEqual(scalingFactor, 1.0)) {
-        scalingFactorCode = generateDoubleCode(convertToString(scalingFactor)) + mProfile->timesString();
+        scalingFactorCode = generateDoubleCode(convertToString(scalingFactor)) + mProfileCache.timesString;
     }
 
     auto code = generateVariableNameCode(analyserVariable->variable())
-                + mProfile->equalityString()
+                + mProfileCache.equalityString
                 + scalingFactorCode + generateDoubleOrVariableNameCode(initialisingVariable)
-                + mProfile->commandSeparatorString() + "\n";
+                + mProfileCache.commandSeparatorString + "\n";
 
     if (isTrackedVariable(analyserVariable, false)) {
-        code = replace(mProfile->variableDeclarationString(), "[CODE]", code);
+        code = replace(mProfileCache.variableDeclarationString, "[CODE]", code);
     }
 
-    return mProfile->indentString() + code;
+    return mProfileCache.indentString + code;
 }
 
 std::string Generator::GeneratorImpl::generateEquationCode(const AnalyserEquationPtr &analyserEquation,
@@ -2345,6 +2405,7 @@ std::string Generator::interfaceCode(const AnalyserModelPtr &analyserModel, cons
     // Get ourselves ready.
 
     pFunc()->reset();
+    pFunc()->initProfileCache();
 
     // Add code for the origin comment.
 
@@ -2428,6 +2489,7 @@ std::string Generator::implementationCode(const AnalyserModelPtr &analyserModel,
     // Get ourselves ready.
 
     pFunc()->reset();
+    pFunc()->initProfileCache();
 
     // Add code for the origin comment.
 
@@ -2549,6 +2611,8 @@ std::string Generator::equationCode(const AnalyserEquationAstPtr &ast,
     GeneratorPtr generator = Generator::create();
 
     generator->pFunc()->mProfile = (generatorProfile != nullptr) ? generatorProfile : generator->pFunc()->mDefaultProfile;
+
+    generator->pFunc()->initProfileCache();
 
     return generator->pFunc()->generateCode(ast);
 }

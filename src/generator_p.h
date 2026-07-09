@@ -42,6 +42,110 @@ struct Generator::GeneratorImpl: public Logger::LoggerImpl
     GeneratorProfilePtr mProfile;
     GeneratorVariableTrackerPtr mVariableTracker;
 
+    /**
+     * @brief Cached profile accessors to avoid virtual dispatch overhead.
+     *
+     * Populated by initProfileCache() at the start of each code generation run.
+     */
+    struct ProfileCache
+    {
+        // Boolean operator flags.
+
+        bool hasEqOperator = false;
+        bool hasNeqOperator = false;
+        bool hasLtOperator = false;
+        bool hasLeqOperator = false;
+        bool hasGtOperator = false;
+        bool hasGeqOperator = false;
+        bool hasAndOperator = false;
+        bool hasOrOperator = false;
+        bool hasXorOperator = false;
+        bool hasNotOperator = false;
+        bool hasPowerOperator = false;
+        bool hasConditionalOperator = false;
+
+        // Hot-path strings.
+
+        std::string equalityString;
+        std::string eqString;
+        std::string neqString;
+        std::string ltString;
+        std::string leqString;
+        std::string gtString;
+        std::string geqString;
+        std::string andString;
+        std::string orString;
+        std::string xorString;
+        std::string notString;
+        std::string plusString;
+        std::string minusString;
+        std::string timesString;
+        std::string divideString;
+        std::string powerString;
+        std::string squareRootString;
+        std::string squareString;
+        std::string absoluteValueString;
+        std::string exponentialString;
+        std::string naturalLogarithmString;
+        std::string commonLogarithmString;
+        std::string ceilingString;
+        std::string floorString;
+        std::string minString;
+        std::string maxString;
+        std::string remString;
+        std::string sinString;
+        std::string cosString;
+        std::string tanString;
+        std::string secString;
+        std::string cscString;
+        std::string cotString;
+        std::string sinhString;
+        std::string coshString;
+        std::string tanhString;
+        std::string sechString;
+        std::string cschString;
+        std::string cothString;
+        std::string asinString;
+        std::string acosString;
+        std::string atanString;
+        std::string asecString;
+        std::string acscString;
+        std::string acotString;
+        std::string asinhString;
+        std::string acoshString;
+        std::string atanhString;
+        std::string asechString;
+        std::string acschString;
+        std::string acothString;
+        std::string trueString;
+        std::string falseString;
+        std::string eString;
+        std::string piString;
+        std::string infString;
+        std::string nanString;
+        std::string indentString;
+        std::string openArrayString;
+        std::string closeArrayString;
+        std::string commandSeparatorString;
+        std::string arrayElementSeparatorString;
+        std::string variableDeclarationString;
+        std::string statesArrayString;
+        std::string ratesArrayString;
+        std::string constantsArrayString;
+        std::string computedConstantsArrayString;
+        std::string algebraicVariablesArrayString;
+        std::string externalVariablesArrayString;
+        std::string voiString;
+        std::string uArrayString;
+        std::string fArrayString;
+        std::string conditionalOperatorIfString;
+        std::string conditionalOperatorElseString;
+        std::string piecewiseIfString;
+        std::string piecewiseElseString;
+    } mutable mProfileCache;
+
+    void initProfileCache();
+
     void reset();
 
     std::string analyserVariableIndexString(const AnalyserVariablePtr &analyserVariable);
