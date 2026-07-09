@@ -1162,9 +1162,7 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || (astRightChildCode.rfind(mProfileCache.minusString, 0) == 0)) {
             astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)) {
-            if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode = '(' + astRightChildCode + ')';
-            }
+            astRightChildCode = '(' + astRightChildCode + ')';
         }
     } else if (isTimesOperator(ast)) {
         if (isRelationalOperator(astLeftChild)
@@ -1332,9 +1330,7 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isPiecewiseStatement(astLeftChild)) {
             astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChild)) {
-            if (astLeftChild->rightChild() != nullptr) {
-                astLeftChildCode = '(' + astLeftChildCode + ')';
-            }
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         }
 
         if (isRelationalOperator(astRightChild)
@@ -1347,9 +1343,7 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isPiecewiseStatement(astRightChild)) {
             astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)) {
-            if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode = '(' + astRightChildCode + ')';
-            }
+            astRightChildCode = '(' + astRightChildCode + ')';
         }
     } else if (isRootOperator(ast)) {
         if (isRelationalOperator(astRightChild)
@@ -1360,9 +1354,7 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isPiecewiseStatement(astRightChild)) {
             astRightChildCode = '(' + astRightChildCode + ')';
         } else if (isPlusOperator(astRightChild)) {
-            if (astRightChild->rightChild() != nullptr) {
-                astRightChildCode = '(' + astRightChildCode + ')';
-            }
+            astRightChildCode = '(' + astRightChildCode + ')';
         }
 
         auto astLeftChildLeftChild = astLeftChild->leftChild();
@@ -1377,9 +1369,7 @@ std::string Generator::GeneratorImpl::generateOperatorCode(const std::string &op
             || isPiecewiseStatement(astLeftChildLeftChild)) {
             astLeftChildCode = '(' + astLeftChildCode + ')';
         } else if (isPlusOperator(astLeftChildLeftChild)) {
-            if (astLeftChildLeftChild->rightChild() != nullptr) {
-                astLeftChildCode = '(' + astLeftChildCode + ')';
-            }
+            astLeftChildCode = '(' + astLeftChildCode + ')';
         }
 
         std::string res;
