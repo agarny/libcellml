@@ -623,7 +623,7 @@ TEST(AnalyserUnits, multipliers)
         "The units in 'a = 1.0' in component 'main' are not equivalent. 'a' is in 'second' while '1.0' is in 'millisecond' (i.e. '10^-3 x second').",
         "The units in 'b = 3.0' in component 'main' are not equivalent. 'b' is in 'volt' (i.e. 'ampere^-1 x kilogram x metre^2 x second^-3') while '3.0' is in 'millivolt' (i.e. '10^-3 x ampere^-1 x kilogram x metre^2 x second^-3').",
         "The units in 'c = 5.0' in component 'main' are not equivalent. 'c' is in 'frog' while '5.0' is in 'millifrog' (i.e. '10^-3 x frog').",
-        "The units in 'd = 7.0' in component 'main' are not equivalent. 'd' is in 'imaginary' (i.e. '10^-66 x ampere^-6 x frog^10 x kilogram^6 x metre^12 x second^-16') while '7.0' is in 'milliimaginary' (i.e. '10^-84 x ampere^-6 x frog^10 x kilogram^6 x metre^12 x second^-16').",
+        "The units in 'd = 7.0' in component 'main' are not equivalent. 'd' is in 'imaginary' (i.e. '10^-66 x ampere^-6 x frog^10 x kilogram^6 x metre^12 x second^-16') while '7.0' is in 'milliimaginary' (i.e. '10^-69 x ampere^-6 x frog^10 x kilogram^6 x metre^12 x second^-16').",
     };
 
     auto analyser = libcellml::Analyser::create();
@@ -707,6 +707,59 @@ TEST(AnalyserUnits, scalingFactorWithCustomUnits)
     auto cUnits = libcellml::Units::create("c");
 
     cUnits->addUnit("metre", "kilo", 2.0, 1.0);
+
+    auto xa = libcellml::Variable::create("xa");
+
+    xa->setUnits(a);
+    xa->setInitialValue(1.0);
+
+    auto xc = libcellml::Variable::create("xc");
+
+    xc->setUnits(cUnits);
+
+    c->addVariable(xa);
+    c->addVariable(xc);
+
+    m->addUnits(b);
+    m->addUnits(a);
+    m->addUnits(cUnits);
+
+    m->addComponent(c);
+
+    c->setMath(
+        "<math xmlns=\"http://www.w3.org/1998/Math/MathML\">"
+        "  <apply>"
+        "    <eq/>"
+        "    <ci>xa</ci>"
+        "    <ci>xc</ci>"
+        "  </apply>"
+        "</math>");
+
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(m);
+
+    EXPECT_EQ(size_t(0), analyser->issueCount());
+}
+
+TEST(AnalyserUnits, inheritedMultiplierAppliedOncePerBranch)
+{
+    auto m = libcellml::Model::create("per_branch");
+    auto c = libcellml::Component::create("main");
+    auto b = libcellml::Units::create("b");
+
+    b->addUnit("second");
+    b->addUnit("metre");
+
+    auto a = libcellml::Units::create("a");
+
+    a->addUnit("b", "kilo", 2.0, 1.0);
+
+    auto cUnits = libcellml::Units::create("c");
+
+    cUnits->addUnit("second", "", 2.0, 1.0);
+    cUnits->addUnit("metre", "", 2.0, 1.0);
+    cUnits->addUnit("dimensionless", "", 1.0, 1.0e6);
 
     auto xa = libcellml::Variable::create("xa");
 

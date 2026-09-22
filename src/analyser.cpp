@@ -1394,17 +1394,23 @@ void Analyser::AnalyserImpl::updateUnitsMultiplier(const ModelPtr &model,
             double multiplier;
             std::string id;
 
+            double branchMultiplier = 0.0;
+
             for (size_t i = 0; i < units->unitCount(); ++i) {
                 units->unitAttributes(i, reference, prefix, exponent, multiplier, id);
 
                 if (isStandardUnitName(reference)) {
-                    newUnitsMultiplier += unitsMultiplier + (std::log10(multiplier) + (standardMultiplierList.at(reference) + convertPrefixToInt(prefix)) * exponent) * unitsExponent;
+                    branchMultiplier += (std::log10(multiplier) + (standardMultiplierList.at(reference) + convertPrefixToInt(prefix)) * exponent) * unitsExponent;
                 } else {
-                    updateUnitsMultiplier(model, reference, newUnitsMultiplier,
-                                          exponent * unitsExponent,
-                                          unitsMultiplier + (std::log10(multiplier) + convertPrefixToInt(prefix) * exponent) * unitsExponent);
+                    double referencedMultiplier = 0.0;
+
+                    updateUnitsMultiplier(model, reference, referencedMultiplier, exponent * unitsExponent, 0.0);
+
+                    branchMultiplier += std::log10(multiplier) * unitsExponent + convertPrefixToInt(prefix) * exponent * unitsExponent + referencedMultiplier;
                 }
             }
+
+            newUnitsMultiplier += unitsMultiplier + branchMultiplier;
         }
     }
 }
