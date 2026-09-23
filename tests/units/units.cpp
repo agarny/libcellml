@@ -603,7 +603,6 @@ TEST(Units, cannotLinkUnitsNotAddedToModel)
 
     v1->setUnits(u1);
 
-    m->linkUnits();
     EXPECT_TRUE(m->hasUnlinkedUnits());
 }
 
@@ -1240,8 +1239,6 @@ TEST(Units, scalingFactorWithMinuteAndPerMinuteUnits)
     m->addUnits(perMinute);
     m->addUnits(perMinuteByReference);
 
-    m->linkUnits();
-
     EXPECT_NEAR(1.0, libcellml::Units::scalingFactor(perMinute, perMinuteByReference), 1e-12);
     EXPECT_NEAR(1.0, libcellml::Units::scalingFactor(perMinuteByReference, perMinute), 1e-12);
 }
@@ -1265,8 +1262,6 @@ TEST(Units, scalingFactorWithCustomUnits)
     m->addUnits(a);
     m->addUnits(c);
 
-    m->linkUnits();
-
     EXPECT_EQ(1.0, libcellml::Units::scalingFactor(a, c));
     EXPECT_EQ(1.0, libcellml::Units::scalingFactor(c, a));
 }
@@ -1279,8 +1274,6 @@ TEST(Units, customUnitsScalingFactorSimple)
     auto u2 = libcellml::Units::create("u2");
     u2->addUnit("u1");
     m->addUnits(u2);
-
-    m->linkUnits();
 
     EXPECT_TRUE(libcellml::Units::compatible(u1, u2));
     EXPECT_EQ(1.0, libcellml::Units::scalingFactor(u1, u2));
@@ -1303,8 +1296,6 @@ TEST(Units, customUnitsScalingFactorIncludingDimensionless)
     u2->addUnit("metre", -1.0);
 
     m->addUnits(u2);
-
-    m->linkUnits();
 
     EXPECT_TRUE(libcellml::Units::compatible(u1, u2));
     EXPECT_EQ(1.0, libcellml::Units::scalingFactor(u1, u2));
