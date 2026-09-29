@@ -269,7 +269,7 @@ static constexpr RuleInformation ruleToInformation[] = {
 
 static consteval bool hasInformationForAllRules()
 {
-    if (std::size(ruleToInformation) != static_cast<size_t>(Issue::ReferenceRule::UNSPECIFIED) + 1) {
+    if constexpr (std::size(ruleToInformation) != static_cast<size_t>(Issue::ReferenceRule::UNSPECIFIED) + 1) {
         return false;
     }
 
