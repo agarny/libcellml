@@ -17,6 +17,7 @@ limitations under the License.
 #include "generatorprofiletools.h"
 
 #include <array>
+#include <cstdint>
 #include <iomanip>
 #include <sstream>
 
