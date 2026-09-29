@@ -74,6 +74,21 @@ AnyCellmlElementPtr Issue::item() const
 }
 
 /**
+ * @brief Map Level to their string versions.
+ *
+ * An internal map used to convert a Issue::Level into its string version.
+ */
+static const std::map<Issue::Level, std::string> levelToString = {
+    {Issue::Level::ERROR, "error"},
+    {Issue::Level::MESSAGE, "message"},
+    {Issue::Level::WARNING, "warning"}};
+
+std::string Issue::levelAsString(Level level)
+{
+    return levelToString.at(level);
+}
+
+/**
  * @brief Map ReferenceRules to their section titles.
  *
  * An internal map used to convert a Issue::ReferenceRule into its heading string.
@@ -187,7 +202,7 @@ static constexpr RuleInformation ruleToInformation[] = {
     {Issue::ReferenceRule::MAP_VARIABLES_ELEMENT, "MAP_VARIABLES_ELEMENT", "2.16", baseSpecificationUrl, "specB16"},
     {Issue::ReferenceRule::MAP_VARIABLES_VARIABLE1_ATTRIBUTE, "MAP_VARIABLES_VARIABLE1_ATTRIBUTE", "2.16.1", baseSpecificationUrl, "specB16"},
     {Issue::ReferenceRule::MAP_VARIABLES_VARIABLE1_ATTRIBUTE_REFERENCE, "MAP_VARIABLES_VARIABLE1_ATTRIBUTE_REFERENCE", "2.16.1.1", baseSpecificationUrl, "specB16"},
-    {Issue::ReferenceRule::MAP_VARIABLES_VARIABLE2_ATTRIBUTE, "MAP_VARIABLES_VARIABLE2", "2.16.2", baseSpecificationUrl, "specB16"},
+    {Issue::ReferenceRule::MAP_VARIABLES_VARIABLE2_ATTRIBUTE, "MAP_VARIABLES_VARIABLE2_ATTRIBUTE", "2.16.2", baseSpecificationUrl, "specB16"},
     {Issue::ReferenceRule::MAP_VARIABLES_VARIABLE2_ATTRIBUTE_REFERENCE, "MAP_VARIABLES_VARIABLE2_ATTRIBUTE_REFERENCE", "2.16.2.1", baseSpecificationUrl, "specB16"},
     {Issue::ReferenceRule::MAP_VARIABLES_UNIQUE, "MAP_VARIABLES_UNIQUE", "2.16.3", baseSpecificationUrl, "specB16"},
 
@@ -248,8 +263,8 @@ static constexpr RuleInformation ruleToInformation[] = {
     {Issue::ReferenceRule::GENERATOR_EXTERNALLY_NEEDED_VARIABLE_ALWAYS_TRACKED, "GENERATOR_EXTERNALLY_NEEDED_VARIABLE_ALWAYS_TRACKED", "", docsUrl, ""},
     {Issue::ReferenceRule::GENERATOR_EXTERNALLY_NEEDED_VARIABLE_NOT_UNTRACKABLE, "GENERATOR_EXTERNALLY_NEEDED_VARIABLE_NOT_UNTRACKABLE", "", docsUrl, ""},
 
-    // Placeholder for further references:
-    {Issue::ReferenceRule::UNSPECIFIED, "", "", "", ""},
+    // Placeholder:
+    {Issue::ReferenceRule::UNSPECIFIED, "UNSPECIFIED", "", "", ""}
 };
 
 static consteval bool hasInformationForAllRules()
@@ -272,6 +287,13 @@ static_assert(hasInformationForAllRules(), "ruleToInformation must have one entr
 static const RuleInformation &ruleInformation(Issue::ReferenceRule rule)
 {
     return ruleToInformation[static_cast<size_t>(rule)];
+}
+
+std::string Issue::referenceRuleAsString(ReferenceRule rule)
+{
+    std::string data = ruleToInformation.at(rule)[0];
+    std::transform(data.begin(), data.end(), data.begin(), [](unsigned char c) { return std::tolower(c); });
+    return data;
 }
 
 std::string Issue::referenceHeading() const
