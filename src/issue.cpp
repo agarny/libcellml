@@ -291,7 +291,7 @@ static const RuleInformation &ruleInformation(Issue::ReferenceRule rule)
 
 std::string Issue::referenceRuleAsString(ReferenceRule rule)
 {
-    std::string data = ruleToInformation.at(rule)[0];
+    std::string data = ruleInformation(rule).name;
     std::transform(data.begin(), data.end(), data.begin(), [](unsigned char c) { return std::tolower(c); });
     return data;
 }
