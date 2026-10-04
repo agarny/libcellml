@@ -949,6 +949,45 @@ TEST(AnalyserUnits, tinyExponentNotEquivalentToDimensionless)
     EXPECT_EQ_ISSUES(expectedIssues, analyser);
 }
 
+TEST(AnalyserUnits, overflowingExponent)
+{
+    // Units with exponents that overflow when added together (i.e. resulting in an infinite exponent) are not
+    // dimensionless, so they must not be considered as cancelling each other.
+
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<model xmlns=\"http://www.cellml.org/cellml/2.0#\" xmlns:cellml=\"http://www.cellml.org/cellml/2.0#\" name=\"m\">\n"
+        "  <units name=\"huge_second\">\n"
+        "    <unit exponent=\"1e308\" units=\"second\"/>\n"
+        "    <unit exponent=\"1e308\" units=\"second\"/>\n"
+        "    <unit exponent=\"1\" units=\"second\"/>\n"
+        "  </units>\n"
+        "  <component name=\"c\">\n"
+        "    <variable name=\"x\" units=\"dimensionless\"/>\n"
+        "    <math xmlns=\"http://www.w3.org/1998/Math/MathML\">\n"
+        "      <apply>\n"
+        "        <eq/>\n"
+        "        <ci>x</ci>\n"
+        "        <apply>\n"
+        "          <exp/>\n"
+        "          <cn cellml:units=\"huge_second\">2</cn>\n"
+        "        </apply>\n"
+        "      </apply>\n"
+        "    </math>\n"
+        "  </component>\n"
+        "</model>\n");
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    const std::vector<std::string> expectedIssues = {
+        "The unit of '2.0' in 'exp(2.0)' in equation 'x = exp(2.0)' in component 'c' is not dimensionless. '2.0' is in 'huge_second' (i.e. 'second^inf').",
+    };
+
+    EXPECT_EQ_ISSUES(expectedIssues, analyser);
+}
+
 TEST(AnalyserUnits, zeroExponent)
 {
     auto parser = libcellml::Parser::create();

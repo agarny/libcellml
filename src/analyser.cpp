@@ -1119,9 +1119,10 @@ void Analyser::AnalyserImpl::updateUnitsMapItem(UnitsMap &unitsMap, const std::s
     // track them with the given exponent, unless it is zero. Otherwise, we add the given exponent to the existing one
     // and, if the units now cancel each other dimensionally (e.g., volt.mV^-1), we stop tracking them, as we would
     // otherwise think that the units map is not dimensionless when it actually is.
-    // Note: the units cancel each other if the resulting exponent is negligible compared to the exponents that we add
-    //       together. We cannot simply check whether the resulting exponent is nearly zero since a tiny exponent (e.g.,
-    //       1e-16) may be genuine and still be amplified later on (e.g., by a power operation).
+    // Note: the units cancel each other if the resulting exponent is finite and negligible compared to the exponents
+    //       that we add together. We cannot simply check whether the resulting exponent is nearly zero since a tiny
+    //       exponent (e.g., 1e-16) may be genuine and still be amplified later on (e.g., by a power operation). As for
+    //       an infinite exponent (e.g., 1e308+1e308), it would otherwise be considered negligible compared to itself.
 
     static const double CANCELLATION_TOLERANCE = 8.0 * std::numeric_limits<double>::epsilon();
 
@@ -1134,7 +1135,8 @@ void Analyser::AnalyserImpl::updateUnitsMapItem(UnitsMap &unitsMap, const std::s
     } else {
         auto exponent = iter->second + unitsExponent;
 
-        if (std::fabs(exponent) <= CANCELLATION_TOLERANCE * std::max(std::fabs(iter->second), std::fabs(unitsExponent))) {
+        if (std::isfinite(exponent)
+            && (std::fabs(exponent) <= CANCELLATION_TOLERANCE * std::max(std::fabs(iter->second), std::fabs(unitsExponent)))) {
             unitsMap.erase(iter);
         } else {
             iter->second = exponent;
@@ -1713,9 +1715,11 @@ std::string Analyser::AnalyserImpl::expressionUnits(const UnitsMaps &unitsMaps,
 
             if ((unitsItem.first != "dimensionless")
                 && (unitsItem.second != 0.0)) {
-                auto intExponent = int(unitsItem.second);
-                auto exponent = ((intExponent != 0) && areNearlyEqual(unitsItem.second, intExponent)) ?
-                                    convertToString(intExponent) :
+                auto intExponent = std::trunc(unitsItem.second);
+                auto exponent = ((intExponent != 0.0)
+                                 && (std::fabs(intExponent) <= std::numeric_limits<int>::max())
+                                 && areNearlyEqual(unitsItem.second, intExponent)) ?
+                                    convertToString(int(intExponent)) :
                                     convertToString(unitsItem.second, false);
 
                 if (!unit.empty()) {
