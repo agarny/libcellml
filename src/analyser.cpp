@@ -1319,8 +1319,8 @@ UnitsMultipliers Analyser::AnalyserImpl::powerRootUnitsMultipliers(const UnitsMu
 bool Analyser::AnalyserImpl::areSameUnitsMaps(const UnitsMaps &firstUnitsMaps,
                                               const UnitsMaps &secondUnitsMaps)
 {
-    // Check whether the given units maps are the same by checking their
-    // exponents.
+    // Check whether the given units maps are the same by checking their exponents, i.e. by dividing one units map by
+    // the other and checking that all the units cancel each other (using the same criterion as updateUnitsMapItem()).
 
     for (const auto &firstUnitsMap : firstUnitsMaps) {
         for (const auto &secondUnitsMap : secondUnitsMaps) {
@@ -1328,20 +1328,18 @@ bool Analyser::AnalyserImpl::areSameUnitsMaps(const UnitsMaps &firstUnitsMaps,
 
             for (const auto &units : firstUnitsMap) {
                 if (units.first != "dimensionless") {
-                    unitsMap[units.first] += units.second;
+                    updateUnitsMapItem(unitsMap, units.first, units.second);
                 }
             }
 
             for (const auto &units : secondUnitsMap) {
                 if (units.first != "dimensionless") {
-                    unitsMap[units.first] -= units.second;
+                    updateUnitsMapItem(unitsMap, units.first, -units.second);
                 }
             }
 
-            for (const auto &unitsItem : unitsMap) {
-                if (!areNearlyEqual(unitsItem.second, 0.0)) {
-                    return false;
-                }
+            if (!unitsMap.empty()) {
+                return false;
             }
         }
     }
@@ -1710,10 +1708,13 @@ std::string Analyser::AnalyserImpl::expressionUnits(const UnitsMaps &unitsMaps,
         }
 
         for (const auto &unitsItem : unitsMap) {
+            // Note: a tiny exponent (e.g., 1e-16) is genuine (see updateUnitsMapItem()), so we only skip an exponent
+            //       that is exactly zero and never round a non-zero exponent to zero.
+
             if ((unitsItem.first != "dimensionless")
-                && !areNearlyEqual(unitsItem.second, 0.0)) {
+                && (unitsItem.second != 0.0)) {
                 auto intExponent = int(unitsItem.second);
-                auto exponent = areNearlyEqual(unitsItem.second, intExponent) ?
+                auto exponent = ((intExponent != 0) && areNearlyEqual(unitsItem.second, intExponent)) ?
                                     convertToString(intExponent) :
                                     convertToString(unitsItem.second, false);
 

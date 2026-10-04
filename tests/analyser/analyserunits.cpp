@@ -909,6 +909,46 @@ TEST(AnalyserUnits, tinyExponentAmplifiedByPower)
     }
 }
 
+TEST(AnalyserUnits, tinyExponentNotEquivalentToDimensionless)
+{
+    // Units with a tiny exponent (i.e., as tiny as, or tinier than, the machine epsilon) are not dimensionless, so they
+    // must not be considered as equivalent to dimensionless, but they must be considered as equivalent to themselves.
+
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<model xmlns=\"http://www.cellml.org/cellml/2.0#\" xmlns:cellml=\"http://www.cellml.org/cellml/2.0#\" name=\"m\">\n"
+        "  <units name=\"tiny_second\">\n"
+        "    <unit exponent=\"1e-16\" units=\"second\"/>\n"
+        "  </units>\n"
+        "  <component name=\"c\">\n"
+        "    <variable name=\"x\" units=\"dimensionless\"/>\n"
+        "    <variable name=\"y\" units=\"tiny_second\"/>\n"
+        "    <math xmlns=\"http://www.w3.org/1998/Math/MathML\">\n"
+        "      <apply>\n"
+        "        <eq/>\n"
+        "        <ci>x</ci>\n"
+        "        <cn cellml:units=\"tiny_second\">2</cn>\n"
+        "      </apply>\n"
+        "      <apply>\n"
+        "        <eq/>\n"
+        "        <ci>y</ci>\n"
+        "        <cn cellml:units=\"tiny_second\">3</cn>\n"
+        "      </apply>\n"
+        "    </math>\n"
+        "  </component>\n"
+        "</model>\n");
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    const std::vector<std::string> expectedIssues = {
+        "The units in 'x = 2.0' in component 'c' are not equivalent. 'x' is 'dimensionless' while '2.0' is in 'tiny_second' (i.e. 'second^1e-16').",
+    };
+
+    EXPECT_EQ_ISSUES(expectedIssues, analyser);
+}
+
 TEST(AnalyserUnits, zeroExponent)
 {
     auto parser = libcellml::Parser::create();
