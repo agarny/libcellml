@@ -20,8 +20,10 @@ limitations under the License.
 
 #include "libcellml/analyser.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <limits>
 
 #include "libcellml/analyserequation.h"
 #include "libcellml/analyserexternalvariable.h"
@@ -1138,6 +1140,37 @@ void Analyser::AnalyserImpl::analyseEquationAst(const AnalyserEquationAstPtr &as
     analyseEquationAst(ast->mPimpl->mOwnedRightChild);
 }
 
+void Analyser::AnalyserImpl::updateUnitsMapItem(UnitsMap &unitsMap, const std::string &unitsName, double unitsExponent)
+{
+    // Add the given exponent to the given units in the given units map. If the units are not yet tracked, then we
+    // track them with the given exponent, unless it is zero. Otherwise, we add the given exponent to the existing one
+    // and, if the units now cancel each other dimensionally (e.g., volt.mV^-1), we stop tracking them, as we would
+    // otherwise think that the units map is not dimensionless when it actually is.
+    // Note: the units cancel each other if the resulting exponent is finite and negligible compared to the exponents
+    //       that we add together. We cannot simply check whether the resulting exponent is nearly zero since a tiny
+    //       exponent (e.g., 1e-16) may be genuine and still be amplified later on (e.g., by a power operation). As for
+    //       an infinite exponent (e.g., 1e308+1e308), it would otherwise be considered negligible compared to itself.
+
+    static const double CANCELLATION_TOLERANCE = 8.0 * std::numeric_limits<double>::epsilon();
+
+    auto iter = unitsMap.find(unitsName);
+
+    if (iter == unitsMap.end()) {
+        if (unitsExponent != 0.0) {
+            unitsMap.emplace(unitsName, unitsExponent);
+        }
+    } else {
+        auto exponent = iter->second + unitsExponent;
+
+        if (std::isfinite(exponent)
+            && (std::fabs(exponent) <= CANCELLATION_TOLERANCE * std::max(std::fabs(iter->second), std::fabs(unitsExponent)))) {
+            unitsMap.erase(iter);
+        } else {
+            iter->second = exponent;
+        }
+    }
+}
+
 void Analyser::AnalyserImpl::updateUnitsMapWithStandardUnit(const std::string &unitsName,
                                                             UnitsMap &unitsMap,
                                                             double unitsExponent)
@@ -1145,11 +1178,7 @@ void Analyser::AnalyserImpl::updateUnitsMapWithStandardUnit(const std::string &u
     // Update the given units map using the given standard unit.
 
     for (const auto &iter : standardUnitsList.at(unitsName)) {
-        if (unitsMap.find(iter.first) == unitsMap.end()) {
-            unitsMap.emplace(iter.first, 0.0);
-        }
-
-        unitsMap[iter.first] += iter.second * unitsExponent;
+        updateUnitsMapItem(unitsMap, iter.first, iter.second * unitsExponent);
     }
 }
 
@@ -1173,13 +1202,7 @@ void Analyser::AnalyserImpl::updateUnitsMap(const ModelPtr &model,
             UnitsPtr units = model->units(unitsName);
 
             if (units->isBaseUnit()) {
-                auto iter = unitsMap.find(unitsName);
-
-                if (iter == unitsMap.end()) {
-                    unitsMap.emplace(unitsName, unitsExponent);
-                } else {
-                    unitsMap[iter->first] += unitsExponent;
-                }
+                updateUnitsMapItem(unitsMap, unitsName, unitsExponent);
             } else {
                 std::string reference;
                 std::string prefix;
@@ -1214,20 +1237,7 @@ UnitsMap Analyser::AnalyserImpl::multiplyDivideUnitsMaps(const UnitsMap &firstUn
     auto sign = multiply ? 1.0 : -1.0;
 
     for (const auto &units : secondUnitsMap) {
-        auto it = res.find(units.first);
-
-        if (it == res.end()) {
-            res.emplace(units.first, sign * units.second);
-        } else {
-            it->second += sign * units.second;
-
-            if (areNearlyEqual(it->second, 0.0)) {
-                // The units has now an exponent value of zero, so no need to
-                // track it anymore.
-
-                res.erase(it);
-            }
-        }
+        updateUnitsMapItem(res, units.first, sign * units.second);
     }
 
     return res;
@@ -1338,8 +1348,8 @@ UnitsMultipliers Analyser::AnalyserImpl::powerRootUnitsMultipliers(const UnitsMu
 bool Analyser::AnalyserImpl::areSameUnitsMaps(const UnitsMaps &firstUnitsMaps,
                                               const UnitsMaps &secondUnitsMaps)
 {
-    // Check whether the given units maps are the same by checking their
-    // exponents.
+    // Check whether the given units maps are the same by checking their exponents, i.e. by dividing one units map by
+    // the other and checking that all the units cancel each other (using the same criterion as updateUnitsMapItem()).
 
     for (const auto &firstUnitsMap : firstUnitsMaps) {
         for (const auto &secondUnitsMap : secondUnitsMaps) {
@@ -1347,20 +1357,18 @@ bool Analyser::AnalyserImpl::areSameUnitsMaps(const UnitsMaps &firstUnitsMaps,
 
             for (const auto &units : firstUnitsMap) {
                 if (units.first != "dimensionless") {
-                    unitsMap[units.first] += units.second;
+                    updateUnitsMapItem(unitsMap, units.first, units.second);
                 }
             }
 
             for (const auto &units : secondUnitsMap) {
                 if (units.first != "dimensionless") {
-                    unitsMap[units.first] -= units.second;
+                    updateUnitsMapItem(unitsMap, units.first, -units.second);
                 }
             }
 
-            for (const auto &unitsItem : unitsMap) {
-                if (!areNearlyEqual(unitsItem.second, 0.0)) {
-                    return false;
-                }
+            if (!unitsMap.empty()) {
+                return false;
             }
         }
     }
@@ -1726,11 +1734,16 @@ std::string Analyser::AnalyserImpl::expressionUnits(const UnitsMaps &unitsMaps,
         }
 
         for (const auto &unitsItem : unitsMap) {
+            // Note: a tiny exponent (e.g., 1e-16) is genuine (see updateUnitsMapItem()), so we only skip an exponent
+            //       that is exactly zero and never round a non-zero exponent to zero.
+
             if ((unitsItem.first != "dimensionless")
-                && !areNearlyEqual(unitsItem.second, 0.0)) {
-                auto intExponent = int(unitsItem.second);
-                auto exponent = areNearlyEqual(unitsItem.second, intExponent) ?
-                                    convertToString(intExponent) :
+                && (unitsItem.second != 0.0)) {
+                auto intExponent = std::trunc(unitsItem.second);
+                auto exponent = ((intExponent != 0.0)
+                                 && (std::fabs(intExponent) <= std::numeric_limits<int>::max())
+                                 && areNearlyEqual(unitsItem.second, intExponent)) ?
+                                    convertToString(int(intExponent)) :
                                     convertToString(unitsItem.second, false);
 
                 if (!unit.empty()) {

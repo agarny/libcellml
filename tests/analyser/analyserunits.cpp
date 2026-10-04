@@ -795,6 +795,229 @@ TEST(AnalyserUnits, inheritedMultiplierAppliedOncePerBranch)
     EXPECT_EQ(size_t(0), analyser->issueCount());
 }
 
+TEST(AnalyserUnits, dimensionlessProductWithCancellingUnitsAsFirstOperand)
+{
+    static const std::string MODEL_START =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<model xmlns=\"http://www.cellml.org/cellml/2.0#\" xmlns:cellml=\"http://www.cellml.org/cellml/2.0#\" name=\"m\">\n"
+        "  <units name=\"mV\">\n"
+        "    <unit prefix=\"milli\" units=\"volt\"/>\n"
+        "  </units>\n"
+        "  <units name=\"V_per_mV\">\n"
+        "    <unit units=\"volt\"/>\n"
+        "    <unit exponent=\"-1\" units=\"mV\"/>\n"
+        "  </units>\n"
+        "  <units name=\"per_V\">\n"
+        "    <unit exponent=\"-1\" units=\"volt\"/>\n"
+        "  </units>\n"
+        "  <component name=\"c\">\n"
+        "    <variable name=\"V\" units=\"mV\" initial_value=\"1\"/>\n"
+        "    <variable name=\"k\" units=\"per_V\" initial_value=\"1\"/>\n"
+        "    <variable name=\"x\" units=\"dimensionless\"/>\n"
+        "    <math xmlns=\"http://www.w3.org/1998/Math/MathML\">\n"
+        "      <apply>\n"
+        "        <eq/>\n"
+        "        <ci>x</ci>\n"
+        "        <apply>\n"
+        "          <exp/>\n"
+        "          <apply>\n"
+        "            <times/>\n";
+    static const std::string MODEL_END =
+        "          </apply>\n"
+        "        </apply>\n"
+        "      </apply>\n"
+        "    </math>\n"
+        "  </component>\n"
+        "</model>\n";
+    static const std::string CN = "<cn cellml:units=\"V_per_mV\">2</cn>";
+    static const std::string V = "<ci>V</ci>";
+    static const std::string K = "<ci>k</ci>";
+
+    auto parser = libcellml::Parser::create();
+    auto analyser = libcellml::Analyser::create();
+
+    for (const auto &product : {CN + V + K, V + CN + K, V + K + CN}) {
+        analyser->analyseModel(parser->parseModel(MODEL_START + product + MODEL_END));
+
+        EXPECT_EQ(size_t(0), analyser->issueCount());
+    }
+}
+
+TEST(AnalyserUnits, tinyExponentAmplifiedByPower)
+{
+    // Raise a constant in units with a tiny exponent (i.e. as tiny as, or tinier than, the machine epsilon) to a power
+    // that amplifies that exponent and check that we get the expected units.
+    // Note: a tiny exponent must only be discarded if it is genuinely cancelled out by another exponent.
+
+    struct TestCase
+    {
+        std::string tinySecondUnits;
+        std::string base;
+        std::string expectedUnits;
+    };
+
+    static const std::string TINY_SECOND = "<unit exponent=\"1e-16\" units=\"second\"/>";
+    static const std::string MINUS_TINY_SECOND = "<unit exponent=\"-1e-16\" units=\"second\"/>";
+    static const std::string ZERO_SECOND = "<unit exponent=\"0\" units=\"second\"/>";
+    static const std::string CN = "<cn cellml:units=\"tiny_second\">2</cn>";
+    static const std::vector<TestCase> testCases = {
+        {TINY_SECOND, CN, "second"},
+        {TINY_SECOND + ZERO_SECOND, CN, "second"},
+        {ZERO_SECOND + TINY_SECOND, CN, "second"},
+        {TINY_SECOND + TINY_SECOND, CN, "second_squared"},
+        {TINY_SECOND + MINUS_TINY_SECOND, CN, "dimensionless"},
+        {MINUS_TINY_SECOND + TINY_SECOND, CN, "dimensionless"},
+        {TINY_SECOND, "<apply><times/>" + CN + CN + "</apply>", "second_squared"},
+        {TINY_SECOND, "<apply><divide/>" + CN + CN + "</apply>", "dimensionless"},
+    };
+
+    auto parser = libcellml::Parser::create();
+    auto analyser = libcellml::Analyser::create();
+
+    for (const auto &testCase : testCases) {
+        auto model = parser->parseModel(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<model xmlns=\"http://www.cellml.org/cellml/2.0#\" xmlns:cellml=\"http://www.cellml.org/cellml/2.0#\" name=\"m\">\n"
+            "  <units name=\"tiny_second\">\n"
+            "    "
+            + testCase.tinySecondUnits + "\n"
+                                         "  </units>\n"
+                                         "  <units name=\"second_squared\">\n"
+                                         "    <unit exponent=\"2\" units=\"second\"/>\n"
+                                         "  </units>\n"
+                                         "  <component name=\"c\">\n"
+                                         "    <variable name=\"x\" units=\""
+            + testCase.expectedUnits + "\"/>\n"
+                                       "    <math xmlns=\"http://www.w3.org/1998/Math/MathML\">\n"
+                                       "      <apply>\n"
+                                       "        <eq/>\n"
+                                       "        <ci>x</ci>\n"
+                                       "        <apply>\n"
+                                       "          <power/>\n"
+                                       "          "
+            + testCase.base + "\n"
+                              "          <cn cellml:units=\"dimensionless\" type=\"e-notation\">1<sep/>16</cn>\n"
+                              "        </apply>\n"
+                              "      </apply>\n"
+                              "    </math>\n"
+                              "  </component>\n"
+                              "</model>\n");
+
+        analyser->analyseModel(model);
+
+        EXPECT_EQ(size_t(0), analyser->issueCount()) << testCase.tinySecondUnits << " | " << testCase.base;
+    }
+}
+
+TEST(AnalyserUnits, tinyExponentNotEquivalentToDimensionless)
+{
+    // Units with a tiny exponent (i.e., as tiny as, or tinier than, the machine epsilon) are not dimensionless, so they
+    // must not be considered as equivalent to dimensionless, but they must be considered as equivalent to themselves.
+
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<model xmlns=\"http://www.cellml.org/cellml/2.0#\" xmlns:cellml=\"http://www.cellml.org/cellml/2.0#\" name=\"m\">\n"
+        "  <units name=\"tiny_second\">\n"
+        "    <unit exponent=\"1e-16\" units=\"second\"/>\n"
+        "  </units>\n"
+        "  <component name=\"c\">\n"
+        "    <variable name=\"x\" units=\"dimensionless\"/>\n"
+        "    <variable name=\"y\" units=\"tiny_second\"/>\n"
+        "    <math xmlns=\"http://www.w3.org/1998/Math/MathML\">\n"
+        "      <apply>\n"
+        "        <eq/>\n"
+        "        <ci>x</ci>\n"
+        "        <cn cellml:units=\"tiny_second\">2</cn>\n"
+        "      </apply>\n"
+        "      <apply>\n"
+        "        <eq/>\n"
+        "        <ci>y</ci>\n"
+        "        <cn cellml:units=\"tiny_second\">3</cn>\n"
+        "      </apply>\n"
+        "    </math>\n"
+        "  </component>\n"
+        "</model>\n");
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    const std::vector<std::string> expectedIssues = {
+        "The units in 'x = 2.0' in component 'c' are not equivalent. 'x' is 'dimensionless' while '2.0' is in 'tiny_second' (i.e. 'second^1e-16').",
+    };
+
+    EXPECT_EQ_ISSUES(expectedIssues, analyser);
+}
+
+TEST(AnalyserUnits, overflowingExponent)
+{
+    // Units with exponents that overflow when added together (i.e. resulting in an infinite exponent) are not
+    // dimensionless, so they must not be considered as cancelling each other.
+
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<model xmlns=\"http://www.cellml.org/cellml/2.0#\" xmlns:cellml=\"http://www.cellml.org/cellml/2.0#\" name=\"m\">\n"
+        "  <units name=\"huge_second\">\n"
+        "    <unit exponent=\"1e308\" units=\"second\"/>\n"
+        "    <unit exponent=\"1e308\" units=\"second\"/>\n"
+        "    <unit exponent=\"1\" units=\"second\"/>\n"
+        "  </units>\n"
+        "  <component name=\"c\">\n"
+        "    <variable name=\"x\" units=\"dimensionless\"/>\n"
+        "    <math xmlns=\"http://www.w3.org/1998/Math/MathML\">\n"
+        "      <apply>\n"
+        "        <eq/>\n"
+        "        <ci>x</ci>\n"
+        "        <apply>\n"
+        "          <exp/>\n"
+        "          <cn cellml:units=\"huge_second\">2</cn>\n"
+        "        </apply>\n"
+        "      </apply>\n"
+        "    </math>\n"
+        "  </component>\n"
+        "</model>\n");
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    const std::vector<std::string> expectedIssues = {
+        "The unit of '2.0' in 'exp(2.0)' in equation 'x = exp(2.0)' in component 'c' is not dimensionless. '2.0' is in 'huge_second' (i.e. 'second^inf').",
+    };
+
+    EXPECT_EQ_ISSUES(expectedIssues, analyser);
+}
+
+TEST(AnalyserUnits, zeroExponent)
+{
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<model xmlns=\"http://www.cellml.org/cellml/2.0#\" xmlns:cellml=\"http://www.cellml.org/cellml/2.0#\" name=\"m\">\n"
+        "  <units name=\"second_to_the_zero\">\n"
+        "    <unit exponent=\"0\" units=\"second\"/>\n"
+        "  </units>\n"
+        "  <component name=\"c\">\n"
+        "    <variable name=\"x\" units=\"dimensionless\"/>\n"
+        "    <math xmlns=\"http://www.w3.org/1998/Math/MathML\">\n"
+        "      <apply>\n"
+        "        <eq/>\n"
+        "        <ci>x</ci>\n"
+        "        <apply>\n"
+        "          <exp/>\n"
+        "          <cn cellml:units=\"second_to_the_zero\">2</cn>\n"
+        "        </apply>\n"
+        "      </apply>\n"
+        "    </math>\n"
+        "  </component>\n"
+        "</model>\n");
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    EXPECT_EQ(size_t(0), analyser->issueCount());
+}
+
 TEST(AnalyserUnits, rhs)
 {
     auto parser = libcellml::Parser::create();
