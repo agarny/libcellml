@@ -189,6 +189,7 @@ public:
 
     void analyseEquationAst(const AnalyserEquationAstPtr &ast);
 
+    void updateUnitsMapItem(UnitsMap &unitsMap, const std::string &unitsName, double unitsExponent);
     void updateUnitsMapWithStandardUnit(const std::string &unitsName,
                                         UnitsMap &unitsMap,
                                         double unitsExponent);

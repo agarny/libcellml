@@ -1111,6 +1111,21 @@ void Analyser::AnalyserImpl::analyseEquationAst(const AnalyserEquationAstPtr &as
     analyseEquationAst(ast->mPimpl->mOwnedRightChild);
 }
 
+void Analyser::AnalyserImpl::updateUnitsMapItem(UnitsMap &unitsMap, const std::string &unitsName, double unitsExponent)
+{
+    // Add the given exponent to the given units in the given units map. If the resulting exponent is zero (e.g., the
+    // units cancel each other, as in volt.mV^-1), then we stop tracking the units, as we would otherwise think that the
+    // units map is not dimensionless when it actually is.
+
+    auto &exponent = unitsMap[unitsName];
+
+    exponent += unitsExponent;
+
+    if (areNearlyEqual(exponent, 0.0)) {
+        unitsMap.erase(unitsName);
+    }
+}
+
 void Analyser::AnalyserImpl::updateUnitsMapWithStandardUnit(const std::string &unitsName,
                                                             UnitsMap &unitsMap,
                                                             double unitsExponent)
@@ -1118,11 +1133,7 @@ void Analyser::AnalyserImpl::updateUnitsMapWithStandardUnit(const std::string &u
     // Update the given units map using the given standard unit.
 
     for (const auto &iter : standardUnitsList.at(unitsName)) {
-        if (unitsMap.find(iter.first) == unitsMap.end()) {
-            unitsMap.emplace(iter.first, 0.0);
-        }
-
-        unitsMap[iter.first] += iter.second * unitsExponent;
+        updateUnitsMapItem(unitsMap, iter.first, iter.second * unitsExponent);
     }
 }
 
@@ -1146,13 +1157,7 @@ void Analyser::AnalyserImpl::updateUnitsMap(const ModelPtr &model,
             UnitsPtr units = model->units(unitsName);
 
             if (units->isBaseUnit()) {
-                auto iter = unitsMap.find(unitsName);
-
-                if (iter == unitsMap.end()) {
-                    unitsMap.emplace(unitsName, unitsExponent);
-                } else {
-                    unitsMap[iter->first] += unitsExponent;
-                }
+                updateUnitsMapItem(unitsMap, unitsName, unitsExponent);
             } else {
                 std::string reference;
                 std::string prefix;

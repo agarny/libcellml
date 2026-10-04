@@ -795,6 +795,54 @@ TEST(AnalyserUnits, inheritedMultiplierAppliedOncePerBranch)
     EXPECT_EQ(size_t(0), analyser->issueCount());
 }
 
+TEST(AnalyserUnits, dimensionlessProductWithCancellingUnitsAsFirstOperand)
+{
+    static const std::string MODEL_START =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<model xmlns=\"http://www.cellml.org/cellml/2.0#\" xmlns:cellml=\"http://www.cellml.org/cellml/2.0#\" name=\"m\">\n"
+        "  <units name=\"mV\">\n"
+        "    <unit prefix=\"milli\" units=\"volt\"/>\n"
+        "  </units>\n"
+        "  <units name=\"V_per_mV\">\n"
+        "    <unit units=\"volt\"/>\n"
+        "    <unit exponent=\"-1\" units=\"mV\"/>\n"
+        "  </units>\n"
+        "  <units name=\"per_V\">\n"
+        "    <unit exponent=\"-1\" units=\"volt\"/>\n"
+        "  </units>\n"
+        "  <component name=\"c\">\n"
+        "    <variable name=\"V\" units=\"mV\" initial_value=\"1\"/>\n"
+        "    <variable name=\"k\" units=\"per_V\" initial_value=\"1\"/>\n"
+        "    <variable name=\"x\" units=\"dimensionless\"/>\n"
+        "    <math xmlns=\"http://www.w3.org/1998/Math/MathML\">\n"
+        "      <apply>\n"
+        "        <eq/>\n"
+        "        <ci>x</ci>\n"
+        "        <apply>\n"
+        "          <exp/>\n"
+        "          <apply>\n"
+        "            <times/>\n";
+    static const std::string MODEL_END =
+        "          </apply>\n"
+        "        </apply>\n"
+        "      </apply>\n"
+        "    </math>\n"
+        "  </component>\n"
+        "</model>\n";
+    static const std::string CN = "<cn cellml:units=\"V_per_mV\">2</cn>";
+    static const std::string V = "<ci>V</ci>";
+    static const std::string K = "<ci>k</ci>";
+
+    auto parser = libcellml::Parser::create();
+    auto analyser = libcellml::Analyser::create();
+
+    for (const auto &product : {CN + V + K, V + CN + K, V + K + CN}) {
+        analyser->analyseModel(parser->parseModel(MODEL_START + product + MODEL_END));
+
+        EXPECT_EQ(size_t(0), analyser->issueCount());
+    }
+}
+
 TEST(AnalyserUnits, rhs)
 {
     auto parser = libcellml::Parser::create();
