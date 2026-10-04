@@ -20,8 +20,10 @@ limitations under the License.
 
 #include "libcellml/analyser.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <limits>
 
 #include "libcellml/analyserequation.h"
 #include "libcellml/analyserexternalvariable.h"
@@ -1117,8 +1119,11 @@ void Analyser::AnalyserImpl::updateUnitsMapItem(UnitsMap &unitsMap, const std::s
     // track them with the given exponent, unless it is zero. Otherwise, we add the given exponent to the existing one
     // and, if the units now cancel each other dimensionally (e.g., volt.mV^-1), we stop tracking them, as we would
     // otherwise think that the units map is not dimensionless when it actually is.
-    // Note: we only use a tolerant comparison when combining exponents since a tiny exponent (e.g., 1e-16) may still be
-    //       amplified later on (e.g., by a power operation).
+    // Note: the units cancel each other if the resulting exponent is negligible compared to the exponents that we add
+    //       together. We cannot simply check whether the resulting exponent is nearly zero since a tiny exponent (e.g.,
+    //       1e-16) may be genuine and still be amplified later on (e.g., by a power operation).
+
+    static const double CANCELLATION_TOLERANCE = 8.0 * std::numeric_limits<double>::epsilon();
 
     auto iter = unitsMap.find(unitsName);
 
@@ -1127,10 +1132,12 @@ void Analyser::AnalyserImpl::updateUnitsMapItem(UnitsMap &unitsMap, const std::s
             unitsMap.emplace(unitsName, unitsExponent);
         }
     } else {
-        iter->second += unitsExponent;
+        auto exponent = iter->second + unitsExponent;
 
-        if (areNearlyEqual(iter->second, 0.0)) {
+        if (std::fabs(exponent) <= CANCELLATION_TOLERANCE * std::max(std::fabs(iter->second), std::fabs(unitsExponent))) {
             unitsMap.erase(iter);
+        } else {
+            iter->second = exponent;
         }
     }
 }
@@ -1201,20 +1208,7 @@ UnitsMap Analyser::AnalyserImpl::multiplyDivideUnitsMaps(const UnitsMap &firstUn
     auto sign = multiply ? 1.0 : -1.0;
 
     for (const auto &units : secondUnitsMap) {
-        auto it = res.find(units.first);
-
-        if (it == res.end()) {
-            res.emplace(units.first, sign * units.second);
-        } else {
-            it->second += sign * units.second;
-
-            if (areNearlyEqual(it->second, 0.0)) {
-                // The units has now an exponent value of zero, so no need to
-                // track it anymore.
-
-                res.erase(it);
-            }
-        }
+        updateUnitsMapItem(res, units.first, sign * units.second);
     }
 
     return res;

@@ -845,33 +845,68 @@ TEST(AnalyserUnits, dimensionlessProductWithCancellingUnitsAsFirstOperand)
 
 TEST(AnalyserUnits, tinyExponentAmplifiedByPower)
 {
+    // Raise a constant in units with a tiny exponent (i.e. as tiny as, or tinier than, the machine epsilon) to a power
+    // that amplifies that exponent and check that we get the expected units.
+    // Note: a tiny exponent must only be discarded if it is genuinely cancelled out by another exponent.
+
+    struct TestCase
+    {
+        std::string tinySecondUnits;
+        std::string base;
+        std::string expectedUnits;
+    };
+
+    static const std::string TINY_SECOND = "<unit exponent=\"1e-16\" units=\"second\"/>";
+    static const std::string MINUS_TINY_SECOND = "<unit exponent=\"-1e-16\" units=\"second\"/>";
+    static const std::string ZERO_SECOND = "<unit exponent=\"0\" units=\"second\"/>";
+    static const std::string CN = "<cn cellml:units=\"tiny_second\">2</cn>";
+    static const std::vector<TestCase> testCases = {
+        {TINY_SECOND, CN, "second"},
+        {TINY_SECOND + ZERO_SECOND, CN, "second"},
+        {ZERO_SECOND + TINY_SECOND, CN, "second"},
+        {TINY_SECOND + TINY_SECOND, CN, "second_squared"},
+        {TINY_SECOND + MINUS_TINY_SECOND, CN, "dimensionless"},
+        {MINUS_TINY_SECOND + TINY_SECOND, CN, "dimensionless"},
+        {TINY_SECOND, "<apply><times/>" + CN + CN + "</apply>", "second_squared"},
+        {TINY_SECOND, "<apply><divide/>" + CN + CN + "</apply>", "dimensionless"},
+    };
+
     auto parser = libcellml::Parser::create();
-    auto model = parser->parseModel(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-        "<model xmlns=\"http://www.cellml.org/cellml/2.0#\" xmlns:cellml=\"http://www.cellml.org/cellml/2.0#\" name=\"m\">\n"
-        "  <units name=\"tiny_second\">\n"
-        "    <unit exponent=\"1e-16\" units=\"second\"/>\n"
-        "  </units>\n"
-        "  <component name=\"c\">\n"
-        "    <variable name=\"x\" units=\"second\"/>\n"
-        "    <math xmlns=\"http://www.w3.org/1998/Math/MathML\">\n"
-        "      <apply>\n"
-        "        <eq/>\n"
-        "        <ci>x</ci>\n"
-        "        <apply>\n"
-        "          <power/>\n"
-        "          <cn cellml:units=\"tiny_second\">2</cn>\n"
-        "          <cn cellml:units=\"dimensionless\" type=\"e-notation\">1<sep/>16</cn>\n"
-        "        </apply>\n"
-        "      </apply>\n"
-        "    </math>\n"
-        "  </component>\n"
-        "</model>\n");
     auto analyser = libcellml::Analyser::create();
 
-    analyser->analyseModel(model);
+    for (const auto &testCase : testCases) {
+        auto model = parser->parseModel(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<model xmlns=\"http://www.cellml.org/cellml/2.0#\" xmlns:cellml=\"http://www.cellml.org/cellml/2.0#\" name=\"m\">\n"
+            "  <units name=\"tiny_second\">\n"
+            "    "
+            + testCase.tinySecondUnits + "\n"
+                                         "  </units>\n"
+                                         "  <units name=\"second_squared\">\n"
+                                         "    <unit exponent=\"2\" units=\"second\"/>\n"
+                                         "  </units>\n"
+                                         "  <component name=\"c\">\n"
+                                         "    <variable name=\"x\" units=\""
+            + testCase.expectedUnits + "\"/>\n"
+                                       "    <math xmlns=\"http://www.w3.org/1998/Math/MathML\">\n"
+                                       "      <apply>\n"
+                                       "        <eq/>\n"
+                                       "        <ci>x</ci>\n"
+                                       "        <apply>\n"
+                                       "          <power/>\n"
+                                       "          "
+            + testCase.base + "\n"
+                              "          <cn cellml:units=\"dimensionless\" type=\"e-notation\">1<sep/>16</cn>\n"
+                              "        </apply>\n"
+                              "      </apply>\n"
+                              "    </math>\n"
+                              "  </component>\n"
+                              "</model>\n");
 
-    EXPECT_EQ(size_t(0), analyser->issueCount());
+        analyser->analyseModel(model);
+
+        EXPECT_EQ(size_t(0), analyser->issueCount()) << testCase.tinySecondUnits << " | " << testCase.base;
+    }
 }
 
 TEST(AnalyserUnits, zeroExponent)
