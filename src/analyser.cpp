@@ -1113,16 +1113,25 @@ void Analyser::AnalyserImpl::analyseEquationAst(const AnalyserEquationAstPtr &as
 
 void Analyser::AnalyserImpl::updateUnitsMapItem(UnitsMap &unitsMap, const std::string &unitsName, double unitsExponent)
 {
-    // Add the given exponent to the given units in the given units map. If the resulting exponent is zero (e.g., the
-    // units cancel each other, as in volt.mV^-1), then we stop tracking the units, as we would otherwise think that the
-    // units map is not dimensionless when it actually is.
+    // Add the given exponent to the given units in the given units map. If the units are not yet tracked, then we
+    // track them with the given exponent, unless it is zero. Otherwise, we add the given exponent to the existing one
+    // and, if the units now cancel each other dimensionally (e.g., volt.mV^-1), we stop tracking them, as we would
+    // otherwise think that the units map is not dimensionless when it actually is.
+    // Note: we only use a tolerant comparison when combining exponents since a tiny exponent (e.g., 1e-16) may still be
+    //       amplified later on (e.g., by a power operation).
 
-    auto &exponent = unitsMap[unitsName];
+    auto iter = unitsMap.find(unitsName);
 
-    exponent += unitsExponent;
+    if (iter == unitsMap.end()) {
+        if (unitsExponent != 0.0) {
+            unitsMap.emplace(unitsName, unitsExponent);
+        }
+    } else {
+        iter->second += unitsExponent;
 
-    if (areNearlyEqual(exponent, 0.0)) {
-        unitsMap.erase(unitsName);
+        if (areNearlyEqual(iter->second, 0.0)) {
+            unitsMap.erase(iter);
+        }
     }
 }
 

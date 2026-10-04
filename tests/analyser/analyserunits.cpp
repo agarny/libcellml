@@ -843,6 +843,67 @@ TEST(AnalyserUnits, dimensionlessProductWithCancellingUnitsAsFirstOperand)
     }
 }
 
+TEST(AnalyserUnits, tinyExponentAmplifiedByPower)
+{
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<model xmlns=\"http://www.cellml.org/cellml/2.0#\" xmlns:cellml=\"http://www.cellml.org/cellml/2.0#\" name=\"m\">\n"
+        "  <units name=\"tiny_second\">\n"
+        "    <unit exponent=\"1e-16\" units=\"second\"/>\n"
+        "  </units>\n"
+        "  <component name=\"c\">\n"
+        "    <variable name=\"x\" units=\"second\"/>\n"
+        "    <math xmlns=\"http://www.w3.org/1998/Math/MathML\">\n"
+        "      <apply>\n"
+        "        <eq/>\n"
+        "        <ci>x</ci>\n"
+        "        <apply>\n"
+        "          <power/>\n"
+        "          <cn cellml:units=\"tiny_second\">2</cn>\n"
+        "          <cn cellml:units=\"dimensionless\" type=\"e-notation\">1<sep/>16</cn>\n"
+        "        </apply>\n"
+        "      </apply>\n"
+        "    </math>\n"
+        "  </component>\n"
+        "</model>\n");
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    EXPECT_EQ(size_t(0), analyser->issueCount());
+}
+
+TEST(AnalyserUnits, zeroExponent)
+{
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<model xmlns=\"http://www.cellml.org/cellml/2.0#\" xmlns:cellml=\"http://www.cellml.org/cellml/2.0#\" name=\"m\">\n"
+        "  <units name=\"second_to_the_zero\">\n"
+        "    <unit exponent=\"0\" units=\"second\"/>\n"
+        "  </units>\n"
+        "  <component name=\"c\">\n"
+        "    <variable name=\"x\" units=\"dimensionless\"/>\n"
+        "    <math xmlns=\"http://www.w3.org/1998/Math/MathML\">\n"
+        "      <apply>\n"
+        "        <eq/>\n"
+        "        <ci>x</ci>\n"
+        "        <apply>\n"
+        "          <exp/>\n"
+        "          <cn cellml:units=\"second_to_the_zero\">2</cn>\n"
+        "        </apply>\n"
+        "      </apply>\n"
+        "    </math>\n"
+        "  </component>\n"
+        "</model>\n");
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    EXPECT_EQ(size_t(0), analyser->issueCount());
+}
+
 TEST(AnalyserUnits, rhs)
 {
     auto parser = libcellml::Parser::create();
