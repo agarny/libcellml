@@ -2811,8 +2811,7 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
                 }
             }
 
-            if ((internalEquation->mNlaSiblings.size() + 1 < internalEquation->mUnknownVariables.size())
-                || (nlaEquationCount < nlaUnknownVariables.size())) {
+            if (nlaEquationCount < nlaUnknownVariables.size()) {
                 // There are fewer NLA equations than unknown variables, so all the unknown variables involved in the
                 // NLA system should be considered as underconstrained.
 
