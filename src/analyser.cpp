@@ -2694,14 +2694,9 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
         }
 
         // Make the NLA equations that compute the same variables aware of one
-        // another and assign them an index for the NLA system in which they are
-        // used.
+        // another.
 
         if (internalEquation->mType == AnalyserInternalEquation::Type::NLA) {
-            if (internalEquation->mNlaSystemIndex == MAX_SIZE_T) {
-                internalEquation->mNlaSystemIndex = ++nlaSystemIndex;
-            }
-
             for (const auto &otherInternalEquation : mInternalEquations) {
                 if ((otherInternalEquation != internalEquation)
                     && (otherInternalEquation->mType == AnalyserInternalEquation::Type::NLA)) {
@@ -2724,14 +2719,36 @@ void Analyser::AnalyserImpl::analyseModel(const ModelPtr &model)
                     }
 
                     // Consider otherInternalEquation as an NLA sibling of
-                    // internalEquation, if there are some common unknown
-                    // variables, and make sure that it has the same NLA system
-                    // index as internalEquation.
+                    // internalEquation, if there are some common unknown variables.
 
                     if (!commonUnknownVariables.empty()) {
                         internalEquation->mNlaSiblings.push_back(otherInternalEquation);
+                    }
+                }
+            }
+        }
+    }
 
-                        otherInternalEquation->mNlaSystemIndex = internalEquation->mNlaSystemIndex;
+    // Assign an index to each of our NLA systems, i.e. to each set of NLA equations that are, directly or indirectly,
+    // NLA siblings of one another.
+    // Note: we cannot assign those indices while determining the NLA siblings since two sets of NLA equations may only
+    //       be found to belong to the same NLA system once we come across an NLA equation that bridges them.
+
+    for (const auto &internalEquation : mInternalEquations) {
+        if ((internalEquation->mType == AnalyserInternalEquation::Type::NLA)
+            && (internalEquation->mNlaSystemIndex == MAX_SIZE_T)) {
+            AnalyserInternalEquationPtrs nlaSystemEquations = {internalEquation};
+
+            internalEquation->mNlaSystemIndex = ++nlaSystemIndex;
+
+            for (size_t i = 0; i < nlaSystemEquations.size(); ++i) {
+                for (const auto &nlaSibling : nlaSystemEquations[i]->mNlaSiblings) {
+                    auto nlaSiblingEquation = nlaSibling.lock();
+
+                    if (nlaSiblingEquation->mNlaSystemIndex == MAX_SIZE_T) {
+                        nlaSiblingEquation->mNlaSystemIndex = nlaSystemIndex;
+
+                        nlaSystemEquations.push_back(nlaSiblingEquation);
                     }
                 }
             }

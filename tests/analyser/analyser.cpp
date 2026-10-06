@@ -1099,6 +1099,35 @@ TEST(Analyser, overconstrainedNlaSystem)
     EXPECT_EQ(libcellml::AnalyserModel::Type::OVERCONSTRAINED, analyser->analyserModel()->type());
 }
 
+TEST(Analyser, overconstrainedBridgedNlaSystem)
+{
+    auto parser = libcellml::Parser::create();
+    auto model = parser->parseModel(fileContents("analyser/overconstrained_bridged_nla_system.cellml"));
+
+    EXPECT_EQ(size_t(0), parser->issueCount());
+
+    const std::vector<std::string> expectedIssues = {
+        "Variable 'b' in component 'main' is overconstrained.",
+        "Variable 'a' in component 'main' is overconstrained.",
+        "Variable 'c' in component 'main' is overconstrained.",
+        "Variable 'f' in component 'main' is overconstrained.",
+        "Variable 'e' in component 'main' is overconstrained.",
+    };
+
+    auto analyser = libcellml::Analyser::create();
+
+    analyser->analyseModel(model);
+
+    EXPECT_EQ_ISSUES_CELLMLELEMENTTYPES_LEVELS_REFERENCERULES_URLS(expectedIssues,
+                                                                   expectedCellmlElementTypes(expectedIssues.size(), libcellml::CellmlElementType::VARIABLE),
+                                                                   expectedLevels(expectedIssues.size(), libcellml::Issue::Level::ERROR),
+                                                                   expectedReferenceRules(expectedIssues.size(), libcellml::Issue::ReferenceRule::ANALYSER_VARIABLE_OVERCONSTRAINED),
+                                                                   expectedUrls(expectedIssues.size(), "https://libcellml.org/documentation/guides/latest/runtime_codes/index?issue=ANALYSER_VARIABLE_OVERCONSTRAINED"),
+                                                                   analyser);
+
+    EXPECT_EQ(libcellml::AnalyserModel::Type::OVERCONSTRAINED, analyser->analyserModel()->type());
+}
+
 TEST(Analyser, unsuitablyConstrainedNlaSystem)
 {
     auto parser = libcellml::Parser::create();
