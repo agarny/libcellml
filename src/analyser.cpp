@@ -2379,7 +2379,7 @@ AnalyserInternalVariablePtrs Analyser::AnalyserImpl::initialisationDependencies(
         if ((internalEquation->mType == AnalyserInternalEquation::Type::COMPUTED_CONSTANT)
             && (internalEquation->mUnknownVariables.front() == internalVariable)) {
             for (const auto &dependency : internalEquation->mDependencies) {
-                res.push_back(Analyser::AnalyserImpl::internalVariable(dependency));
+                res.push_back(dependency);
             }
         }
     }

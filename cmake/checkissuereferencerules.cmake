@@ -65,7 +65,7 @@ foreach(_INDEX RANGE ${_LAST_INDEX})
     message(FATAL_ERROR "ruleToInformation entry #${_INDEX} is for '${_ENTRY_RULE}', but Issue::ReferenceRule value #${_INDEX} is '${_RULE}'.")
   endif()
 
-  if(_RULE STREQUAL "UNDEFINED" OR _RULE STREQUAL "UNSPECIFIED")
+  if(_RULE STREQUAL "UNDEFINED")
     set(_EXPECTED_NAME "")
   else()
     set(_EXPECTED_NAME ${_RULE})
