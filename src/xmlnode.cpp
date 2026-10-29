@@ -224,6 +224,9 @@ bool XmlNode::isComment() const
 
 std::string XmlNode::name() const
 {
+    if (mPimpl->mXmlNodePtr->name == nullptr) {
+        return {};
+    }
     return reinterpret_cast<const char *>(mPimpl->mXmlNodePtr->name);
 }
 
