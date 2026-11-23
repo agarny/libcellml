@@ -315,8 +315,7 @@ std::string XmlNode::convertToString() const
 {
     xmlBufferPtr buffer = xmlBufferCreate();
     xmlNodeDump(buffer, mPimpl->mXmlNodePtr->doc, mPimpl->mXmlNodePtr, 0, 0);
-    const xmlChar *content = xmlBufferContent(buffer);
-    std::string contentString = std::string(reinterpret_cast<const char *>(content));
+    std::string contentString = std::string(reinterpret_cast<const char *>(xmlBufferContent(buffer)));
     xmlBufferFree(buffer);
     return contentString;
 }
