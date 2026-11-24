@@ -2103,9 +2103,18 @@ void Validator::ValidatorImpl::validateMathMLElementsChildrenAndSiblings(const X
 
         hasOneMathmlSibling(parentNode, node, component)
             && isFirstMathmlSibling(parentNode, node, component);
-    } else if (node->isMathmlElement("min")) {
-    } else if (node->isMathmlElement("max")) {
+    } else if (node->isMathmlElement("min")
+               || node->isMathmlElement("max")) {
+        auto parentNode = node->parent();
+
+        hasAtLeastOneMathmlSibling(parentNode, node, component)
+            && isFirstMathmlSibling(parentNode, node, component);
     } else if (node->isMathmlElement("rem")) {
+        auto parentNode = node->parent();
+
+        hasTwoMathmlSiblings(parentNode, node, component)
+            && isFirstMathmlSibling(parentNode, node, component);
+
         // Calculus elements.
 
     } else if (node->isMathmlElement("diff")) {
